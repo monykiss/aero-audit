@@ -21,3 +21,4 @@ runs/
 logs/
 reports/*
 !reports/.gitkeep
+data/space/
