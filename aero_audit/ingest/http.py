@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -65,3 +66,62 @@ async def get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] |
             print(f"[http] httpx connect failed ({type(e).__name__}); using curl transport from now on", flush=True)
             switch_to_curl()
     return await curl_json(url, params, headers)
+
+
+def download_file(url: str, target: str | Path, headers: dict[str, str] | None = None, max_bytes: int | None = None,
+                  timeout: float = 120.0) -> tuple[int, str]:
+    """Stream ``url`` to ``target``; returns (bytes, sha256). Uses httpx, or curl once httpx cannot connect
+    (the same sticky fallback as get_json). Refuses to keep more than ``max_bytes``."""
+    import hashlib
+    import subprocess
+
+    target = Path(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    hdrs = {"User-Agent": settings.user_agent, **(headers or {})}
+
+    def _hash_and_size() -> tuple[int, str]:
+        digest = hashlib.sha256()
+        n = 0
+        with open(target, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                n += len(chunk)
+                digest.update(chunk)
+        return n, digest.hexdigest()
+
+    if not using_curl():
+        try:
+            digest = hashlib.sha256()
+            n = 0
+            with httpx.Client(timeout=timeout, follow_redirects=True) as client, client.stream("GET", url, headers=hdrs) as r:
+                r.raise_for_status()
+                with open(target, "wb") as fh:
+                    for chunk in r.iter_bytes(1 << 20):
+                        n += len(chunk)
+                        if max_bytes is not None and n > max_bytes:
+                            raise ValueError(f"{url} exceeds max_bytes={max_bytes}")
+                        digest.update(chunk)
+                        fh.write(chunk)
+            return n, digest.hexdigest()
+        except (httpx.ConnectTimeout, httpx.ConnectError) as e:
+            target.unlink(missing_ok=True)
+            if BACKEND == "httpx":
+                raise
+            print(f"[http] httpx connect failed ({type(e).__name__}); using curl transport from now on", flush=True)
+            switch_to_curl()
+        except ValueError:
+            target.unlink(missing_ok=True)
+            raise
+    args = ["curl", "-fsSL", "-m", str(int(timeout)), "-A", settings.user_agent, "-o", str(target)]
+    if max_bytes is not None:
+        args += ["--max-filesize", str(max_bytes)]
+    for k, v in hdrs.items():
+        if k.lower() != "user-agent":
+            args += ["-H", f"{k}: {v}"]
+    proc = subprocess.run([*args, url], capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        target.unlink(missing_ok=True)
+        if proc.returncode == 63:
+            raise ValueError(f"{url} exceeds max_bytes={max_bytes}")
+        raise httpx.ConnectError(f"curl exit {proc.returncode}: {proc.stderr.strip()}")
+    return _hash_and_size()
+

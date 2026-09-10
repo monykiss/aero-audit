@@ -893,5 +893,145 @@ def log_verify_report(manifest: Path = typer.Argument(..., help="reports/<name>.
     con.print("[green]all files match the manifest")
 
 
+# ---- space intake (NASA open assets, launch footage, telemetry) ---------------------------------
+space_app = typer.Typer(help="NASA open assets and launch footage: catalogue, verified download, frames, captions, telemetry audit.")
+app.add_typer(space_app, name="space")
+
+
+@space_app.command("catalog")
+def space_catalog(
+    ref: str = typer.Option("master"),
+    out: Path = typer.Option(Path("data/space/nasa3d_catalog.json")),
+    kind: str | None = typer.Option(None, help="model | image | archive | doc | other"),
+    subject: str | None = typer.Option(None, help="Regex on the subject folder or path, e.g. 'ISS|Orion'"),
+    limit: int = typer.Option(25),
+) -> None:
+    """List nasa/NASA-3D-Resources (1,500+ files, 5 GB) without cloning it; write a catalogue with git blob ids."""
+    from .space.nasa3d import fetch_catalog, save_catalog
+
+    cat = asyncio.run(fetch_catalog(ref))
+    path = save_catalog(cat, out)
+    s = cat.summary()
+    con.print(f"{s['assets']} assets, {s['bytes'] / 1e9:.2f} GB, {s['subjects']} subjects; by kind {s['by_kind']}")
+    con.print(f"Catalogue: [bold]{path}[/]  (licence: {cat.licence[:60]}...)")
+    t = Table("kind", "size", "subject", "file", "blob sha1")
+    for a in cat.filter(kind, subject)[:limit]:
+        t.add_row(a.kind, f"{a.size / 1e6:.1f} MB", a.subject[:40], a.name[:48], a.sha[:10])
+    con.print(t)
+
+
+@space_app.command("fetch")
+def space_fetch(
+    subject: str = typer.Argument(..., help="Regex on the subject folder or path"),
+    kind: str | None = typer.Option("image", help="model | image | archive | doc; omit for all"),
+    max_mb: float = typer.Option(50.0, help="Skip files larger than this"),
+    limit: int = typer.Option(5),
+    catalog: Path = typer.Option(Path("data/space/nasa3d_catalog.json")),
+    dest: Path = typer.Option(Path("data/space/nasa3d")),
+) -> None:
+    """Download matching assets from the catalogue; every file is verified against its git blob id."""
+    from .space.nasa3d import download, load_catalog
+
+    cat = load_catalog(catalog)
+    picks = cat.filter(kind or None, subject, max_bytes=int(max_mb * 1e6))[:limit]
+    if not picks:
+        raise typer.BadParameter("nothing matched; run `aero space catalog` first or loosen the filter")
+    for a in picks:
+        try:
+            p = asyncio.run(download(a, dest, cat.ref))
+            con.print(f"[green]ok[/] {a.path} ({a.size / 1e6:.1f} MB) -> {p}")
+        except (ValueError, PermissionError) as e:
+            con.print(f"[red]refused[/] {a.path}: {e}")
+
+
+@space_app.command("images")
+def space_images(
+    query: str = typer.Argument(..., help="Search text, e.g. 'Artemis launch'"),
+    media: str | None = typer.Option(None, help="image | video | audio"),
+    year_start: int | None = typer.Option(None),
+    year_end: int | None = typer.Option(None),
+    limit: int = typer.Option(10),
+    get: int | None = typer.Option(None, help="Download this result number"),
+    variant: str = typer.Option("medium", help="orig | large | medium | small | mobile | thumb | captions | metadata"),
+    dest: Path = typer.Option(Path("data/space/nasa_media")),
+) -> None:
+    """Search the NASA Image and Video Library; optionally download one rendition with a provenance sidecar."""
+    from .space.nasa_images import download, search
+
+    items, total = asyncio.run(search(query, media, year_start, year_end, limit))
+    con.print(f"{total} hits for '{query}'{' (' + media + ')' if media else ''}; showing {len(items)}")
+    t = Table("#", "nasa_id", "type", "date", "centre", "title")
+    for i, it in enumerate(items, 1):
+        t.add_row(str(i), it.nasa_id[:44], it.media_type, it.date_created[:10], it.center or "", it.title[:60] + (" [c]" if it.copyright else ""))
+    con.print(t)
+    if get:
+        if not 1 <= get <= len(items):
+            raise typer.BadParameter(f"--get must be 1..{len(items)}")
+        it = items[get - 1]
+        if it.copyright:
+            con.print(f"[yellow]note: this item carries a copyright line: {it.copyright}")
+        p = asyncio.run(download(it, variant, dest))
+        con.print(f"[green]saved[/] {p} (+ provenance sidecar, manifest updated)")
+
+
+@space_app.command("frames")
+def space_frames(
+    video: Path = typer.Argument(..., help="Local video file"),
+    every: float = typer.Option(1.0, help="Seconds between frames"),
+    max_frames: int = typer.Option(600),
+    start: float = typer.Option(0.0),
+    end: float | None = typer.Option(None),
+    out: Path | None = typer.Option(None),
+    detect: bool = typer.Option(False, help="Run the tiled detector on each frame (needs the [vision] extra)"),
+    weights: str = typer.Option("yolov8n.pt"),
+) -> None:
+    """Extract frames with a hashed manifest; optionally detect objects on each frame."""
+    from .space.footage import detect_frames, extract_frames
+
+    m = extract_frames(video, out, every, max_frames, start, end)
+    con.print(f"{len(m.frames)} frames from {video.name} ({m.fps:.2f} fps) -> {Path(m.frames[0]['file']).parent if m.frames else out}")
+    if detect and m.frames:
+        res = detect_frames(m, weights)
+        labels: dict[str, int] = {}
+        for r in res:
+            for lab in r["labels"]:
+                labels[lab] = labels.get(lab, 0) + 1
+        con.print(f"frames with detections: {sum(1 for r in res if r['detections'])}/{len(res)}; labels {labels}")
+        Path(m.frames[0]["file"]).parent.joinpath("detections.json").write_text(json.dumps(res, indent=1))
+
+
+@space_app.command("captions")
+def space_captions(srt: Path = typer.Argument(..., help="SRT caption file (NASA videos ship one)")) -> None:
+    """Parse captions into a launch-event timeline (liftoff, max-Q, MECO, separation, SECO, landing)."""
+    from .space.footage import events_from_captions, parse_srt, timeline_summary
+
+    caps = parse_srt(srt.read_text(errors="replace"))
+    summary = timeline_summary(events_from_captions(caps))
+    con.print(f"{len(caps)} captions; {len(summary['events'])} milestones; gaps {summary['gaps']}")
+    t = Table("t (s)", "event", "caption")
+    for e in summary["events"]:
+        t.add_row(f"{e['t_s']:.1f}", e["kind"], e["text"][:80])
+    con.print(t)
+
+
+@space_app.command("telemetry-audit")
+def space_telemetry(
+    csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
+    name: str | None = typer.Option(None),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Physics checks on a launch telemetry stream (SPC-001..005); writes JSON and Markdown reports."""
+    from .space.telemetry import audit_telemetry, load_csv, summarize, write_report
+
+    pts = load_csv(csv_path)
+    findings = audit_telemetry(pts, stream=csv_path.stem)
+    s = summarize(pts, findings)
+    con.print(f"{s['samples']} samples, max {s['max_speed_mps']} m/s, {s['max_altitude_km']} km; findings {s['findings']} {s['by_rule']}")
+    for f in findings:
+        con.print(f"  [{f.severity.value}] {f.rule_id} t={f.ts}s {f.title}")
+    jp, mp = write_report(pts, findings, out, f"{name or csv_path.stem}_telemetry_{_stamp()}")
+    con.print(f"Reports: {mp}, {jp}")
+
+
 if __name__ == "__main__":
     app()
