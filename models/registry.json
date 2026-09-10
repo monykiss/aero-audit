@@ -1,0 +1,268 @@
+[
+  {
+    "trained_at": "2026-09-09 23:00:11Z",
+    "model_path": "models/kinematic_iforest.joblib",
+    "sha256": "ded1e0942bd8eb2664076c10535b85274cf2d180fc64b012806a4e4b75a1e32d",
+    "recordings": [
+      "adsblol_nyc+ord+lax+lhr_20260909T220203Z.jsonl",
+      "opensky_bbox_20260909T220204Z.jsonl",
+      "adsblol_nyc_20260909T195300Z.jsonl",
+      "adsblol_lhr_20260909T195312Z.jsonl"
+    ],
+    "providers": [
+      "adsblol",
+      "opensky"
+    ],
+    "regions": [
+      "bbox",
+      "lax",
+      "lhr",
+      "nyc",
+      "ord"
+    ],
+    "rows": 87918,
+    "aircraft": 3436,
+    "contamination": 0.01,
+    "features": [
+      "implied_gs_kt",
+      "reported_gs_kt",
+      "gs_mismatch_kt",
+      "gs_mismatch_ratio",
+      "accel_kt_s",
+      "implied_vrate_fpm",
+      "reported_vrate_fpm",
+      "vrate_mismatch_fpm",
+      "turn_rate_dps",
+      "window_gs_std_kt",
+      "baro_alt_ft",
+      "dt_s"
+    ],
+    "holdout_flag_rate": 0.014395064549297384,
+    "evaluation": {
+      "created_at": "2026-09-09 23:03:26Z",
+      "rule_precision": {
+        "ML-001": 0.543859649122807,
+        "SEC-003": 1.0,
+        "SEC-010": 1.0,
+        "SEC-011": 0.9754098360655737,
+        "SEC-012": 1.0,
+        "SEC-014": 1.0,
+        "SEC-018": 0.7586206896551724
+      },
+      "recall": {
+        "teleport": 0.88,
+        "velocity_forge": 0.88,
+        "altitude_forge": 0.88,
+        "replay": 1.0,
+        "squawk_hijack": 1.0,
+        "integrity_degrade": 0.88,
+        "slow_drift": 0.16,
+        "ghost_perfect": 0.0
+      }
+    }
+  },
+  {
+    "trained_at": "2026-09-09 23:17:03Z",
+    "model_path": "models/kinematic_iforest.joblib",
+    "sha256": "7b787d9806d902801c2f48eefddbc199ac379bac2c89f330c5b41885353eefac",
+    "recordings": [
+      "adsblol_lhr_20260909T195312Z.jsonl",
+      "adsblol_nyc+ord+lax+lhr_20260909T220203Z.jsonl",
+      "adsblol_nyc_20260909T195300Z.jsonl",
+      "adsblol_sfo+dfw+atl+hnd_20260909T225058Z.jsonl",
+      "opensky_bbox_20260909T220204Z.jsonl",
+      "opensky_bbox_20260909T225059Z.jsonl"
+    ],
+    "providers": [
+      "adsblol",
+      "opensky"
+    ],
+    "regions": [
+      "atl",
+      "bbox",
+      "dfw",
+      "hnd",
+      "lax",
+      "lhr",
+      "nyc",
+      "ord",
+      "sfo"
+    ],
+    "rows": 150226,
+    "aircraft": 6155,
+    "contamination": 0.01,
+    "features": [
+      "implied_gs_kt",
+      "reported_gs_kt",
+      "gs_mismatch_kt",
+      "gs_mismatch_ratio",
+      "accel_kt_s",
+      "implied_vrate_fpm",
+      "reported_vrate_fpm",
+      "vrate_mismatch_fpm",
+      "turn_rate_dps",
+      "window_gs_std_kt",
+      "baro_alt_ft",
+      "dt_s"
+    ],
+    "holdout_flag_rate": 0.011552201929818704,
+    "evaluation": {
+      "created_at": "2026-09-09 23:19:53Z",
+      "rule_precision": {
+        "ML-001": 0.2357142857142857,
+        "SEC-003": 1.0,
+        "SEC-010": 1.0,
+        "SEC-011": 0.9014084507042254,
+        "SEC-012": 1.0,
+        "SEC-014": 1.0,
+        "SEC-018": 0.65
+      },
+      "recall": {
+        "teleport": 0.64,
+        "velocity_forge": 0.76,
+        "altitude_forge": 0.56,
+        "replay": 1.0,
+        "squawk_hijack": 1.0,
+        "integrity_degrade": 0.68,
+        "slow_drift": 0.12,
+        "ghost_perfect": 0.0
+      }
+    }
+  },
+  {
+    "trained_at": "2026-09-09 23:21:23Z",
+    "model_path": "models/kinematic_iforest.joblib",
+    "sha256": "7b787d9806d902801c2f48eefddbc199ac379bac2c89f330c5b41885353eefac",
+    "recordings": [
+      "adsblol_lhr_20260909T195312Z.jsonl",
+      "adsblol_nyc+ord+lax+lhr_20260909T220203Z.jsonl",
+      "adsblol_nyc_20260909T195300Z.jsonl",
+      "adsblol_sfo+dfw+atl+hnd_20260909T225058Z.jsonl",
+      "opensky_bbox_20260909T220204Z.jsonl",
+      "opensky_bbox_20260909T225059Z.jsonl"
+    ],
+    "providers": [
+      "adsblol",
+      "opensky"
+    ],
+    "regions": [
+      "atl",
+      "bbox",
+      "dfw",
+      "hnd",
+      "lax",
+      "lhr",
+      "nyc",
+      "ord",
+      "sfo"
+    ],
+    "rows": 150226,
+    "aircraft": 6155,
+    "contamination": 0.01,
+    "features": [
+      "implied_gs_kt",
+      "reported_gs_kt",
+      "gs_mismatch_kt",
+      "gs_mismatch_ratio",
+      "accel_kt_s",
+      "implied_vrate_fpm",
+      "reported_vrate_fpm",
+      "vrate_mismatch_fpm",
+      "turn_rate_dps",
+      "window_gs_std_kt",
+      "baro_alt_ft",
+      "dt_s"
+    ],
+    "holdout_flag_rate": 0.011552201929818704,
+    "evaluation": {
+      "created_at": "2026-09-09 23:22:08Z",
+      "rule_precision": {
+        "ML-001": 0.25157232704402516,
+        "SEC-003": 1.0,
+        "SEC-010": 1.0,
+        "SEC-011": 0.9014084507042254,
+        "SEC-012": 1.0,
+        "SEC-014": 1.0,
+        "SEC-018": 0.65
+      },
+      "recall": {
+        "teleport": 0.64,
+        "velocity_forge": 0.76,
+        "altitude_forge": 0.56,
+        "replay": 1.0,
+        "squawk_hijack": 1.0,
+        "integrity_degrade": 0.68,
+        "slow_drift": 0.12,
+        "ghost_perfect": 0.0
+      }
+    }
+  },
+  {
+    "trained_at": "2026-09-09 23:24:53Z",
+    "model_path": "models/kinematic_iforest.joblib",
+    "sha256": "68820542cb00875116aea4ad8a8f1d24e4b46f2c4a2f4139e5b260c673582ce4",
+    "recordings": [
+      "adsblol_lhr_20260909T195312Z.jsonl",
+      "adsblol_nyc+ord+lax+lhr_20260909T220203Z.jsonl",
+      "adsblol_nyc_20260909T195300Z.jsonl",
+      "adsblol_sfo+dfw+atl+hnd_20260909T225058Z.jsonl",
+      "opensky_bbox_20260909T220204Z.jsonl",
+      "opensky_bbox_20260909T225059Z.jsonl"
+    ],
+    "providers": [
+      "adsblol",
+      "opensky"
+    ],
+    "regions": [
+      "atl",
+      "bbox",
+      "dfw",
+      "hnd",
+      "lax",
+      "lhr",
+      "nyc",
+      "ord",
+      "sfo"
+    ],
+    "rows": 150226,
+    "aircraft": 6155,
+    "contamination": 0.01,
+    "features": [
+      "implied_gs_kt",
+      "reported_gs_kt",
+      "gs_mismatch_kt",
+      "gs_mismatch_ratio",
+      "accel_kt_s",
+      "implied_vrate_fpm",
+      "reported_vrate_fpm",
+      "vrate_mismatch_fpm",
+      "turn_rate_dps",
+      "window_gs_std_kt",
+      "baro_alt_ft",
+      "dt_s"
+    ],
+    "holdout_flag_rate": 0.011719141264064639,
+    "evaluation": {
+      "created_at": "2026-09-09 23:25:40Z",
+      "rule_precision": {
+        "ML-001": 0.24691358024691357,
+        "SEC-003": 1.0,
+        "SEC-010": 1.0,
+        "SEC-011": 0.9054054054054054,
+        "SEC-012": 1.0,
+        "SEC-014": 1.0,
+        "SEC-018": 0.7407407407407407
+      },
+      "recall": {
+        "teleport": 0.96,
+        "velocity_forge": 0.76,
+        "altitude_forge": 0.88,
+        "replay": 1.0,
+        "squawk_hijack": 1.0,
+        "integrity_degrade": 1.0,
+        "slow_drift": 0.12,
+        "ghost_perfect": 0.0
+      }
+    }
+  }
+]

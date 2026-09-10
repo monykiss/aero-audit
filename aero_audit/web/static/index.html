@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aero-audit</title>
+<link rel="stylesheet" href="/static/vendor/leaflet.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app">
+  <nav id="nav">
+    <div class="brand"><span class="logo">✈</span><div><b>aero-audit</b><small id="ver"></small></div></div>
+    <a href="#/" data-p="home"><i>⌂</i>Home</a>
+    <a href="#/live" data-p="live"><i>◎</i>Live picture</a>
+    <a href="#/findings" data-p="findings"><i>≡</i>Findings</a>
+    <a href="#/risk" data-p="risk"><i>▲</i>Risk</a>
+    <a href="#/reports" data-p="reports"><i>▤</i>Reports</a>
+    <a href="#/data" data-p="data"><i>▦</i>Data &amp; model</a>
+    <a href="#/settings" data-p="settings"><i>⚙</i>Settings</a>
+    <a href="#/help" data-p="help"><i>?</i>Help</a>
+    <div class="navfoot" id="navfoot"></div>
+  </nav>
+  <div id="body">
+    <header id="top">
+      <div id="srcpill" class="pill off">no source</div>
+      <div id="srcinfo" class="muted"></div>
+      <div class="grow"></div>
+      <input id="search" placeholder="find callsign or ICAO (⏎)" autocomplete="off">
+      <button id="btnStop" class="ghost" hidden>Stop source</button>
+      <a class="btn primary" href="#/" id="btnStart">Start a source</a>
+    </header>
+    <div id="banner" hidden></div>
+    <main id="page"></main>
+    <div id="toast" hidden></div>
+  </div>
+</div>
+<script src="/static/vendor/leaflet.js"></script>
+<script src="/static/live.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

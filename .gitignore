@@ -1,0 +1,15 @@
+!reports/.gitkeep
+*.pt
+*.pyc
+.DS_Store
+.env
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+data/app/
+data/recordings/*.jsonl
+logs/
+models/*.joblib
+reports/*
+runs/

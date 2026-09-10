@@ -1,0 +1,43 @@
+[project]
+name = "aero-audit"
+version = "0.3.0"
+description = "AI/ML + computer-vision auditing toolkit for aviation operations and ADS-B security"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "httpx>=0.27",
+  "pydantic>=2.7",
+  "typer>=0.12",
+  "rich>=13.7",
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scikit-learn>=1.5",
+  "joblib>=1.4",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+vision = ["opencv-python-headless>=4.10", "ultralytics>=8.3"]
+dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5"]
+
+[project.scripts]
+aero = "aero_audit.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aero_audit"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint.flake8-bugbear]
+# typer builds CLIs from call-in-default-argument; that is the documented idiom, not a bug.
+extend-immutable-calls = ["typer.Option", "typer.Argument"]

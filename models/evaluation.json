@@ -1,0 +1,195 @@
+{
+  "created_at": "2026-09-09 23:25:40Z",
+  "recording": "data/recordings/adsblol_nyc+ord+lax+lhr_20260909T220203Z.jsonl",
+  "model": "models/kinematic_iforest.joblib",
+  "batches": 60,
+  "onset_batch": 24,
+  "aircraft": 3338,
+  "n_targets": 25,
+  "seed": 42,
+  "baseline_by_rule": {
+    "ML-001": 122,
+    "OPS-002": 8,
+    "OPS-003": 135,
+    "OPS-004": 107,
+    "SAF-003": 4,
+    "SEC-011": 7,
+    "SEC-012": 129,
+    "SEC-013": 12,
+    "SEC-018": 7
+  },
+  "median_revisit_s": 48.401000022888184,
+  "scenarios": [
+    {
+      "name": "teleport",
+      "description": "Position of a real aircraft shifted 30 nm from onset (message replacement)",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-010"
+      ],
+      "targets": 25,
+      "detected": 24,
+      "recall": 0.96,
+      "any_security_recall": 1.0,
+      "median_ttd_s": 43.0,
+      "findings_on_targets": {
+        "SEC-010": 24,
+        "ML-001": 3
+      }
+    },
+    {
+      "name": "velocity_forge",
+      "description": "Reported ground speed halved; positions untouched",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-011",
+        "ML-001"
+      ],
+      "targets": 25,
+      "detected": 19,
+      "recall": 0.76,
+      "any_security_recall": 0.76,
+      "median_ttd_s": 55.00099992752075,
+      "findings_on_targets": {
+        "SEC-011": 67,
+        "ML-001": 36
+      }
+    },
+    {
+      "name": "altitude_forge",
+      "description": "Barometric altitude +6,000 ft; vertical rate untouched",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-018",
+        "ML-001"
+      ],
+      "targets": 25,
+      "detected": 22,
+      "recall": 0.88,
+      "any_security_recall": 0.88,
+      "median_ttd_s": 43.0,
+      "findings_on_targets": {
+        "SEC-018": 20,
+        "ML-001": 4,
+        "OPS-004": 10
+      }
+    },
+    {
+      "name": "replay",
+      "description": "A fix from ~5 batches earlier re-transmitted under the same address",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-014",
+        "SEC-010"
+      ],
+      "targets": 25,
+      "detected": 25,
+      "recall": 1.0,
+      "any_security_recall": 1.0,
+      "median_ttd_s": 43.0,
+      "findings_on_targets": {
+        "SEC-014": 105,
+        "ML-001": 3
+      }
+    },
+    {
+      "name": "squawk_hijack",
+      "description": "Squawk forced to 7500",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-003"
+      ],
+      "targets": 25,
+      "detected": 25,
+      "recall": 1.0,
+      "any_security_recall": 1.0,
+      "median_ttd_s": 43.0,
+      "findings_on_targets": {
+        "SEC-003": 120,
+        "ML-001": 3
+      }
+    },
+    {
+      "name": "integrity_degrade",
+      "description": "NIC/NACp/SIL degraded (GNSS spoofing signature) on compliant aircraft",
+      "known_gap": false,
+      "expected_rules": [
+        "SEC-012"
+      ],
+      "targets": 25,
+      "detected": 25,
+      "recall": 1.0,
+      "any_security_recall": 0.12,
+      "median_ttd_s": 43.0,
+      "findings_on_targets": {
+        "SEC-012": 25,
+        "ML-001": 3
+      }
+    },
+    {
+      "name": "slow_drift",
+      "description": "Position drifts ~0.2 nm per batch, cumulative (slow modification)",
+      "known_gap": true,
+      "expected_rules": [
+        "SEC-010",
+        "SEC-011",
+        "SEC-014",
+        "SEC-018",
+        "ML-001"
+      ],
+      "targets": 25,
+      "detected": 3,
+      "recall": 0.12,
+      "any_security_recall": 0.12,
+      "median_ttd_s": 345.0,
+      "findings_on_targets": {
+        "ML-001": 4
+      }
+    },
+    {
+      "name": "ghost_perfect",
+      "description": "Fabricated aircraft with consistent kinematics and a callsign",
+      "known_gap": true,
+      "expected_rules": [
+        "SEC-010",
+        "SEC-011",
+        "SEC-014",
+        "SEC-018",
+        "ML-001"
+      ],
+      "targets": 25,
+      "detected": 0,
+      "recall": 0.0,
+      "any_security_recall": 0.0,
+      "median_ttd_s": null,
+      "findings_on_targets": {}
+    }
+  ],
+  "rule_tp": {
+    "ML-001": 40,
+    "SEC-003": 120,
+    "SEC-010": 24,
+    "SEC-011": 67,
+    "SEC-012": 25,
+    "SEC-014": 105,
+    "SEC-018": 20
+  },
+  "rule_fp": {
+    "ML-001": 122,
+    "SEC-003": 0,
+    "SEC-010": 0,
+    "SEC-011": 7,
+    "SEC-012": 129,
+    "SEC-014": 0,
+    "SEC-018": 7
+  },
+  "rule_precision": {
+    "ML-001": 0.24691358024691357,
+    "SEC-003": 1.0,
+    "SEC-010": 1.0,
+    "SEC-011": 0.9054054054054054,
+    "SEC-012": 1.0,
+    "SEC-014": 1.0,
+    "SEC-018": 0.7407407407407407
+  }
+}

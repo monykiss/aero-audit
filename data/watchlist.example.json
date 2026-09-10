@@ -1,0 +1,29 @@
+[
+  {
+    "label": "Prior-incident address",
+    "reason": "Address used in a 2025 ghost-injection test",
+    "icao24": "abcdef",
+    "callsign_prefix": null,
+    "registration": null,
+    "severity": "high",
+    "mode": "detect"
+  },
+  {
+    "label": "Medical flights",
+    "reason": "Protect: do not publish tracks",
+    "icao24": null,
+    "callsign_prefix": "LIFE",
+    "registration": null,
+    "severity": "info",
+    "mode": "protect"
+  },
+  {
+    "label": "Registration of interest",
+    "reason": "Example registration match",
+    "icao24": null,
+    "callsign_prefix": null,
+    "registration": "N12345",
+    "severity": "medium",
+    "mode": "detect"
+  }
+]

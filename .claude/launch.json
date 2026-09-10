@@ -1,0 +1,22 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aero-dashboard",
+      "runtimeExecutable": ".venv/bin/aero",
+      "runtimeArgs": ["app", "--no-open", "--port", "8787"],
+      "port": 8787
+    },
+    {
+      "name": "aero-dashboard-live",
+      "runtimeExecutable": ".venv/bin/aero",
+      "runtimeArgs": ["serve", "--live", "--region", "nyc", "--radius", "150", "--interval", "12", "--port", "8788"],
+      "port": 8788
+    },
+    {
+      "name": "aero-dashboard-attached",
+      "url": "http://localhost:8790",
+      "port": 8790
+    }
+  ]
+}
