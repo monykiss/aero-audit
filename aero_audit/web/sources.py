@@ -110,13 +110,28 @@ class SourceManager:
             rec = JsonlRecorder(Path("data/recordings") / f"{provider}_{label}_{datetime.now(UTC):%Y%m%dT%H%M%SZ}.jsonl")
         t = threading.Thread(target=self._live_loop, args=(state, provider, regions, interval, rec), daemon=True, name="src-live")
         m = threading.Thread(target=self._metar_loop, args=(state, regions), daemon=True, name="src-metar")
+        fa = threading.Thread(target=self._faa_loop, args=(state,), daemon=True, name="src-faa")
         with self.lock:
-            self.state, self.threads = state, [t, m]
+            self.state, self.threads = state, [t, m, fa]
             self.label = f"Live {provider} over {label}" + (f" ({radius:g} nm)" if radius else "")
             self.params = {"mode": "live", "provider": provider, "region": region, "radius": radius, "interval": interval, "demo": demo}
         t.start()
         m.start()
+        fa.start()
         return state
+
+    @staticmethod
+    def _faa_loop(state: LiveState, every_s: float = 300.0) -> None:
+        from ..ingest.faa_status import fetch_status
+
+        while not state.stop.is_set():
+            try:
+                st = asyncio.run(fetch_status())
+                with state.lock:
+                    state.faa_status = st
+            except Exception as e:  # noqa: BLE001
+                state.errors.append(f"faa status: {type(e).__name__}: {e}")
+            state.stop.wait(every_s)
 
     # ---- loops -----------------------------------------------------------------------------
     @staticmethod
@@ -161,7 +176,11 @@ class SourceManager:
 
     @staticmethod
     def _metar_loop(state: LiveState, regions: list[Region], every_s: float = 600.0) -> None:
+        from ..knowledge.airports import MAJOR
+
         stations = [s for r in regions for s in r.metar_stations]
+        if any(r.custom_bbox for r in regions):  # whole-country boxes: the busiest airports instead of a few presets
+            stations = [a.icao for a in MAJOR]
         if not stations:
             return
         while not state.stop.is_set():

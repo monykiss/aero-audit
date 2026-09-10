@@ -1,0 +1,77 @@
+"""ICAO aircraft type designators with a human name and an operational category."""
+
+from __future__ import annotations
+
+# code: (name, category)  category: narrowbody | widebody | regional | turboprop | business | ga | helicopter | military
+TYPES: dict[str, tuple[str, str]] = {
+    "B737": ("Boeing 737-700", "narrowbody"), "B738": ("Boeing 737-800", "narrowbody"), "B739": ("Boeing 737-900", "narrowbody"),
+    "B38M": ("Boeing 737 MAX 8", "narrowbody"), "B39M": ("Boeing 737 MAX 9", "narrowbody"), "B37M": ("Boeing 737 MAX 7", "narrowbody"),
+    "B752": ("Boeing 757-200", "narrowbody"), "B753": ("Boeing 757-300", "narrowbody"),
+    "B762": ("Boeing 767-200", "widebody"), "B763": ("Boeing 767-300", "widebody"), "B764": ("Boeing 767-400", "widebody"),
+    "B772": ("Boeing 777-200", "widebody"), "B77L": ("Boeing 777-200LR", "widebody"), "B77W": ("Boeing 777-300ER", "widebody"),
+    "B788": ("Boeing 787-8", "widebody"), "B789": ("Boeing 787-9", "widebody"), "B78X": ("Boeing 787-10", "widebody"),
+    "B744": ("Boeing 747-400", "widebody"), "B748": ("Boeing 747-8", "widebody"), "B742": ("Boeing 747-200", "widebody"),
+    "A318": ("Airbus A318", "narrowbody"), "A319": ("Airbus A319", "narrowbody"), "A320": ("Airbus A320", "narrowbody"),
+    "A321": ("Airbus A321", "narrowbody"), "A19N": ("Airbus A319neo", "narrowbody"), "A20N": ("Airbus A320neo", "narrowbody"),
+    "A21N": ("Airbus A321neo", "narrowbody"), "A332": ("Airbus A330-200", "widebody"), "A333": ("Airbus A330-300", "widebody"),
+    "A339": ("Airbus A330-900neo", "widebody"), "A343": ("Airbus A340-300", "widebody"), "A346": ("Airbus A340-600", "widebody"),
+    "A359": ("Airbus A350-900", "widebody"), "A35K": ("Airbus A350-1000", "widebody"), "A388": ("Airbus A380", "widebody"),
+    "BCS1": ("Airbus A220-100", "narrowbody"), "BCS3": ("Airbus A220-300", "narrowbody"),
+    "MD11": ("McDonnell Douglas MD-11", "widebody"), "MD82": ("MD-82", "narrowbody"), "MD83": ("MD-83", "narrowbody"),
+    "MD88": ("MD-88", "narrowbody"), "MD90": ("MD-90", "narrowbody"),
+    "E170": ("Embraer 170", "regional"), "E175": ("Embraer 175", "regional"), "E75L": ("Embraer 175 (long wing)", "regional"),
+    "E75S": ("Embraer 175 (short wing)", "regional"), "E190": ("Embraer 190", "regional"), "E195": ("Embraer 195", "regional"),
+    "E290": ("Embraer E190-E2", "regional"), "E295": ("Embraer E195-E2", "regional"), "E145": ("Embraer ERJ-145", "regional"),
+    "E135": ("Embraer ERJ-135", "regional"), "CRJ2": ("Bombardier CRJ-200", "regional"), "CRJ7": ("Bombardier CRJ-700", "regional"),
+    "CRJ9": ("Bombardier CRJ-900", "regional"), "CRJX": ("Bombardier CRJ-1000", "regional"),
+    "DH8A": ("Dash 8-100", "turboprop"), "DH8B": ("Dash 8-200", "turboprop"), "DH8C": ("Dash 8-300", "turboprop"),
+    "DH8D": ("Dash 8-400", "turboprop"), "AT72": ("ATR 72", "turboprop"), "AT75": ("ATR 72-500", "turboprop"),
+    "AT76": ("ATR 72-600", "turboprop"), "AT43": ("ATR 42", "turboprop"), "SF34": ("Saab 340", "turboprop"),
+    "B190": ("Beech 1900", "turboprop"), "C208": ("Cessna 208 Caravan", "turboprop"), "PC12": ("Pilatus PC-12", "turboprop"),
+    "PC24": ("Pilatus PC-24", "business"), "TBM7": ("TBM 700", "turboprop"), "TBM8": ("TBM 850", "turboprop"),
+    "TBM9": ("TBM 900/930/940", "turboprop"), "BE20": ("King Air 200", "turboprop"), "BE9L": ("King Air 90", "turboprop"),
+    "B350": ("King Air 350", "turboprop"), "BE99": ("Beech 99", "turboprop"), "SW4": ("Metroliner", "turboprop"),
+    "C25A": ("Citation CJ2", "business"), "C25B": ("Citation CJ3", "business"), "C25C": ("Citation CJ4", "business"),
+    "C510": ("Citation Mustang", "business"), "C525": ("Citation CJ1", "business"), "C550": ("Citation II", "business"),
+    "C560": ("Citation V/Ultra", "business"), "C56X": ("Citation Excel/XLS", "business"), "C680": ("Citation Sovereign", "business"),
+    "C68A": ("Citation Latitude", "business"), "C700": ("Citation Longitude", "business"), "C750": ("Citation X", "business"),
+    "CL30": ("Challenger 300", "business"), "CL35": ("Challenger 350", "business"), "CL60": ("Challenger 600 series", "business"),
+    "GL5T": ("Global 5000", "business"), "GLEX": ("Global Express/6000", "business"), "GL7T": ("Global 7500", "business"),
+    "GLF4": ("Gulfstream IV", "business"), "GLF5": ("Gulfstream V", "business"), "GLF6": ("Gulfstream G650", "business"),
+    "GA5C": ("Gulfstream G500", "business"), "GA6C": ("Gulfstream G600", "business"), "G280": ("Gulfstream G280", "business"),
+    "G150": ("Gulfstream G150", "business"), "LJ35": ("Learjet 35", "business"), "LJ45": ("Learjet 45", "business"),
+    "LJ60": ("Learjet 60", "business"), "LJ75": ("Learjet 75", "business"), "E55P": ("Phenom 300", "business"),
+    "E50P": ("Phenom 100", "business"), "E545": ("Praetor 500 / Legacy 450", "business"), "E550": ("Praetor 600 / Legacy 500", "business"),
+    "F2TH": ("Falcon 2000", "business"), "FA7X": ("Falcon 7X", "business"), "FA8X": ("Falcon 8X", "business"),
+    "FA50": ("Falcon 50", "business"), "F900": ("Falcon 900", "business"), "HDJT": ("HondaJet", "business"),
+    "PRM1": ("Premier 1", "business"), "H25B": ("Hawker 800", "business"), "BE40": ("Beechjet 400", "business"),
+    "C172": ("Cessna 172", "ga"), "C182": ("Cessna 182", "ga"), "C206": ("Cessna 206", "ga"), "C210": ("Cessna 210", "ga"),
+    "C150": ("Cessna 150", "ga"), "C152": ("Cessna 152", "ga"), "C177": ("Cessna 177", "ga"), "C310": ("Cessna 310", "ga"),
+    "PA28": ("Piper PA-28 Cherokee", "ga"), "PA32": ("Piper PA-32 Saratoga", "ga"), "PA46": ("Piper PA-46 Malibu", "ga"),
+    "PA34": ("Piper Seneca", "ga"), "PA44": ("Piper Seminole", "ga"), "P28A": ("Piper Cherokee", "ga"), "P28R": ("Piper Arrow", "ga"),
+    "SR20": ("Cirrus SR20", "ga"), "SR22": ("Cirrus SR22", "ga"), "SR2T": ("Cirrus SR22T", "ga"), "DA40": ("Diamond DA40", "ga"),
+    "DA42": ("Diamond DA42", "ga"), "DA62": ("Diamond DA62", "ga"), "M20P": ("Mooney M20", "ga"), "M20T": ("Mooney M20 turbo", "ga"),
+    "BE36": ("Bonanza 36", "ga"), "BE35": ("Bonanza 35", "ga"), "BE58": ("Baron 58", "ga"), "BE55": ("Baron 55", "ga"),
+    "RV10": ("Van's RV-10", "ga"), "RV7": ("Van's RV-7", "ga"), "AC11": ("Rockwell Commander", "ga"),
+    "R44": ("Robinson R44", "helicopter"), "R22": ("Robinson R22", "helicopter"), "R66": ("Robinson R66", "helicopter"),
+    "EC35": ("Airbus H135", "helicopter"), "EC45": ("Airbus H145", "helicopter"), "EC30": ("Airbus H130", "helicopter"),
+    "EC55": ("Airbus H155", "helicopter"), "AS50": ("Airbus AS350", "helicopter"), "AS55": ("Airbus AS355", "helicopter"),
+    "B06": ("Bell 206", "helicopter"), "B407": ("Bell 407", "helicopter"), "B429": ("Bell 429", "helicopter"),
+    "B412": ("Bell 412", "helicopter"), "S76": ("Sikorsky S-76", "helicopter"), "S92": ("Sikorsky S-92", "helicopter"),
+    "H60": ("Sikorsky H-60 Black Hawk", "military"), "A139": ("AgustaWestland AW139", "helicopter"), "A109": ("AgustaWestland A109", "helicopter"),
+    "C130": ("Lockheed C-130 Hercules", "military"), "C30J": ("C-130J Super Hercules", "military"), "C17": ("Boeing C-17 Globemaster", "military"),
+    "K35R": ("KC-135 Stratotanker", "military"), "KC46": ("KC-46 Pegasus", "military"), "C5M": ("C-5M Galaxy", "military"),
+    "E3TF": ("E-3 Sentry", "military"), "P8": ("P-8 Poseidon", "military"), "E6": ("E-6 Mercury", "military"),
+    "F16": ("F-16 Fighting Falcon", "military"), "F15": ("F-15 Eagle", "military"), "F18H": ("F/A-18 Hornet", "military"),
+    "F18S": ("F/A-18 Super Hornet", "military"), "F35": ("F-35 Lightning II", "military"), "T38": ("T-38 Talon", "military"),
+    "T6": ("T-6 Texan II", "military"), "B52": ("B-52 Stratofortress", "military"),
+    "V22": ("V-22 Osprey", "military"), "C27J": ("C-27J Spartan", "military"), "H47": ("CH-47 Chinook", "military"),
+    "UH1": ("UH-1 Huey", "military"),
+}
+
+
+def type_info(code: str | None) -> tuple[str, str]:
+    """(name, category); unknown codes come back as themselves with category 'unknown'."""
+    if not code:
+        return "unknown", "unknown"
+    return TYPES.get(code.upper(), (code.upper(), "unknown"))

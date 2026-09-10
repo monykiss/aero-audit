@@ -13,6 +13,7 @@ import mimetypes
 import threading
 import time
 import webbrowser
+from collections import defaultdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -24,9 +25,11 @@ from ..audit.report import write_reports
 from ..audit.rules import RULE_CATALOG
 from ..impact import estimate_holding_impact
 from ..ingest.replay import iter_recording
+from ..knowledge import AIRPORTS
 from ..risk import assess
 from ..security.playbooks import PLAYBOOKS, playbook_for
 from ..security.threats import coverage_matrix, load_evaluation
+from .audit import AuditLog
 from .jobs import Job, JobManager
 from .router import Router
 from .sources import SourceManager, load_settings, region_catalog, save_settings
@@ -42,8 +45,11 @@ router = Router()
 class App:
     def __init__(self) -> None:
         self.settings = load_settings()
+        self.audit = AuditLog()
         self.sources = SourceManager(self.settings)
-        self.jobs = JobManager(self._job_types())
+        self.jobs = JobManager(self._job_types(), on_finish=lambda j: self.audit.record(
+            "job.finish", actor="system", job=j.id, type=j.type, status=j.status, error=j.error))
+        self.audit.record("app.start", actor="system", version=__version__)
         self.started = time.time()
         self._inventory: dict[str, dict[str, Any]] = {}
         self._load_inventory_cache()
@@ -342,6 +348,7 @@ def r_recordings(app: App, req: Any) -> Any:
 @router.route("POST", "/api/v1/source/start")
 def r_source_start(app: App, req: Any) -> Any:
     b = req["body"]
+    app.audit.record("source.start", **{k: v for k, v in b.items() if k != "demo"} , demo=bool(b.get("demo", True)))
     if b.get("mode") == "live":
         app.sources.start_live(b.get("provider", "adsblol"), b.get("region", "nyc"),
                                float(b["radius"]) if b.get("radius") else None, float(b.get("interval", 12)),
@@ -355,6 +362,7 @@ def r_source_start(app: App, req: Any) -> Any:
 
 @router.route("POST", "/api/v1/source/stop")
 def r_source_stop(app: App, req: Any) -> Any:
+    app.audit.record("source.stop", label=app.sources.label)
     app.sources.stop()
     return {"ok": True}
 
@@ -462,11 +470,13 @@ def r_inject(app: App, req: Any) -> Any:
         return ({"error": "demo mode is off"}, 403)
     b = req["body"]
     inj = st.inject(b.get("kind", ""), b.get("icao24") or None, int(b.get("batches", 6)))
+    app.audit.record("inject", kind=inj.kind, icao24=inj.icao24, polls=inj.remaining)
     return {"kind": inj.kind, "icao24": inj.icao24, "remaining": inj.remaining, "label": inj.label}
 
 
 @router.route("POST", "/api/v1/clear")
 def r_clear(app: App, req: Any) -> Any:
+    app.audit.record("inject.clear")
     if app.sources.state:
         app.sources.state.clear_injections()
     return {"ok": True}
@@ -475,6 +485,115 @@ def r_clear(app: App, req: Any) -> Any:
 @router.route("GET", "/api/v1/reports")
 def r_reports(app: App, req: Any) -> Any:
     return app.reports()
+
+
+# ---- ecosystem ---------------------------------------------------------------------------------
+@router.route("GET", "/api/v1/ecosystem")
+def r_ecosystem(app: App, req: Any) -> Any:
+    st = app.sources.state
+    return st.eco if (st and st.eco) else {"active": False, "airports": [], "operators": [], "types": [], "phases": {}, "categories": {}, "faa_status": []}
+
+
+@router.route("GET", "/api/v1/flights")
+def r_flights(app: App, req: Any) -> Any:
+    st = app.sources.state
+    if not st:
+        return {"total": 0, "items": [], "facets": {}, "active": False}
+    return st.flights(**req["query"])
+
+
+@router.route("GET", "/api/v1/flights.csv")
+def r_flights_csv(app: App, req: Any) -> Any:
+    st = app.sources.state
+    cols = ["callsign", "icao24", "reg", "operator_code", "operator", "operator_cat", "type", "type_name", "type_cat", "phase", "airport",
+            "airport_nm", "lat", "lon", "alt", "agl", "gs", "track", "vrate", "squawk", "ground", "src", "trust", "sev", "rules", "ts"]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(cols)
+    if st:
+        for a in st.flights(**{**req["query"], "limit": "100000"})["items"]:
+            w.writerow([",".join(a[c]) if c == "rules" else a.get(c) for c in cols])
+    return (buf.getvalue().encode(), "text/csv; charset=utf-8")
+
+
+@router.route("GET", "/api/v1/airports")
+def r_airports(app: App, req: Any) -> Any:
+    st = app.sources.state
+    active = {r["icao"]: r for r in (st.eco.get("airports", []) if st and st.eco else [])}
+    status = defaultdict(list)
+    for rec in (st.faa_status.get("entries", []) if st else []):
+        status[rec["airport"]].append(rec)
+    metars = {m["station"]: m for m in (st.metars if st else [])}
+    rows = []
+    for a in AIRPORTS.values():
+        r = active.get(a.icao) or {"icao": a.icao, "iata": a.iata, "name": a.name, "city": a.city, "country": a.country, "lat": a.lat, "lon": a.lon,
+                                   "nearby": 0, "ground": 0, "departing": 0, "arriving": 0, "approach": 0, "terminal": 0, "overhead": 0,
+                                   "holds": 0, "emergencies": 0, "findings": 0, "worst": None, "faa": [{k: v for k, v in x.items() if k != "airport"} for x in status.get(a.iata, [])]}
+        r = dict(r)
+        r["elev_ft"] = a.elev_ft
+        r["major"] = a.major
+        r["metar"] = metars.get(a.icao)
+        rows.append(r)
+    country = req["query"].get("country")
+    if country:
+        rows = [r for r in rows if r["country"] == country.upper()]
+    rows.sort(key=lambda r: (-r["nearby"], r["icao"]))
+    return {"items": rows, "faa_updated": st.faa_status.get("updated") if st else None, "active": bool(st)}
+
+
+@router.route("GET", "/api/v1/airports/{icao}")
+def r_airport(app: App, req: Any) -> Any:
+    icao = req["params"]["icao"].upper()
+    a = AIRPORTS.get(icao)
+    if not a:
+        return ({"error": "unknown airport"}, 404)
+    st = app.sources.state
+    flights = st.flights(airport=icao, limit="500")["items"] if st else []
+    row = next((r for r in (st.eco.get("airports", []) if st and st.eco else []) if r["icao"] == icao), None)
+    metar = next((m for m in (st.metars if st else []) if m["station"] == icao), None)
+    faa = [x for x in (st.faa_status.get("entries", []) if st else []) if x["airport"] == a.iata]
+    return {"airport": a.__dict__, "activity": row, "flights": flights, "metar": metar, "faa": faa}
+
+
+@router.route("GET", "/api/v1/operators")
+def r_operators(app: App, req: Any) -> Any:
+    st = app.sources.state
+    rows = st.eco.get("operators", []) if st and st.eco else []
+    cat = req["query"].get("category")
+    if cat:
+        rows = [r for r in rows if r["category"] == cat]
+    return {"items": rows, "types": st.eco.get("types", []) if st and st.eco else [], "categories": sorted({r["category"] for r in rows})}
+
+
+@router.route("GET", "/api/v1/faa")
+def r_faa(app: App, req: Any) -> Any:
+    st = app.sources.state
+    if st and st.faa_status.get("updated"):
+        return st.faa_status
+    import asyncio
+
+    from ..ingest.faa_status import fetch_status
+
+    try:
+        data = asyncio.run(fetch_status())
+    except Exception as e:  # noqa: BLE001
+        return {"updated": None, "entries": [], "error": f"{type(e).__name__}: {e}"}
+    if st:
+        with st.lock:
+            st.faa_status = data
+    return data
+
+
+@router.route("GET", "/api/v1/audit")
+def r_audit(app: App, req: Any) -> Any:
+    q = req["query"]
+    return {"items": app.audit.entries(int(q.get("limit") or 300), q.get("action"), q.get("actor"), q.get("q")),
+            "actions": app.audit.actions(), "total": len(app.audit)}
+
+
+@router.route("GET", "/api/v1/audit.csv")
+def r_audit_csv(app: App, req: Any) -> Any:
+    return (app.audit.to_csv().encode(), "text/csv; charset=utf-8")
 
 
 @router.route("GET", "/api/v1/jobs")
@@ -486,6 +605,7 @@ def r_jobs(app: App, req: Any) -> Any:
 def r_jobs_submit(app: App, req: Any) -> Any:
     b = req["body"]
     job = app.jobs.submit(b.get("type", ""), b.get("params") or {})
+    app.audit.record("job.submit", job=job.id, type=job.type, params=job.params)
     return job.to_dict()
 
 
@@ -507,6 +627,7 @@ def r_settings(app: App, req: Any) -> Any:
 
 @router.route("POST", "/api/v1/settings")
 def r_settings_update(app: App, req: Any) -> Any:
+    app.audit.record("settings.update", **req["body"])
     return app.settings_update(req["body"])
 
 

@@ -15,6 +15,10 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 | Page | What it is for |
 |---|---|
 | Home | One-click **Show me America live** (OpenSky over the contiguous states, ~5,000 aircraft per poll) or **Replay the newest recording**; otherwise pick a source: replay (speed, demo controls) or go live with a grouped picker: whole country, continent, US hubs, international hubs, global feeds. Poll interval and radius default per choice. |
+| Flights | Every aircraft in the picture as a dense grid: callsign, operator, type and class, flight phase, nearest airport, altitude, speed, track, vertical speed, squawk, source, trust, worst finding, fix age. Dropdown filters for operator, operator category, type class, phase, airport, altitude band, finding severity and source; sortable columns; CSV export; click for the full record and findings. |
+| Airports | 132 North American airports with live activity: aircraft within 40 nm, on ground, departing, arriving (and on final), terminal, overhead, holds, emergencies, findings, FAA ground stops / delay programmes / closures (public FAA NAS status feed, refreshed every 5 min in live mode), METAR. Click for the airport's flights and weather. |
+| Operators | Airlines, regionals, cargo, business, GA, military: fleet in the picture, airborne / ground, mean altitude, top types, phase mix, integrity compliance, findings, worst severity; aircraft-type table alongside. |
+| Audit log | Append-only record of every source change, injection, settings edit and job (user or system), filterable and exportable. |
 | Live picture | Canvas-rendered map that stays smooth with 10,000 aircraft; colour by findings, altitude, speed, or trust (legend switch); hover for a tooltip, click for the drawer; rings mark emergencies, injections, and the selection; a **?** button explains the picture. KPI strip, Findings / Safety / Security / Operations panels, demo buttons, search box. |
 | Findings | Every finding this session, filterable by severity, rule, and text; click for evidence and the full playbook; export CSV. |
 | Risk | Register re-scored from this session's evidence, threat coverage with measured recall, holding cost. |
@@ -25,6 +29,24 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 
 Sources can be started, stopped, and switched at any time from Home, the Data page, or the top
 bar; long tasks run as background jobs with progress and logs and survive page changes.
+
+## Terminal chrome
+
+- **Command line** (top left, or press `/`): mnemonics `HOME LIVE FLT AIRP OPS FIND RISK RPT DATA LOG SET HELP`, plus
+  `STOP` and `USA` (start the nationwide live feed). Arguments narrow the view: `FLT AAL`, `FLT B738`,
+  `AIRP JFK`, `FIND SEC-010`, `FIND HIGH`, `OPS cargo`, `LOG inject`.
+- **Function keys** F1 to F8 jump to Help, Live, Flights, Airports, Operators, Findings, Risk, Audit log.
+- **Ticker**: the latest findings scroll under the header; hover to pause.
+- **Status bar**: aircraft, findings, and departures / arrivals / cruisers in the picture.
+
+## The ecosystem model
+
+Every aircraft is enriched (`aero_audit/ecosystem.py`) with an operator from its callsign designator
+(`knowledge/airlines.py`), an aircraft type and class (`knowledge/types.py`), the nearest of 132
+airports within 40 nm (`knowledge/airports.py`), and a flight phase from altitude above field,
+vertical rate, and distance: ground, departure, climb, cruise, level, descent, arrival, approach,
+pattern, terminal. Airport, operator, and type tables are rebuilt on every poll; FAA programmes are
+joined by IATA code. All of this is offline reference data except the FAA feed and METARs.
 
 ## Nationwide and continental feeds
 

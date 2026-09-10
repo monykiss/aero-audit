@@ -37,6 +37,19 @@ them, and do not resell their data.
 - `GET https://aviationweather.gov/api/data/metar?ids=KJFK,KEWR&format=json`.
 - Used as context: holding during thunderstorms is expected, holding in CAVOK is a process smell.
 
+## FAA National Airspace System status
+
+- `GET https://nasstatus.faa.gov/api/airport-status-information` (XML, no key). Ground stop programmes,
+  ground delay programmes (average and maximum delay, reason), airport closures, and general
+  arrival/departure delays by IATA code. Parsed into flat records by `ingest/faa_status.py` and joined
+  to the airport table in the app. Refreshed every 5 minutes in live mode.
+
+## Bundled reference data
+
+`aero_audit/knowledge/`: 132 North American airports (ICAO, IATA, city, coordinates, field elevation),
+~80 operators by ICAO callsign designator with category, ~180 ICAO aircraft type designators with
+class. Extend by adding rows; nothing else needs to change.
+
 ## Not wired
 
 - airplanes.live: requires an emailed access request.

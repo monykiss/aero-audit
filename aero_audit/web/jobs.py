@@ -51,9 +51,10 @@ JobFn = Callable[[Job, dict[str, Any]], dict[str, Any]]
 
 
 class JobManager:
-    def __init__(self, registry: dict[str, JobFn], persist: Path = JOBS_FILE) -> None:
+    def __init__(self, registry: dict[str, JobFn], persist: Path = JOBS_FILE, on_finish: Callable[[Job], None] | None = None) -> None:
         self.registry = registry
         self.persist = persist
+        self.on_finish = on_finish
         self.jobs: dict[str, Job] = {}
         self.lock = threading.Lock()
         self._load()
@@ -81,6 +82,8 @@ class JobManager:
         finally:
             job.finished = time.time()
             self._save()
+            if self.on_finish:
+                self.on_finish(job)
 
     def cancel(self, job_id: str) -> bool:
         job = self.jobs.get(job_id)

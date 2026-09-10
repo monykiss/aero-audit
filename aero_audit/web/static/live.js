@@ -45,16 +45,17 @@
     const tip = document.getElementById('ltip');
     map.on('mousemove', e => { const a = layer.nearest(e.containerPoint, 10); if (!a) { tip.hidden = true; hoverId = null; return; } hoverId = a.icao24;
       tip.hidden = false; tip.style.left = (e.containerPoint.x + 14) + 'px'; tip.style.top = (e.containerPoint.y + 14) + 'px';
-      tip.innerHTML = `<b>${esc(a.callsign || a.icao24)}</b> ${a.type ? esc(a.type) : ''}<br>${num(a.alt)} ft · ${num(a.gs)} kt · ${num(a.track)}°${a.squawk ? ' · sq ' + a.squawk : ''}${a.sev ? `<br><span style="color:${SEV[a.sev]}">${a.sev.toUpperCase()} · ${a.rules.join(', ')}</span>` : ''}${a.injected ? '<br><span style="color:#ff5cf0">INJECTED (demo)</span>' : ''}`; });
+      tip.innerHTML = `<b>${esc(a.callsign || a.icao24)}</b> ${a.type ? esc(a.type) : ''} <span style="color:#8d8d8d">${esc(a.operator || '')}</span><br>${num(a.alt)} ft · ${num(a.gs)} kt · ${num(a.track)}°${a.squawk ? ' · sq ' + a.squawk : ''}<br><span class="phase-${a.phase}">${a.phase || ''}</span>${a.airport ? ' · ' + a.airport + ' ' + num(a.airport_nm) + ' nm' : ''}${a.sev ? `<br><span style="color:${SEV[a.sev]}">${a.sev.toUpperCase()} · ${a.rules.join(', ')}</span>` : ''}${a.injected ? '<br><span style="color:#ff5cf0">INJECTED (demo)</span>' : ''}`; });
     map.on('click', e => { const a = layer.nearest(e.containerPoint, 12); if (a) select(a.icao24); else closeDrawer(); });
   }
   async function select(icao) {
     selected = icao; layer && layer._draw(); const r = await fetch('/api/v1/aircraft/' + icao); if (!r.ok) return; const d = await r.json(); const st = d.state || {};
     if (trail) { map.removeLayer(trail); trail = null; }
     if (d.trail.length > 1) trail = L.polyline(d.trail.map(p => [p.lat, p.lon]), {color: d.injected ? '#ff5cf0' : '#ffd166', weight: 2, opacity: .9, dashArray: d.injected ? '4 4' : null}).addTo(map);
+    const e = d.enrichment || {};
     const fs = d.findings.map(f => `<div class="f s-${f.severity} ${f.injected ? 'inj' : ''}"><span class="sev ${f.severity}">${f.severity}</span><span class="t">${f.rule} ${esc(f.title)}<small>${fmtTs(f.ts)} · risk ${f.risk} · ×${f.occurrences}${f.playbook ? ' · ' + esc(f.playbook) : ''}</small></span><span class="r"></span></div>`).join('') || '<div class="note ok">no findings for this aircraft</div>';
     document.getElementById('drawerBody').innerHTML = `<h2>${esc(st.callsign || '')} <span class="note">${icao}${d.injected ? ' · <span style="color:#ff5cf0">INJECTED</span>' : ''}</span></h2>
-<div class="kv"><div>registration <b>${esc(st.registration || '-')}</b></div><div>type <b>${esc(st.aircraft_type || '-')}</b></div><div>altitude <b>${num(st.baro_alt_ft)} ft</b></div><div>speed <b>${num(st.gs_kt)} kt</b></div><div>track <b>${num(st.track_deg)}°</b></div><div>v/s <b>${num(st.vrate_fpm)} fpm</b></div><div>squawk <b>${esc(st.squawk || '-')}</b></div><div>source <b>${esc(st.position_source || '-')}</b></div><div>NIC/NACp/SIL <b>${st.nic ?? '-'}/${st.nac_p ?? '-'}/${st.sil ?? '-'}</b></div><div>trust <b class="${d.trust < .5 ? 'bad' : 'ok'}">${d.trust}</b></div></div>
+<div class="kv"><div>operator <b>${esc(e.operator || '-')}</b></div><div>phase <b class="phase-${e.phase}">${esc(e.phase || '-')}${e.airport ? ' · ' + e.airport : ''}</b></div><div>registration <b>${esc(st.registration || '-')}</b></div><div>type <b>${esc(e.type_name || st.aircraft_type || '-')}</b></div><div>altitude <b>${num(st.baro_alt_ft)} ft</b></div><div>speed <b>${num(st.gs_kt)} kt</b></div><div>track <b>${num(st.track_deg)}°</b></div><div>v/s <b>${num(st.vrate_fpm)} fpm</b></div><div>squawk <b>${esc(st.squawk || '-')}</b></div><div>source <b>${esc(st.position_source || '-')}</b></div><div>NIC/NACp/SIL <b>${st.nic ?? '-'}/${st.nac_p ?? '-'}/${st.sil ?? '-'}</b></div><div>trust <b class="${d.trust < .5 ? 'bad' : 'ok'}">${d.trust}</b></div></div>
 <div class="row"><a class="btn small" href="#/findings?q=${icao}">All findings</a><button class="small" onclick="LivePage.zoomTo('${icao}')">Zoom</button></div><h3>Findings (${d.findings.length})</h3>${fs}`;
     document.getElementById('drawer').style.display = 'block';
   }
@@ -115,6 +116,6 @@ ${ev(s, ['OPS-002']).slice(0, 6).map(row).join('')}<h3>Airspace density</h3><div
       legend();
     },
     update(s) { S = s; if (!s || s.active === false) return; if (!map) { initMap(s.center); requestAnimationFrame(() => map && map.invalidateSize()); } document.getElementById('ldemo').hidden = !s.demo; kpis(s); layer.setData(s.aircraft); slowRefresh().then(renderPanel); renderPanel(); },
-    focus: focusAc, zoomTo, closeDrawer, destroy() { map = null; layer = null; trail = null; selected = null; }
+    focus: focusAc, zoomTo, closeDrawer, goto(lat, lon, z) { if (map) map.setView([lat, lon], z || 8); }, destroy() { map = null; layer = null; trail = null; selected = null; }
   };
 })();

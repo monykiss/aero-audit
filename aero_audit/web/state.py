@@ -12,6 +12,7 @@ from typing import Any
 
 from ..audit.engine import AuditEngine
 from ..audit.findings import SEVERITY_ORDER, Finding
+from ..ecosystem import Enriched, enrich, summarize
 from ..models import Batch, Source, StateVector
 from ..security.playbooks import playbook_for
 
@@ -58,6 +59,9 @@ class LiveState:
         self.injections: list[Injection] = []
         self.injected_ids: set[str] = set()
         self.metars: list[dict[str, Any]] = []
+        self.faa_status: dict[str, Any] = {"updated": None, "entries": []}
+        self.enriched: dict[str, Enriched] = {}
+        self.eco: dict[str, Any] = {}
         self.rng = random.Random(7)
         self.center: tuple[float, float] | None = None
         self.stop = threading.Event()
@@ -75,6 +79,9 @@ class LiveState:
             for sv in batch.states:
                 if sv.has_position:
                     self.trails[sv.icao24].append((sv.ts, sv.lat, sv.lon, sv.baro_alt_ft or 0.0))
+            self.enriched = {sv.icao24: enrich(sv) for sv in batch.states if sv.has_position}
+            self.eco = summarize(batch, self.enriched, self._recent_by_aircraft(batch.ts), self.faa_status.get("entries"))
+            self.eco["updated_ts"] = batch.ts
             for f in new:
                 self.events.appendleft(self._finding_json(f))
             if self.center is None and batch.states:
@@ -192,7 +199,10 @@ class LiveState:
     # ---- snapshots -------------------------------------------------------------------------
     def _finding_json(self, f: Finding) -> dict[str, Any]:
         pb = playbook_for(f.rule_id)
+        e = self.enriched.get(f.icao24 or "")
         return {
+            "operator": e.operator if e else None, "operator_code": e.operator_code if e else None,
+            "type": e.type_code if e else None, "phase": e.phase if e else None, "airport": e.airport if e else None,
             "id": f.id, "rule": f.rule_id, "severity": f.severity.value, "category": f.category.value,
             "icao24": f.icao24, "callsign": f.callsign, "ts": f.ts, "title": f.title, "risk": round(f.risk_score, 2),
             "occurrences": f.occurrences, "evidence": {k: v for k, v in f.evidence.items() if k != "feed"},
@@ -220,7 +230,13 @@ class LiveState:
                     fs = recent.get(sv.icao24, [])
                     top = min(fs, key=lambda f: SEVERITY_ORDER.index(f.severity)) if fs else None
                     emergency = sv.squawk in ("7500", "7600", "7700") or (sv.emergency not in (None, "none", ""))
+                    e = self.enriched.get(sv.icao24)
                     aircraft.append({
+                        "operator_code": e.operator_code if e else None, "operator": e.operator if e else None,
+                        "operator_cat": e.operator_cat if e else None, "type_name": e.type_name if e else None,
+                        "type_cat": e.type_cat if e else None, "phase": e.phase if e else None,
+                        "airport": e.airport if e else None, "airport_nm": e.airport_nm if e else None, "agl": e.agl_ft if e else None,
+                        "ts": sv.ts,
                         "icao24": sv.icao24, "callsign": (sv.callsign or "").strip() or None, "reg": sv.registration,
                         "type": sv.aircraft_type, "lat": sv.lat, "lon": sv.lon, "alt": sv.baro_alt_ft, "gs": sv.gs_kt,
                         "track": sv.track_deg, "vrate": sv.vrate_fpm, "squawk": sv.squawk, "ground": sv.on_ground,
@@ -250,8 +266,59 @@ class LiveState:
                 "injections": [{"kind": i.kind, "icao24": i.icao24, "remaining": i.remaining, "label": i.label} for i in self.injections],
                 "injection_kinds": INJECTION_KINDS,
                 "metars": self.metars,
+                "faa_updated": self.faa_status.get("updated"),
+                "phases": self.eco.get("phases", {}),
                 "errors": list(self.errors),
             }
+
+    def flights(self, **filters: Any) -> dict[str, Any]:
+        """Every aircraft in the current picture with enrichment, filtered and sorted (server-side)."""
+        snap = self.snapshot()
+        rows = snap["aircraft"]
+        f = {k: v for k, v in filters.items() if v}
+        band = f.get("altband")
+        bands = {"ground": (None, None), "low": (0, 10000), "mid": (10000, 25000), "high": (25000, 100000)}
+        out = []
+        q = (f.get("q") or "").lower()
+        for a in rows:
+            if f.get("operator") and a["operator_code"] != f["operator"]:
+                continue
+            if f.get("category") and a["operator_cat"] != f["category"]:
+                continue
+            if f.get("type_cat") and a["type_cat"] != f["type_cat"]:
+                continue
+            if f.get("phase") and a["phase"] != f["phase"]:
+                continue
+            if f.get("airport") and a["airport"] != f["airport"].upper():
+                continue
+            if f.get("severity") and a["sev"] != f["severity"]:
+                continue
+            if f.get("source") and (a["src"] or "") != f["source"]:
+                continue
+            if band == "ground" and not a["ground"]:
+                continue
+            if band in ("low", "mid", "high"):
+                lo, hi = bands[band]
+                if a["ground"] or a["alt"] is None or not (lo <= a["alt"] < hi):
+                    continue
+            if q and q not in f"{a['callsign'] or ''} {a['icao24']} {a['reg'] or ''} {a['type'] or ''} {a['operator'] or ''} {a['airport'] or ''}".lower():
+                continue
+            out.append(a)
+        sort = f.get("sort") or "alt"
+        desc = not sort.startswith("+")
+        key = sort.lstrip("+-")
+        out.sort(key=lambda a: (a.get(key) is None, a.get(key) if a.get(key) is not None else 0), reverse=desc)
+        facets = {
+            "operators": sorted({(a["operator_code"], a["operator"]) for a in rows if a["operator_code"]}, key=lambda x: x[1] or ""),
+            "phases": sorted({a["phase"] for a in rows if a["phase"]}),
+            "airports": sorted({a["airport"] for a in rows if a["airport"]}),
+            "type_cats": sorted({a["type_cat"] for a in rows if a["type_cat"]}),
+            "categories": sorted({a["operator_cat"] for a in rows if a["operator_cat"]}),
+            "sources": sorted({a["src"] for a in rows if a["src"]}),
+            "severities": [s.value for s in SEVERITY_ORDER],
+        }
+        limit = int(f.get("limit") or 1000)
+        return {"total": len(out), "items": out[:limit], "facets": facets, "batch_ts": snap["batch_ts"], "provider": snap["provider"]}
 
     def aircraft_detail(self, icao24: str) -> dict[str, Any] | None:
         with self.lock:
@@ -262,8 +329,10 @@ class LiveState:
             if sv is None and not fs and not trail:
                 return None
             state = sv.model_dump(exclude={"raw"}) if sv else None
+            e = self.enriched.get(icao24)
             return {
                 "icao24": icao24, "state": state, "trust": round(self.engine.trust.score(icao24), 2), "trail": trail,
+                "enrichment": e.to_dict() if e else None,
                 "findings": [self._finding_json(f) for f in sorted(fs, key=lambda f: f.ts, reverse=True)][:30],
                 "injected": icao24 in self.injected_ids,
                 "playbooks": {f.rule_id: playbook_for(f.rule_id).__dict__ for f in fs if playbook_for(f.rule_id)},

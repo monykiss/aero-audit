@@ -10,28 +10,35 @@
 <body>
 <div id="app">
   <nav id="nav">
-    <div class="brand"><span class="logo">✈</span><div><b>aero-audit</b><small id="ver"></small></div></div>
-    <a href="#/" data-p="home"><i>⌂</i>Home</a>
-    <a href="#/live" data-p="live"><i>◎</i>Live picture</a>
-    <a href="#/findings" data-p="findings"><i>≡</i>Findings</a>
-    <a href="#/risk" data-p="risk"><i>▲</i>Risk</a>
-    <a href="#/reports" data-p="reports"><i>▤</i>Reports</a>
-    <a href="#/data" data-p="data"><i>▦</i>Data &amp; model</a>
-    <a href="#/settings" data-p="settings"><i>⚙</i>Settings</a>
-    <a href="#/help" data-p="help"><i>?</i>Help</a>
+    <div class="brand"><span class="logo">✈</span><div><b>AERO AUDIT</b><small id="ver"></small></div></div>
+    <a href="#/" data-p="home"><i>⌂</i>HOME<span class="mn">HOME</span></a>
+    <a href="#/live" data-p="live"><i>◎</i>Live picture<span class="mn">LIVE</span></a>
+    <a href="#/flights" data-p="flights"><i>✈</i>Flights<span class="mn">FLT</span></a>
+    <a href="#/airports" data-p="airports"><i>▣</i>Airports<span class="mn">AIRP</span></a>
+    <a href="#/operators" data-p="operators"><i>◈</i>Operators<span class="mn">OPS</span></a>
+    <a href="#/findings" data-p="findings"><i>≡</i>Findings<span class="mn">FIND</span></a>
+    <a href="#/risk" data-p="risk"><i>▲</i>Risk<span class="mn">RISK</span></a>
+    <a href="#/reports" data-p="reports"><i>▤</i>Reports<span class="mn">RPT</span></a>
+    <a href="#/data" data-p="data"><i>▦</i>Data &amp; model<span class="mn">DATA</span></a>
+    <a href="#/auditlog" data-p="auditlog"><i>▮</i>Audit log<span class="mn">LOG</span></a>
+    <a href="#/settings" data-p="settings"><i>⚙</i>Settings<span class="mn">SET</span></a>
+    <a href="#/help" data-p="help"><i>?</i>Help<span class="mn">HELP</span></a>
     <div class="navfoot" id="navfoot"></div>
   </nav>
   <div id="body">
     <header id="top">
-      <div id="srcpill" class="pill off">no source</div>
+      <div class="cmdwrap"><span class="prompt">&gt;</span><input id="cmd" placeholder="mnemonic  e.g. LIVE · FLT AAL · AIRP JFK · FIND SEC-010 · OPS · RISK · LOG" autocomplete="off"><span class="go">GO ⏎</span></div>
+      <div id="srcpill" class="pill off">NO SOURCE</div>
       <div id="srcinfo" class="muted"></div>
       <div class="grow"></div>
-      <input id="search" placeholder="find callsign or ICAO (⏎)" autocomplete="off">
-      <button id="btnStop" class="ghost" hidden>Stop source</button>
-      <a class="btn primary" href="#/" id="btnStart">Start a source</a>
+      <div id="clock" class="clock"></div>
+      <button id="btnStop" class="ghost" hidden>STOP SOURCE</button>
+      <a class="btn primary" href="#/" id="btnStart">START A SOURCE</a>
     </header>
+    <div id="ticker"><div id="tickerTrack"></div></div>
     <div id="banner" hidden></div>
     <main id="page"></main>
+    <footer id="fkeys"><span>F1 HELP</span><span>F2 LIVE</span><span>F3 FLT</span><span>F4 AIRP</span><span>F5 OPS</span><span>F6 FIND</span><span>F7 RISK</span><span>F8 LOG</span><span class="grow"></span><span id="fkstatus"></span></footer>
     <div id="toast" hidden></div>
   </div>
 </div>

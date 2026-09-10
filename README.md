@@ -21,9 +21,12 @@ live feeds ──► normalize ──► JSONL recording ──► TrackStore (k
 .venv/bin/aero app                        # opens http://127.0.0.1:8787 in your browser
 ```
 
-A local application: Home (one click for a live picture of all of America, or choose a replay or
-region with dropdowns), Live picture (canvas map for thousands of aircraft, colour by findings,
-altitude, speed or trust, KPIs, findings, safety, security, operations panels, demo injections), Findings (filter, evidence,
+A terminal-style local application (black and amber, mnemonics, function keys, ticker): Home (one
+click for a live picture of all of America), Live picture (canvas map for thousands of aircraft, colour
+by findings, altitude, speed or trust), Flights (every aircraft with operator, type, phase, nearest
+airport, dropdown filters, CSV), Airports (132 North American airports with live departures, arrivals,
+holds, emergencies, FAA ground stops and delays, METARs), Operators (fleet, phase mix, integrity
+compliance per airline), Audit log (append-only record of every action), Findings (filter, evidence,
 playbooks, CSV), Risk, Reports (generate and browse), Data & model (capture, inventory, train,
 evaluate, prune, job logs), Settings (thresholds applied live), Help (rules, playbooks, docs).
 Sources start, stop, and switch at runtime; long tasks are background jobs. See
@@ -205,6 +208,7 @@ everything else medium or low. Full table with heat map: `reports/risk_assessmen
 | adsb.lol | readsb JSON incl. NIC/NACp/SIL integrity, selected altitude | community feed; HTTP 429 if polled < ~10 s or from several clients at once. Run one capture at a time, interval >= 15 s |
 | OpenSky Network | state vectors, position source (ADS-B/MLAT/FLARM) | anonymous is rate-limited; OAuth2 creds in `.env` raise limits |
 | NOAA AWC | METAR weather | context for ops findings |
+| FAA NAS status | ground stops, ground delay programmes, closures, arrival/departure delays by airport | public XML, refreshed every 5 min in live mode |
 | airplanes.live | (not wired) | requires emailing for API access |
 
 ## Audit rules

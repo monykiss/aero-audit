@@ -93,3 +93,38 @@ def test_router_matches_params():
     r.add("GET", "/api/v1/aircraft/{icao}", lambda app, req: req)
     _, params = r.match("GET", "/api/v1/aircraft/abc123")
     assert params == {"icao": "abc123"} and r.match("POST", "/api/v1/aircraft/abc123") is None
+
+
+def test_ecosystem_flights_airports_operators_and_audit(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data/recordings").mkdir(parents=True)
+    rec = generate(tmp_path / "data/recordings/synthetic_eco.jsonl", n_aircraft=25, polls=10, seed=5)
+    app, httpd, port = _srv()
+    try:
+        _post(port, "/api/v1/source/start", {"mode": "replay", "recording": str(rec), "speed": 200, "demo": True})
+        for _ in range(50):
+            time.sleep(0.1)
+            if app.sources.state and app.sources.state.batches >= 3:
+                break
+        status, fl = _get(port, "/api/v1/flights?limit=5")
+        assert status == 200 and fl["total"] == 25 and {"operator", "phase", "type_cat"} <= set(fl["items"][0])
+        assert "phases" in fl["facets"] and len(fl["items"]) == 5
+        status, csvtxt = _get(port, "/api/v1/flights.csv?phase=cruise")
+        assert csvtxt.startswith("callsign,icao24")
+        status, eco = _get(port, "/api/v1/ecosystem")
+        assert status == 200 and "phases" in eco and eco["operators"]
+        status, ap = _get(port, "/api/v1/airports")
+        assert status == 200 and ap["items"] and {"nearby", "departing", "faa", "elev_ft"} <= set(ap["items"][0])
+        status, one = _get(port, "/api/v1/airports/KJFK")
+        assert status == 200 and one["airport"]["iata"] == "JFK" and "flights" in one
+        status, ops = _get(port, "/api/v1/operators")
+        assert status == 200 and ops["items"] and "compliance" in ops["items"][0]
+        _post(port, "/api/v1/inject", {"kind": "flood"})
+        status, log = _get(port, "/api/v1/audit")
+        actions = [e["action"] for e in log["items"]]
+        assert "inject" in actions and "source.start" in actions and "app.start" in actions
+        assert _get(port, "/api/v1/audit.csv")[1].startswith("time,actor,action")
+        assert (tmp_path / "data/app/audit.jsonl").exists()
+    finally:
+        app.sources.stop()
+        httpd.shutdown()
