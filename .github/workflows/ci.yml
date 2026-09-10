@@ -63,7 +63,7 @@ jobs:
         run: |
           docker run -d --rm --name aero -p 127.0.0.1:8787:8787 aero-audit:ci
           for i in $(seq 1 45); do
-            if curl -fsS http://127.0.0.1:8787/api/v1/app >/tmp/app.json 2>/dev/null; then break; fi
+            if curl -fsS http://127.0.0.1:8787/api/v1/app >/tmp/app.json 2>/dev/null && grep -q '"active": true' /tmp/app.json; then break; fi
             sleep 2
           done
           cat /tmp/app.json

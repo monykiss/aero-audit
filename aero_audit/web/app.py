@@ -872,8 +872,7 @@ def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True
             allowed_hosts: tuple[str, ...] = (), tour: bool = False) -> tuple[App, ThreadingHTTPServer]:
     guard = Guard(host, token, allow_unauthenticated, allowed_hosts)
     app = App(guard)
-    httpd = ThreadingHTTPServer((host, port), make_handler(app))
-    threading.Thread(target=httpd.serve_forever, daemon=True, name="aero-http").start()
+    httpd = ThreadingHTTPServer((host, port), make_handler(app))  # bind first, serve after the preset is running
     if preset:
         if preset.get("mode") == "live":
             app.sources.start_live(preset.get("provider", "adsblol"), preset.get("region", "nyc"), preset.get("radius"),
@@ -884,6 +883,7 @@ def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True
     if tour and app.sources.state is not None:
         app.tour.start()
         app.audit.record("tour.start", actor="system")
+    threading.Thread(target=httpd.serve_forever, daemon=True, name="aero-http").start()
     url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{httpd.server_address[1]}/"
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
