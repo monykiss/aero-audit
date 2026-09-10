@@ -66,6 +66,8 @@ custom licence such as the NASA Open Source Agreement, which we do not vendor, o
 | nasa/NASA-3D-Resources | 3,779 | NOSA | Models, textures, imagery | The asset domain; catalogue and integrity tooling is our candidate upstream contribution |
 | nasa/CrisisMappingToolkit | 207 | Apache-2.0 | NASA Ames flood-extent algorithms (MODIS, SAR, Landsat) on Google Earth Engine; XML domain specs | Crisis extents as GeoJSON into ST-11 / C-34; the configurable domain-specification idea; algorithms cited, not vendored (needs an Earth Engine account and PyQt4) |
 | sksalahuddin2828/NASA | 234 | none ("educational, don't sell") | Personal pygame solar-system and TLE orbit visualisers | Reviewed, not adopted: no licence, unmaintained since 2023; the intent (TLE orbit visualisation) is served by phase 3 with python-sgp4/skyfield |
+| NASAWorldWind/WorldWindJava | 790 | NOSA (custom) | NASA WorldWind Java SDK: 3D virtual globe for desktop apps; last push 2024 | Reference for globe rendering (terrain, layers, picking); we stay web-native and use MMGIS / 3D Tiles as the web analogues; not vendored |
+| corincerami/mars-photo-api | 399 | GPL-3.0, archived | Rails wrapper around the NASA Mars Rover Photos API | Not adopted; the underlying `api.nasa.gov` rover-photos endpoint (keyless with DEMO_KEY) is a planned space-assets source with the same provenance sidecars |
 | nasa/HDTN, nasa-jpl/ION-DTN | 146 / 140 | Apache / NOSA | Delay-tolerant networking | Out of scope; noted so nobody re-plans it |
 | openskynetwork/opensky-api | 466 | GPL-3.0 | OpenSky REST bindings | Already a feed; bindings not vendored (licence) |
 | wiedehopf/readsb, flightaware/dump1090 | 672 / 1,141 | custom / custom | ADS-B decoders | Receiver-level provenance for the next corroboration step |
@@ -109,6 +111,8 @@ at low or medium residual (20%), runnable studies (10%) and evidence freshness o
 | 5. Software assurance | NPR 7150.2 classification of components; SLIM templates applied; SDLS expectations documented | C-31/C-32 implemented; SECURITY.md extended |
 | 7. Crisis overlays | Extents from CMT or Earth Engine exports intersected with airports, routes and live traffic; relief-flight coverage study | ST-11 on a real flood export; C-34 implemented; E01 residual falls |
 | 6. Upstream | Catalogue and integrity tool offered to nasa/NASA-3D-Resources; library client published; branch becomes public | Contribution accepted or a public home agreed; P-08 lifted |
+
+Open issues on nasa/NASA-3D-Resources that the catalogue tool answers directly (checked 2026-09-10): #44 "Miscategorization of a file" (our `kind_of` classification and subject grouping surface exactly this), #43 "LWO version missing images" (ST-04 reports models without a preview image); #17 "License" (closed) is the thread to cite when confirming terms. The first upstream offer should be a PR that adds a generated `CATALOG.json` plus a small script, referencing those issues.
 
 ## 5. Operating model
 

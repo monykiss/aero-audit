@@ -8,7 +8,7 @@ Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90
 |---|---|---|---|---|
 | Air: surveillance integrity (ADS-B / Mode S) | active | 17 | 20 / 2 / 1 | adsb.lol /v2 (readsb JSON, NIC/NACp/SIL); OpenSky Network states/all; cross-feed corroboration |
 | Air: operations, airports and ecosystem | active | 11 | 10 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
-| Space: open assets with provenance | active | 0 | 3 / 1 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov |
+| Space: open assets with provenance | active | 0 | 3 / 1 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov; api.nasa.gov Mars Rover Photos (planned) |
 | Space: launch and ascent | scaffold | 5 | 3 / 3 / 2 | telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
 | Space: orbital operations and conjunction | planned | 0 | 1 / 1 / 4 | CelesTrak / space-track.org TLE; CCSDS ODM (502.0-B); CCSDS CDM (508.0-B) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |

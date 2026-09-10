@@ -62,7 +62,7 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
         "NASA-3D-Resources catalogue with git-blob-verified fetch; NASA Image and Video Library search and "
         "download with SHA-256 manifests; licence text carried with every file.",
         "active",
-        ("github.com/nasa/NASA-3D-Resources (tree API + raw)", "images-api.nasa.gov / images-assets.nasa.gov"),
+        ("github.com/nasa/NASA-3D-Resources (tree API + raw)", "images-api.nasa.gov / images-assets.nasa.gov", "api.nasa.gov Mars Rover Photos (planned)"),
         (),
         ("NASA-NOSA-1.3", "NASA-MEDIA", "ODbL-1.0"),
         ("aero_audit/space/nasa3d.py", "aero_audit/space/nasa_images.py"),
