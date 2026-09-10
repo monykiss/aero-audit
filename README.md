@@ -1,150 +1,144 @@
 # aero-audit
 
-AI/ML and computer-vision auditing toolkit for aviation operations and ADS-B security.
-It streams real aircraft positions from public feeds, replays recordings, runs explainable
-audit rules plus an unsupervised anomaly model, detects aircraft in imagery, and writes
-ranked findings mapped to the controls they violate.
+[![ci](https://github.com/monykiss/aero-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/ci.yml)
+[![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
+[![version 0.4.0](https://img.shields.io/badge/version-0.4.0-orange.svg)](CHANGELOG.md)
+
+**Aviation surveillance auditing, end to end.** aero-audit follows real aircraft from public
+ADS-B feeds, checks every position report against physics, integrity and safety rules plus an
+anomaly model, measures its own detection accuracy with injected attacks, scores risk from the
+evidence, and shows all of it in a terminal-style local app whose every action and report is
+tamper-evident.
+
+It runs offline in one command, on any machine, and never transmits anything.
+
+![Live picture during the scripted attack tour: the Seattle hub of a 15-hub replay, active injections and latest findings](docs/img/live.png)
+
+## Sixty seconds
+
+```bash
+git clone https://github.com/monykiss/aero-audit.git && cd aero-audit
+scripts/bootstrap.sh          # macOS / Linux: .venv, hash-verified install, health check, opens the demo
+```
+
+Windows: `powershell -ExecutionPolicy Bypass -File scripts\bootstrap.ps1`. Container:
+`docker run --rm -p 127.0.0.1:8787:8787 $(docker build -q .)`. Already set up: `make demo`.
+
+The demo replays a bundled sample of real traffic (15 US hubs, 3,900 aircraft, adsb.lol, ODbL)
+at 10x with a **scripted tour** that injects eight attack scenarios on a timeline. The banner
+narrates each one and says what should fire. Press **F2** for the map, **F6** for findings,
+**F8** for the hash-chained audit log, click **SND** to hear alerts. Full walkthrough:
+[docs/DEMO.md](docs/DEMO.md).
+
+| | |
+|---|---|
+| ![Home](docs/img/home.png) | ![Flights](docs/img/flights.png) |
+| ![Airports with FAA programmes](docs/img/airports.png) | ![Findings with evidence and playbook](docs/img/findings.png) |
+
+## What it does
+
+- **Ingests** adsb.lol (integrity fields NIC/NACp/SIL) and OpenSky (whole-country boxes), NOAA
+  METARs and the FAA NAS status feed, all keyless; records everything as replayable JSONL.
+- **Audits** every fix with explainable rules: impossible jumps, speed and altitude physics,
+  integrity below 14 CFR 91.227 minimums, replayed fixes, ghosts, emergency and hijack codes with
+  confirmation tiers, holding, level busts, coverage gaps, stream floods and collapses, cross-feed
+  disagreement, watchlists. Every finding maps to a control reference and a response playbook.
+- **Learns** the airspace's normal envelope with per-regime IsolationForests over twelve kinematic
+  features, percentile-calibrated, with two-fix persistence before a finding is raised.
+- **Measures itself**: `aero evaluate` perturbs real aircraft with eight attack scenarios and
+  reports recall, time-to-detect and per-rule precision. Those numbers weight the risk score and
+  the risk register; two scenarios are known gaps and are reported as such.
+- **Understands the ecosystem**: 132 North American airports, ~80 operators, ~180 aircraft types,
+  flight phases from altitude above field, FAA ground stops and delay programmes joined to traffic.
+- **Sees**: tiled YOLOv8 detection on apron imagery with zone occupancy findings (optional extra).
+- **Reports**: JSON, Markdown, self-contained HTML, each with provenance and a manifest of
+  SHA-256 hashes; risk register with Wilson-bound likelihoods and residual risk; holding impact
+  in fuel, CO2 and delay cost.
+- **Shows it** in a local app: Bloomberg-style black-and-amber terminal, command line with
+  mnemonics, function keys, ticker, canvas map for thousands of aircraft, dropdown filters,
+  sortable grids, CSV everywhere, background jobs, live threshold tuning, in-app docs.
+
+## Trustworthy by construction
+
+Two things a reviewer can check rather than take on faith.
+
+**Auditable.** The app's audit log is a hash chain: every entry carries the SHA-256 of the one
+before it and of itself, so an edited, deleted or reordered line is named by `aero log verify`
+and by the **CHAIN VERIFIED** badge on the Audit log page. Every report ships with a provenance
+block (tool version, git commit, input recording and its hash, model hash and registry status,
+evaluation hash, threshold overrides) and a manifest that `aero log verify-report` and the
+**verify** link on the Reports page re-hash. Injected demo traffic is flagged in every finding.
+
+**Secure by default.** A server on 127.0.0.1 is reachable from every web page you have open, so
+the app validates the `Host` header against DNS rebinding, requires a per-process token on every
+POST (which forces the CORS preflight the server never grants), checks `Origin` and
+`Sec-Fetch-Site`, serves a strict Content-Security-Policy with no inline script, confines every
+path parameter to the project's data directories, accepts only `http(s)` webhooks, and loads a
+model only when its SHA-256 matches the registry that `aero train` wrote. Binding beyond loopback
+requires a token on every API call. Dependencies install with `--require-hashes` from a universal
+lock; CI runs ruff, pytest, docs-drift, `pip-audit`, gitleaks over the full history, CodeQL and a
+container smoke test, with every action pinned to a commit SHA. Threat table and the reporting
+policy: [SECURITY.md](SECURITY.md).
+
+`★ Insight ─────────────────────────────────────`
+- ADS-B has no cryptography, so the detection story is physics and corroboration: an injected
+  fix must still agree with the aircraft's own speed, climb and history, and with a second feed.
+- Detection recall is bounded by the revisit interval, not the rule: one-off manipulations are
+  caught ~96% of the time at 20 s polling and ~60% at 48 s round-robin. Measured, not assumed.
+- A local web app is not private by default; the same-origin policy protects the browser, not
+  the server. Host validation and a custom-header token are what close that door.
+`─────────────────────────────────────────────────`
+
+## How it fits together
 
 ```
 live feeds ──► normalize ──► JSONL recording ──► TrackStore (kinematics) ──► rules + ML + watchlist ──► findings
- adsb.lol       StateVector    (replayable)        implied speed, turn,        SEC/OPS/SAF, ML-001       │
- OpenSky                                            climb, holding             stream checks (burst,     ▼
- NOAA METAR                                                                    collapse)            risk score ──► trust ledger ──► alerts
-                                                                                                        │
+ adsb.lol       StateVector    (replayable,       implied speed, turn,        SEC/OPS/SAF, ML-001       │
+ OpenSky                        .jsonl or .gz)    climb, holding             stream checks (burst,     ▼
+ NOAA METAR                                                                   collapse)            risk score ──► trust ledger ──► alerts
+ FAA NAS status                                                                                          │
  two feeds ──► cross-feed corroboration (dead-reckoned) ──► SEC-015                                      ▼
- imagery ──► YOLO (tiled) ──► apron zone occupancy ──► OPS-VIS findings                    reports · playbooks · risk register · impact
+ imagery ──► YOLO (tiled) ──► apron zone occupancy ──► OPS-VIS findings          reports + manifests · playbooks · risk register · impact
+                                                                                                          │
+ local app ──► sources (replay / live) ──► LiveState (enrichment, injections, tour) ──► JSON API ──► terminal UI
+               hash-chained audit log · guard (Host, CSRF, CSP, path confinement) · jobs · settings
 ```
 
-## The app
-
-```bash
-.venv/bin/aero app                        # opens http://127.0.0.1:8787 in your browser
+```
+aero_audit/
+  config.py        regions, groups, settings          ecosystem.py     operator / type / phase / airport enrichment
+  models.py        StateVector / Batch schema         knowledge/       airports, airlines, types (offline reference data)
+  ingest/          adsblol, opensky, metar, faa_status, replay (.jsonl / .jsonl.gz), http (curl fallback)
+  stream/          async poller + JSONL recorder      provenance.py    report provenance and manifests
+  features/        TrackStore: per-aircraft kinematics
+  audit/           rules, findings, policy (precision-weighted score), engine, reports (JSON/MD/HTML)
+  ml/              IsolationForest model, trainer, registry (checksum gate), evaluation harness
+  security/        threat catalog, playbooks, trust ledger, watchlist, corroboration
+  risk/            5x5 register with evidence-adjusted assessment
+  vision/          YOLO detection (tiled), apron zone occupancy
+  web/             app (API v1), router, sources, state, jobs, security (guard), audit (hash chain), tour, static UI
+  alerts.py · impact.py · tuning.py · synthetic.py · docs_build.py · cli.py
 ```
 
-A terminal-style local application (black and amber, mnemonics, function keys, ticker): Home (one
-click for a live picture of all of America), Live picture (canvas map for thousands of aircraft, colour
-by findings, altitude, speed or trust), Flights (every aircraft with operator, type, phase, nearest
-airport, dropdown filters, CSV), Airports (132 North American airports with live departures, arrivals,
-holds, emergencies, FAA ground stops and delays, METARs), Operators (fleet, phase mix, integrity
-compliance per airline), Audit log (append-only record of every action), Findings (filter, evidence,
-playbooks, CSV), Risk, Reports (generate and browse), Data & model (capture, inventory, train,
-evaluate, prune, job logs), Settings (thresholds applied live), Help (rules, playbooks, docs).
-Sources start, stop, and switch at runtime; long tasks are background jobs. See
-[docs/APP.md](docs/APP.md) for the pages and how to extend it, and [docs/DEMO.md](docs/DEMO.md)
-for the demo script.
+Architecture, data-flow guarantees and extension points: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+and [docs/APP.md](docs/APP.md).
 
-## Documentation
+## Measured results
 
-| Document | What it covers |
-|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, data flow guarantees, extension points |
-| [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | Feeds, fields, rate limits, ADS-B integrity semantics, recording format |
-| [docs/RULES.md](docs/RULES.md) | Every rule: trigger, thresholds, false-positive modes, controls, tuning |
-| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Adversaries, why detection works without crypto, gaps and mitigations |
-| [docs/COMPLIANCE_MAPPING.md](docs/COMPLIANCE_MAPPING.md) | ICAO / FAA / EASA / DO-260B, NIST CSF 2.0, SP 800-53, ISO 27001, AI RMF |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Capture, audit, alert, corroborate, triage loop, retraining, retention |
-| [docs/IMPACT.md](docs/IMPACT.md) | Stakeholders, why now, quantified holding impact, security impact, limits |
-| [docs/ML.md](docs/ML.md) | Anomaly model, vision baseline, training-data strategy, roadmap |
-| [docs/APP.md](docs/APP.md) | The local app: pages, architecture, how to add endpoints, jobs, pages, sources |
-| [docs/DEMO.md](docs/DEMO.md) | Demo script: what each panel means for safety and operations, the injections |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Data, detection, response, vision, assurance backlog |
-| [docs/generated/](docs/generated/) | Threat matrix with measured recall, playbooks, risk register, rule ids rendered from code (`aero docs-build`) |
-| `models/` | Model card, registry (provenance), evaluation results that feed risk scoring |
-| [SECURITY.md](SECURITY.md) | Supply chain, data handling, vulnerability reporting |
+Captured in two sessions on 2026-09-09/10 from keyless public feeds, one poller per host:
+210,211 state vectors from 7,790 unique aircraft (four-hub adsb.lol rounds at 250 nm, OpenSky
+regional and whole-country boxes, the global military feed, a 15-hub national round-robin).
 
-## Quick start
+**Anomaly model.** 150,226 airborne feature rows from 6,155 aircraft, twelve features, separate
+terminal and en-route pipelines, split by aircraft (29,951 holdout rows from 1,231 unseen
+aircraft). Holdout flag rate 1.17% against a 1% contamination target. Card:
+`models/kinematic_iforest.md`.
 
-```bash
-uv venv --python 3.12 .venv && uv pip install -e ".[dev]"      # core
-uv pip install -e ".[vision]"                                   # + YOLO / OpenCV (large)
-.venv/bin/aero providers                # health-check live feeds
-.venv/bin/aero synth                    # offline practice data with injected anomalies
-.venv/bin/aero audit --recording data/recordings/synthetic_nyc.jsonl
-.venv/bin/aero stream --region nyc --seconds 120                # record live traffic
-.venv/bin/aero audit --live --region lhr --seconds 90           # audit live, record too
-.venv/bin/aero train data/recordings/*.jsonl                    # fit anomaly model
-.venv/bin/aero audit --recording <file> --model models/kinematic_iforest.joblib
-.venv/bin/aero weather nyc
-.venv/bin/aero vision detect data/samples/apron_hohn.jpg --tile 320 --conf 0.10
-.venv/bin/aero vision apron data/samples/apron_hohn.jpg --conf 0.10
+**Detection (`aero evaluate`, 25 real aircraft perturbed per scenario)**
 
-# security and risk layer
-.venv/bin/aero stream --region nyc,ord,lax,lhr --radius 250 --interval 12 --seconds 1500   # 4 hubs, ~3k aircraft/cycle
-.venv/bin/aero corroborate --region nyc --radius 150 --seconds 100      # two feeds, SEC-015 on disagreement
-.venv/bin/aero security threats                                         # threat catalog + detection coverage
-.venv/bin/aero security playbook SEC-010                                # triage / verify / escalate / contain
-.venv/bin/aero security watchlist-example && .venv/bin/aero audit --recording <file> --watchlist data/watchlist.example.json
-.venv/bin/aero audit --live --alert-log logs/alerts.jsonl --alert-webhook https://hooks.example/x --alert-min-severity high
-.venv/bin/aero risk register                                            # baseline 5x5 register
-.venv/bin/aero risk assess data/recordings/*.jsonl                      # evidence-adjusted register + heat map
-.venv/bin/aero impact data/recordings/*.jsonl                           # holding minutes -> fuel, CO2, cost
-.venv/bin/aero data inventory                                           # what is on disk
-.venv/bin/aero data prune --days 30                                     # retention (dry run; --apply to delete)
-.venv/bin/aero docs-build                                               # regenerate docs/generated
-
-# measured accuracy and tuning
-.venv/bin/aero evaluate <recording> --model models/kinematic_iforest.joblib --targets 25   # inject 8 attack scenarios; recall, TTD, precision
-.venv/bin/aero config init && .venv/bin/aero config show rules          # aero.toml threshold overrides
-scripts/run_pipeline.sh                                                 # train -> evaluate -> audit -> assess -> impact -> docs
-```
-
-Every audit writes three files: `.json` (machine-readable), `.md` (executive summary, ranked findings,
-playbook steps), and a self-contained `.html` for non-technical readers.
-
-## How scoring and risk assessment are made accurate
-
-An unsupervised detector has no accuracy until something is measured, so the toolkit closes the
-loop between detection, ranking, and risk:
-
-1. **Ground truth by injection.** `aero evaluate` perturbs a sample of genuine aircraft in a real
-   recording with eight attack scenarios (teleport, velocity forgery, altitude forgery, replay,
-   hijack squawk, GNSS-style integrity degradation, slow drift, perfect ghost) and measures recall,
-   median time-to-detect, and per-rule precision against untouched aircraft. Two scenarios are
-   known gaps by design and are reported as such. Results: `reports/evaluation_*.md`,
-   `models/evaluation.json`.
-2. **Precision-weighted ranking.** `risk_score = severity x (1 + 0.5 log2 repeats) x evidence
-   quality x measured precision`, with security findings from MLAT/TIS-B positions discounted and
-   ML findings capped at the medium weight ([policy.py](aero_audit/audit/policy.py)).
-3. **Evidence-adjusted register.** Hits x precision give expected true positives; the rate per
-   1,000 aircraft is taken at the Wilson 95% lower bound before it moves a likelihood band, so a
-   handful of hits on a small sample cannot escalate a risk. Every risk carries inherent and
-   residual scores, the latter from detective-control effectiveness derived from threat coverage
-   ([register.py](aero_audit/risk/register.py)).
-4. **Model that knows its regime.** Twelve kinematic features, separate IsolationForests for
-   terminal and en-route traffic, scores calibrated to training percentiles, two-fix persistence
-   before an ML finding is raised, grouped holdout by aircraft, a model card, and a registry with
-   data provenance and checksums.
-5. **Confirmation tiers.** Emergency squawks are unconfirmed on one fix and escalate on the second;
-   escalations bypass the de-duplication cooldown. Impossible jumps on MLAT solutions are filed as
-   data quality, not spoofing.
-6. **Operator control.** `aero config init` writes `aero.toml`; every threshold in the rules,
-   engine, policy, model, corroboration, and trust modules can be overridden, and unknown keys
-   fail loudly. `aero data prune` enforces retention.
-
-## Measured results (2026-09-09, two capture rounds)
-
-Data captured in one session, all keyless public feeds, one poller per host:
-
-| Recording | Provider | Coverage | Polls | Aircraft | Integrity compliance |
-|---|---|---|---|---|---|
-| four hubs A | adsb.lol | NYC, ORD, LAX, LHR at 250 nm | 94 | 3,819 | 98.9% of 44,377 fixes |
-| four hubs B | adsb.lol | SFO, DFW, ATL, HND at 250 nm | 91 | 2,811 | 95.4% of 34,217 fixes |
-| whole USA probe | OpenSky | contiguous states in one box | 1 | 4,886 | n/a |
-| US Northeast box | OpenSky | 36-45N, 80-69W | 60 | 1,498 | n/a (no integrity fields) |
-| US Southwest box | OpenSky | 30-42N, 125-108W | 40 | 1,412 | n/a |
-| global military feed | adsb.lol `/v2/mil` | worldwide | 12 | 333 | 95.9% |
-| earlier short captures | adsb.lol | NYC, LHR at 60 nm | 9 | 424 | 98.7% |
-
-Total on disk: 210,211 state vectors from 7,790 unique aircraft (`aero data inventory`).
-
-**Anomaly model.** 150,226 airborne feature rows from 6,155 aircraft, 12 features, separate
-terminal and en-route pipelines, split by aircraft (29,951 holdout rows from 1,231 unseen aircraft).
-Holdout flag rate 1.17% against a 1% contamination target. Card: `models/kinematic_iforest.md`;
-provenance: `models/registry.json`.
-
-**Measured detection (`aero evaluate`, 25 real aircraft perturbed per scenario)**
-
-| Scenario | 20 s polling (OpenSky NE) | 48 s round-robin (adsb.lol four hubs) | Detecting rules |
+| Scenario | 20 s polling (OpenSky) | 48 s round-robin (adsb.lol) | Detecting rules |
 |---|---|---|---|
 | teleport (30 nm position replacement) | 96%, TTD 0 s | 96%, TTD 43 s | SEC-010 |
 | velocity forgery (speed halved) | 68% | 76% | SEC-011, ML-001 |
@@ -155,130 +149,116 @@ provenance: `models/registry.json`.
 | slow drift (0.2 nm per poll) | 12%, known gap | 12%, known gap | corroboration needed |
 | perfect ghost aircraft | 0%, known gap | 0%, known gap | corroboration needed |
 
-Per-rule precision on the primary feed (findings on untouched aircraft counted as false positives):
-SEC-003, SEC-010, SEC-014 at 1.00; SEC-011 0.91; SEC-018 0.74; ML-001 0.25. These numbers weight
-the risk score and the register. Velocity forgery is bounded by the 150 kt mismatch floor: halving
-the speed of a 250 kt aircraft stays under it. The two gaps are structural for single-feed
-kinematics and are what `aero corroborate` exists for.
+Per-rule precision on the primary feed: SEC-003, SEC-010, SEC-014 at 1.00; SEC-011 0.91;
+SEC-018 0.74; ML-001 0.25. These weight the risk score (`severity x (1 + 0.5 log2 repeats) x
+evidence quality x precision`, ML capped at medium) and the register (hits x precision per 1,000
+aircraft at the Wilson 95% lower bound, sample-size guarded, residual = inherent x (1 − control
+effectiveness)).
 
-**Audits with the final model.** Across 9,964 aircraft-observations: zero critical findings and
-exactly one high, a squawk 7500 on a descending airliner that lasted one poll between identical
-normal codes and is reported as unconfirmed. No spoofing, ghost, flooding, or coverage-collapse
-rule fired on civil traffic. Four hubs A: 899 findings (200 medium), four hubs B: 713 (85 medium).
+**On real civil traffic** (9,964 aircraft-observations with the final model): zero critical
+findings and exactly one high, a squawk 7500 that lasted one poll between identical normal
+codes, reported as unconfirmed. **Cross-feed corroboration** (NYC, 4 rounds): 1,626 matches,
+median dead-reckoned separation 0.02 nm, 95th percentile 0.10 nm, one disagreement.
+**Holding impact** (defaults): 30 airline holds, 267 minutes, ~10.7 t fuel, 33.7 t CO2, 26,700 EUR.
 
-**Cross-feed corroboration** (NYC 150 nm, 4 rounds): 1,626 matched comparisons between adsb.lol
-and OpenSky, median dead-reckoned separation 0.02 nm, 95th percentile 0.10 nm, one disagreement.
-
-**Military feed** (not used for training): 333 aircraft, 44 without flight ID, four impossible
-MLAT "jumps" of up to 96 nm over sparse receiver terrain, filed as data quality.
-
-**Holding impact** (`aero impact`, default assumptions): 30 airline holds, 267 observed minutes,
-about 10.7 t fuel, 33.7 t CO2, and 26,700 EUR of delay cost, all floors.
-
-**Risk register** (recordings audited separately plus the corroboration report): "surveillance
-picture poisoned by injected or modified ADS-B" high inherent, medium residual; "decisions built on
-low-integrity positions" high, likelihood 5 on 505 hits (43 per 1,000 at the Wilson lower bound);
-everything else medium or low. Full table with heat map: `reports/risk_assessment_*.md`.
-
-### Rule tuning that came out of reading the evidence
+### What the evidence changed
 
 | Observation on real data | Change |
 |---|---|
 | TIS-B tracks carry NIC/NACp/SIL = 0 by design | SEC-012 scoped to ADS-B sources |
-| Single-snapshot selected-altitude gaps are pending clearances | OPS-004 needs 3 fixes over >= 60 s; gaps > 1,000 ft are info |
 | 154 of 190 "holds" were training circuits below 3,000 ft | OPS-002 gets altitude/speed floors; pattern work is OPS-003 |
 | Every speed mismatch at the default tolerance was an MLAT military track | SEC-011 tolerance x2.5 for MLAT, x2 for TIS-B |
-| Top ML anomalies were fixes separated by long gaps or taxiing aircraft | ML excludes dt > 120 s and altitude < 1,000 ft |
-| 2% per-fix contamination flagged ~20% of aircraft | 1% default plus two-fix persistence within 10 min |
-| Concatenating recordings in one engine looked like bursts and collapses | `risk assess` audits each recording separately |
-| MLAT solutions jump 96 nm over Wyoming | SEC-010 on non-ADS-B sources is data-quality, medium |
-| Whole-image YOLOv8n found none of 12 parked transports | Tiled inference (`--tile 320`) finds 4; fine-tuning is next |
+| MLAT solutions jump 96 nm over Wyoming | SEC-010 on non-ADS-B sources is data quality, medium |
+| Departures from Salt Lake City (4,227 ft) looked like altitude forgeries because ground fixes were stored as 0 ft | Mappers never fabricate 0 ft; no implied vertical rate across ground transitions |
+| A live 7500 lasted one poll between identical normal codes | Emergency codes unconfirmed on one fix, escalate on the second, bypassing the cooldown |
+| 2% per-fix contamination flagged ~20% of aircraft | 1% plus two-fix persistence within 10 min |
+| Feed timestamps lag the batch, so the harness missed the first perturbed fix | Detections attributed by batch index; teleport recall 64% → 96% |
+| A targeted demo injection expired before its round-robin region came back | Injections last N reports *of the target* |
 | adsb.lol returns 429 from several clients at once | One client, round-robin regions, 429-aware back-off |
-| LuLu / VPN extension blocked Python sockets while curl worked | Providers fall back to a curl transport |
-| Departures from Salt Lake City (4,227 ft elevation) looked like 4,300 ft altitude forgeries because ground fixes were stored as 0 ft | No implied vertical rate across ground transitions; mappers never fabricate 0 ft |
-| A live 7500 lasted one poll between identical normal codes | Emergency codes unconfirmed on one fix, escalate on the second; escalations bypass the cooldown |
-| Feed position timestamps lag the batch, so the harness discarded the first perturbed fix | Detections attributed by batch index; recall rose from ~64% to ~96% on teleport |
-| Round-robin recordings interleave regions | Target presence measured per region; stale re-reported fixes disqualified |
-| Zero watchlist hits were lowering the privacy risk | Rules needing optional configuration are not register evidence; corroboration reports are |
+| A per-app firewall blocked Python sockets while curl worked | Providers fall back to a curl transport; `aero doctor` explains it |
 
-## Data sources (all free, no key)
+## Running it
+
+```bash
+scripts/bootstrap.sh --no-demo       # or: make setup   (uv if present, else python3 -m venv; --require-hashes)
+.venv/bin/aero doctor                # Python, deps, samples, model integrity, ports, feeds, audit chain
+.venv/bin/aero demo                  # offline demo with the scripted tour
+.venv/bin/aero app                   # empty app; pick a source on Home (replay, a hub, a country, a continent)
+.venv/bin/aero serve --live --region nyc --radius 150          # real traffic, recorded as it goes
+.venv/bin/aero app --host 0.0.0.0 --token "$(openssl rand -hex 24)"   # beyond loopback: token on every API call
+docker compose up --build            # container, port published on 127.0.0.1 only
+```
+
+The command line: `LIVE`, `FLT DAL`, `AIRP JFK`, `FIND SEC-010`, `OPS cargo`, `LOG inject`,
+`RISK`, `RPT`, `USA` (nationwide live), `TOUR`, `SND`, `STOP`. F1 to F8 jump between pages.
+
+### The rest of the CLI
+
+```bash
+aero stream --region usa-hubs --interval 10 --seconds 1500    # capture 15 hubs in turn
+aero audit --recording data/recordings/<file>.jsonl --model models/kinematic_iforest.joblib
+aero train data/recordings/*.jsonl                             # fit + model card + registry entry
+aero evaluate <recording> --model models/kinematic_iforest.joblib --targets 25
+aero corroborate --region nyc --radius 150 --seconds 100       # two feeds, SEC-015 on disagreement
+aero security threats | playbook SEC-010 | rules | watchlist-example
+aero risk register | risk assess data/recordings/*.jsonl
+aero impact data/recordings/*.jsonl
+aero log verify | log show | log verify-report reports/<name>.manifest.json
+aero config init && aero config show rules                     # aero.toml threshold overrides
+aero data inventory | data prune --days 30
+aero vision detect data/samples/apron_hohn.jpg --tile 320 --conf 0.10     # needs the [vision] extra
+aero docs-build                                                # regenerate docs/generated from code
+scripts/run_pipeline.sh                                        # train → evaluate → audit → assess → impact → docs
+```
+
+## Documentation
+
+| Document | What it covers |
+|---|---|
+| [docs/DEMO.md](docs/DEMO.md) | The sixty-second demo, the tour timeline, what each panel means |
+| [docs/APP.md](docs/APP.md) | Pages, terminal chrome, security, auditability, API, how to extend |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, data-flow guarantees, extension points |
+| [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | Feeds, fields, rate limits, ADS-B integrity semantics, recording format |
+| [docs/RULES.md](docs/RULES.md) | Every rule: trigger, thresholds, false-positive modes, controls, tuning |
+| [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) | Adversaries, why detection works without crypto, gaps and mitigations |
+| [docs/COMPLIANCE_MAPPING.md](docs/COMPLIANCE_MAPPING.md) | ICAO / FAA / EASA / DO-260B, NIST CSF 2.0, SP 800-53, ISO 27001, AI RMF |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Capture, audit, alert, corroborate, triage loop, retraining, retention |
+| [docs/IMPACT.md](docs/IMPACT.md) | Stakeholders, quantified holding impact, security impact, limits |
+| [docs/ML.md](docs/ML.md) | Anomaly model, vision baseline, training-data strategy |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Data, detection, response, vision, assurance backlog |
+| [docs/generated/](docs/generated/) | Threat matrix with measured recall, playbooks, risk register, rule ids, rendered from code |
+| [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) | Policy, how to help, history |
+
+## Data sources and ethics
 
 | Source | What | Notes |
 |---|---|---|
-| adsb.lol | readsb JSON incl. NIC/NACp/SIL integrity, selected altitude | community feed; HTTP 429 if polled < ~10 s or from several clients at once. Run one capture at a time, interval >= 15 s |
-| OpenSky Network | state vectors, position source (ADS-B/MLAT/FLARM) | anonymous is rate-limited; OAuth2 creds in `.env` raise limits |
-| NOAA AWC | METAR weather | context for ops findings |
-| FAA NAS status | ground stops, ground delay programmes, closures, arrival/departure delays by airport | public XML, refreshed every 5 min in live mode |
-| airplanes.live | (not wired) | requires emailing for API access |
+| adsb.lol | readsb JSON with NIC/NACp/SIL integrity, selected altitude | ODbL; HTTP 429 if polled faster than ~10 s or from several clients; one capture at a time |
+| OpenSky Network | state vectors, position source | anonymous is rate-limited; OAuth2 client credentials in `.env` raise limits |
+| NOAA AWC | METARs | context for operations findings |
+| FAA NAS status | ground stops, delay programmes, closures | public XML, refreshed every 5 min in live mode |
 
-## Audit rules
+ADS-B is an unencrypted public broadcast; receiving and analysing it is what these feeds exist
+for. This project is **passive**: it never transmits and never interacts with aircraft or ATC
+systems. Findings are audit signals, not accusations; a spoofing rule on a real feed most often
+means a receiver merge glitch, an MLAT outlier, or a transponder fault. Recordings can identify
+individuals' aircraft: keep them out of version control (they are ignored) and apply retention.
 
-| Rule | Category | What it catches | Control reference |
-|---|---|---|---|
-| SEC-001/002/003 | security | squawk 7700 / 7600 / 7500 | ICAO Doc 4444, FAA AIM 4-1-20 |
-| SEC-004 | security | emergency status subfield set | RTCA DO-260B |
-| SEC-010 | security | kinematically impossible jump (spoof/injection) | FAA AC 20-165B, ICAO Annex 17 |
-| SEC-011 | security | reported vs position-derived speed mismatch | RTCA DO-260B |
-| SEC-012 | data-quality | NIC/NACp/SIL below rule-airspace minimums | 14 CFR 91.227(c) |
-| SEC-013 | security | airborne, no flight ID | ICAO Doc 4444, FAA AC 90-114 |
-| SEC-014 | security | one ICAO24 at two distant positions (ghost) | ICAO Annex 10 Vol III |
-| OPS-001 | operations | surveillance coverage gap | ICAO Doc 9924 |
-| OPS-002 | operations | airline-style holding (>= 3,000 ft, >= 150 kt; feeds the impact model) | ICAO Doc 4444, GANP/ASBU |
-| OPS-003 | operations | low-altitude / low-speed orbiting (pattern work, survey, helicopter) | FAA AC 90-66C |
-| OPS-004 | safety | level flight away from selected altitude | level-bust programmes |
-| OPS-005 | operations | VFR code 1200 above FL180 | 14 CFR 91.135 |
-| SAF-003 | safety | vertical rate beyond FOQA-style threshold | ICAO Annex 6 |
-| ML-001 | ml | IsolationForest kinematic outlier, with top feature deviations | NIST AI RMF |
-| OPS-VIS-001/002 | operations | apron zone over capacity / idle | ICAO Annex 14, A-CDM |
+## Tests and quality
 
-| SEC-015 | security | cross-feed position disagreement after dead reckoning | ICAO Doc 9924 |
-| SEC-016 | security | burst of never-seen addresses (flooding indicator) | ICAO Doc 9924 |
-| SEC-017 | security | coverage collapse (jamming / feed outage indicator) | ICAO Annex 10 Vol IV |
-| SEC-020 | security | watchlist match (detect or protect mode) | organisation policy |
+`make test` runs 80 offline tests: rules on synthetic anomalies, features, ingest mapping, ML
+training and evaluation, risk math, the app API, the security guard (rebinding, CSRF, path
+confinement, token mode), the audit hash chain, model integrity, provenance and manifests, the
+tour, and gzip replay. `make lint` is ruff. CI fails when `docs/generated` drifts from the code.
 
-Thresholds live at the top of `aero_audit/audit/rules.py`. The ranking policy that decides
-what an operator sees first lives in `aero_audit/audit/policy.py`. Every finding links to a
-response playbook; every rule maps to the threats it detects; the risk register is re-scored
-from observed evidence.
+## Roadmap
 
-## Layout
+Fine-tune the detector on aerial datasets (DOTA, RarePlanes); sequence models over whole
+tracks; runway and taxiway geometry for surface movement; receiver-level provenance to close
+the ghost and drift gaps; FAA registry cross-checks; several concurrent sources in the app.
+Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 
-```
-aero_audit/
-  config.py        regions, units, settings
-  models.py        StateVector / Batch schema
-  ingest/          adsblol, opensky, metar, replay
-  stream/          async poller + JSONL recorder
-  features/        TrackStore: per-aircraft kinematics
-  audit/           rules, findings, policy, engine, report
-  ml/              IsolationForest anomaly model + trainer
-  vision/          YOLO detection (tiled), apron zone occupancy
-  security/        threat catalog, playbooks, trust ledger, watchlist, cross-feed corroboration
-  risk/            5x5 risk register with evidence-adjusted assessment
-  alerts.py        JSONL / webhook alert sinks
-  impact.py        holding -> minutes, fuel, CO2, cost
-  docs_build.py    renders code-owned tables into docs/generated
-  synthetic.py     traffic generator with injected anomalies
-  cli.py           `aero` CLI
-docs/              architecture, data sources, rules, threat model, compliance, operations, impact, ML, roadmap
-tests/             pytest suite (runs offline)
-```
+## Licence and attribution
 
-## Ethics and legal notes
-
-- ADS-B is an unencrypted public broadcast; receiving and analysing it is legal in most
-  jurisdictions and is exactly what the free feeds exist for. This project is **passive**: it
-  never transmits, never interacts with aircraft or ATC systems.
-- Respect feed terms: poll politely, credit the providers, do not resell their data.
-- Findings are *audit signals*, not accusations. A spoofing rule firing on a real feed most
-  often means a receiver merge glitch, an MLAT outlier, or a transponder fault. Verify.
-- Regulatory references are pointers for the auditor, not legal determinations.
-
-## Roadmap ideas
-
-- Fine-tune YOLO on aerial datasets (DOTA, iSAID, RarePlanes); the bundled sample shows why.
-- Separate surface-movement model (taxi times, runway occupancy) from the airborne one.
-- Sequence models (GRU / Transformer) over whole tracks instead of pairwise kinematics.
-- Runway/taxiway geometry to score taxi times, runway occupancy, and go-arounds.
-- Receiver-level provenance (multiple feeders) to corroborate or refute spoof candidates.
-- A dashboard artifact with a live map and finding stream.
+MIT. Bundled samples: adsb.lol, ODbL v1.0; apron image: Wikimedia Commons, CC BY-SA 4.0; see
+[data/samples/ATTRIBUTION.md](data/samples/ATTRIBUTION.md). Map tiles: OpenStreetMap contributors.

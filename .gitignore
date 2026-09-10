@@ -1,15 +1,23 @@
-!reports/.gitkeep
-*.pt
-*.pyc
-.DS_Store
+# secrets and local environment
 .env
+.venv/
+aero.toml
+
+# python
+__pycache__/
+*.pyc
 .pytest_cache/
 .ruff_cache/
-.venv/
-__pycache__/
-data/app/
+.DS_Store
+
+# captured data, app state, model artefacts, outputs (never committed)
 data/recordings/*.jsonl
-logs/
+data/recordings/*.jsonl.gz
+data/app/
 models/*.joblib
-reports/*
+models/registry.json
+*.pt
 runs/
+logs/
+reports/*
+!reports/.gitkeep

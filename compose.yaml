@@ -1,0 +1,28 @@
+# docker compose up --build    then open http://127.0.0.1:8787
+services:
+  aero:
+    build: .
+    image: aero-audit:local
+    ports:
+      - "127.0.0.1:8787:8787"      # loopback only: the app is unauthenticated inside the container
+    volumes:
+      - aero-recordings:/app/data/recordings
+      - aero-state:/app/data/app
+      - aero-reports:/app/reports
+      - aero-logs:/app/logs
+    environment:
+      - AERO_HTTP_BACKEND=httpx
+      # - OPENSKY_CLIENT_ID=...      # optional; prefer `env_file: .env`
+      # - OPENSKY_CLIENT_SECRET=...
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 2g
+    restart: unless-stopped
+
+volumes:
+  aero-recordings:
+  aero-state:
+  aero-reports:
+  aero-logs:

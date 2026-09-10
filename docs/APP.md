@@ -4,10 +4,12 @@
 Nothing leaves your machine except requests to the public feeds you choose and map tiles.
 
 ```bash
+.venv/bin/aero demo                   # offline: bundled sample + scripted attack tour
 .venv/bin/aero app                    # home screen, choose a source there
 .venv/bin/aero app --port 9000 --no-open
 .venv/bin/aero serve                  # same app, with the newest recording already replaying
 .venv/bin/aero serve --live --region nyc --radius 150
+.venv/bin/aero app --host 0.0.0.0 --token "$(openssl rand -hex 24)"   # beyond loopback: every API call authenticated
 ```
 
 ## Pages
@@ -30,10 +32,35 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 Sources can be started, stopped, and switched at any time from Home, the Data page, or the top
 bar; long tasks run as background jobs with progress and logs and survive page changes.
 
+## Security of the local app
+
+A server on 127.0.0.1 is reachable from every web page you have open. The app therefore validates
+the `Host` header (DNS rebinding), requires a per-process token in `X-Aero-Token` on every POST
+together with same-origin `Origin` / `Sec-Fetch-Site` and a JSON content type (CSRF), serves a
+strict Content-Security-Policy with no inline script, confines every path parameter to the
+project's data directories, accepts only `http(s)` webhooks, and loads a model only when its
+SHA-256 matches `models/registry.json`. Binding beyond loopback needs `--token` (then every API
+call carries it; the page asks once) or an explicit `--allow-unauthenticated`. Details and the
+threat table: [SECURITY.md](../SECURITY.md); tests: `tests/test_app_security.py`.
+
+## Auditability
+
+- **Audit log** (`data/app/audit.jsonl`): hash-chained. Each entry has `seq`, `prev` (SHA-256 of
+  the previous entry) and `hash`. The Audit log page shows **CHAIN VERIFIED** or the first broken
+  line; `aero log verify` does the same from the shell; `GET /api/v1/audit/verify` for scripts.
+- **Reports**: every report carries a provenance block (tool version, git commit, input recording
+  and its hash, model hash and registry status, evaluation hash, threshold overrides) and a
+  `<name>.manifest.json` with the SHA-256 of each file. **verify** on the Reports page and
+  `aero log verify-report <manifest>` re-hash them.
+- **Audible alerts**: `SND` in the header cycles off, tones, voice; only new high and critical
+  findings sound, never the backlog.
+- **Demo tour**: `TOUR` runs the eight scripted injections with narration in the banner; every
+  injection is logged with actor `tour`.
+
 ## Terminal chrome
 
 - **Command line** (top left, or press `/`): mnemonics `HOME LIVE FLT AIRP OPS FIND RISK RPT DATA LOG SET HELP`, plus
-  `STOP` and `USA` (start the nationwide live feed). Arguments narrow the view: `FLT AAL`, `FLT B738`,
+  `STOP`, `USA` (start the nationwide live feed), `TOUR` (scripted demo) and `SND` (audible alerts). Arguments narrow the view: `FLT AAL`, `FLT B738`,
   `AIRP JFK`, `FIND SEC-010`, `FIND HIGH`, `OPS cargo`, `LOG inject`.
 - **Function keys** F1 to F8 jump to Help, Live, Flights, Airports, Operators, Findings, Risk, Audit log.
 - **Ticker**: the latest findings scroll under the header; hover to pause.
@@ -69,6 +96,9 @@ server   ── web/app.py       App: routes (@router.route), settings, reports,
             web/sources.py   SourceManager: replay / live threads, engine construction, METAR loop
             web/state.py     LiveState: engine + latest batch + trails + events + demo injections
             web/jobs.py      JobManager: threads, progress, logs, persisted history (data/app/jobs.json)
+            web/security.py  Guard: Host / CSRF / Origin checks, security headers, path confinement
+            web/audit.py     AuditLog: hash-chained append-only record + verify
+            web/tour.py      DemoTour: scripted injections on a timeline
 engine   ── audit/engine.py and everything below it (rules, ML, trust, policy, risk)
 ```
 
@@ -84,8 +114,10 @@ engine   ── audit/engine.py and everything below it (rules, ML, trust, polic
 - **Add a source type**: a `start_*` method on `SourceManager` that builds a `LiveState` and a
   daemon thread calling `state.ingest(batch)`.
 - **State on disk**: `data/app/settings.json` (app settings, last source), `data/app/jobs.json`
-  (finished jobs), `data/app/inventory.json` (recording summaries keyed by file mtime), `aero.toml`
-  (threshold overrides), `data/recordings/`, `reports/`, `models/`.
+  (finished jobs), `data/app/inventory.json` (recording summaries keyed by file mtime),
+  `data/app/audit.jsonl` (hash-chained audit log), `aero.toml` (threshold overrides),
+  `data/recordings/` (captures, `.jsonl` or `.jsonl.gz`), `data/samples/` (bundled, read-only),
+  `reports/` (reports and manifests), `models/` (model, card, registry, evaluation).
 
 ## Where it can go next
 

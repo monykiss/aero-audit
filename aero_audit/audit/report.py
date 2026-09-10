@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .. import provenance as prov
 from ..security.playbooks import playbook_for
 from .engine import AuditEngine
 
@@ -45,12 +46,13 @@ def executive_summary(engine: AuditEngine) -> list[str]:
     return lines + [""]
 
 
-def render_markdown(engine: AuditEngine, title: str) -> str:
+def render_markdown(engine: AuditEngine, title: str, provenance: dict | None = None) -> str:
     s = engine.summary()
     lines = [
         f"# {title}",
         "",
         *executive_summary(engine),
+        *(prov.render_markdown(provenance) if provenance else []),
         f"- Provider: `{s['provider']}`  Region: `{s['region']}`",
         f"- Window: {_fmt_ts(s['first_ts'])} to {_fmt_ts(s['last_ts'])}  ({s['batches']} polls)",
         f"- State vectors: {s['state_vectors']}  Unique aircraft: {s['unique_aircraft']}",
@@ -113,8 +115,9 @@ def render_markdown(engine: AuditEngine, title: str) -> str:
     return "\n".join(lines)
 
 
-def write_reports(engine: AuditEngine, out_dir: str | Path, name: str) -> tuple[Path, Path, Path]:
-    """Write JSON, Markdown, and self-contained HTML; returns their paths in that order."""
+def write_reports(engine: AuditEngine, out_dir: str | Path, name: str, source: dict | None = None) -> tuple[Path, Path, Path]:
+    """Write JSON, Markdown, self-contained HTML, and a manifest with the SHA-256 of each file and the
+    full provenance block; returns the JSON, Markdown, and HTML paths in that order."""
     from .html_report import render_html
 
     out = Path(out_dir)
@@ -123,12 +126,21 @@ def write_reports(engine: AuditEngine, out_dir: str | Path, name: str) -> tuple[
     base = out / f"{name}_{stamp}"
     json_path = base.with_suffix(".json")
     md_path = base.with_suffix(".md")
+    provenance = prov.build(engine, source)
     payload = {
         "summary": engine.summary(),
+        "provenance": provenance,
         "findings": [f.model_dump() for f in engine.findings],
     }
     json_path.write_text(json.dumps(payload, indent=2, default=str))
-    md_path.write_text(render_markdown(engine, f"aero-audit report: {name}"))
+    md_path.write_text(render_markdown(engine, f"aero-audit report: {name}", provenance))
     html_path = base.with_suffix(".html")
-    html_path.write_text(render_html(engine, f"aero-audit report: {name}"))
+    html_path.write_text(render_html(engine, f"aero-audit report: {name}", provenance=provenance))
+    manifest_path = base.parent / f"{base.name}.manifest.json"
+    manifest_path.write_text(json.dumps(prov.manifest({"json": json_path, "md": md_path, "html": html_path}, provenance), indent=2, default=str))
     return json_path, md_path, html_path
+
+
+def manifest_for(report_path: str | Path) -> Path:
+    p = Path(report_path)
+    return p.parent / f"{p.stem}.manifest.json"

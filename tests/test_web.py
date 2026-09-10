@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 
@@ -12,6 +13,7 @@ def _srv():
     app = App()
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    TOKENS[httpd.server_address[1]] = app.guard.csrf
     return app, httpd, httpd.server_address[1]
 
 
@@ -22,11 +24,18 @@ def _get(port, path):
         return r.status, (json.loads(body) if "json" in ctype else body.decode())
 
 
-def _post(port, path, body):
-    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return r.status, json.loads(r.read())
+TOKENS: dict[int, str] = {}
+
+
+def _post(port, path, body, token=None, extra=None):
+    headers = {"Content-Type": "application/json", "X-Aero-Token": token if token is not None else TOKENS.get(port, "")}
+    headers.update(extra or {})
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=json.dumps(body).encode(), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read() or b"{}")
 
 
 def test_app_pages_sources_findings_and_jobs(tmp_path, monkeypatch):
@@ -123,7 +132,7 @@ def test_ecosystem_flights_airports_operators_and_audit(tmp_path, monkeypatch):
         status, log = _get(port, "/api/v1/audit")
         actions = [e["action"] for e in log["items"]]
         assert "inject" in actions and "source.start" in actions and "app.start" in actions
-        assert _get(port, "/api/v1/audit.csv")[1].startswith("time,actor,action")
+        assert _get(port, "/api/v1/audit.csv")[1].startswith("seq,time,actor,action")
         assert (tmp_path / "data/app/audit.jsonl").exists()
     finally:
         app.sources.stop()

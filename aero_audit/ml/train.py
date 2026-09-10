@@ -41,7 +41,7 @@ def features_from_recordings(paths: list[str | Path], window: int = 12) -> tuple
 def grouped_split(df: pd.DataFrame, holdout: float, seed: int = 42) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Split by aircraft, not by row, so the holdout contains unseen tracks."""
     rng = np.random.default_rng(seed)
-    ids = df["icao24"].unique()
+    ids = list(df["icao24"].unique())
     rng.shuffle(ids)
     n_hold = int(len(ids) * holdout)
     hold_ids = set(ids[:n_hold])

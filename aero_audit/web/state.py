@@ -18,6 +18,7 @@ from ..security.playbooks import playbook_for
 
 RECENT_WINDOW_S = 600.0
 TRAIL_LEN = 24
+MAX_IDLE_POLLS = 60  # drop a targeted injection whose aircraft never reappears
 
 
 @dataclass
@@ -28,6 +29,7 @@ class Injection:
     started_ts: float
     ghost: dict[str, Any] = field(default_factory=dict)
     label: str = ""
+    idle: int = 0  # polls since the target was last seen (targeted kinds only)
 
 
 INJECTION_KINDS = {
@@ -148,9 +150,11 @@ class LiveState:
         active = [i for i in self.injections if i.remaining > 0]
         by_target = {i.icao24: i for i in active if i.icao24 and not i.kind.startswith("ghost") and i.kind not in ("flood", "collapse")}
         collapse = next((i for i in active if i.kind == "collapse"), None)
+        applied: set[int] = set()
         for sv in batch.states:
             inj = by_target.get(sv.icao24)
             if inj is not None:
+                applied.add(id(inj))
                 if inj.kind == "teleport":
                     sv = sv.model_copy(update={"lat": sv.lat + 0.5})
                 elif inj.kind == "squawk_7500":
@@ -175,7 +179,14 @@ class LiveState:
                         track_deg=self.rng.uniform(0, 360), vrate_fpm=0.0, squawk="2000", position_source="adsb",
                         nic=8, nac_p=9, sil=3, source=Source.SYNTHETIC))
         for inj in active:
-            inj.remaining -= 1
+            targeted = inj.icao24 in by_target
+            if not targeted or id(inj) in applied:
+                inj.remaining -= 1  # a targeted injection lasts N polls *of the target* (round-robin feeds)
+                inj.idle = 0
+            else:
+                inj.idle += 1
+                if inj.idle > MAX_IDLE_POLLS:
+                    inj.remaining = 0
         self.injections = [i for i in self.injections if i.remaining > 0]
         return Batch(ts=batch.ts, provider=batch.provider, region=batch.region, states=states)
 

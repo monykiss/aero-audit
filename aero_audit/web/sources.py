@@ -16,7 +16,7 @@ from ..audit.findings import Severity
 from ..config import Region, get_region, parse_regions
 from ..ingest import make_provider
 from ..ingest.metar import fetch_metars, summarize_metar
-from ..ingest.replay import iter_recording
+from ..ingest.replay import iter_recording, recording_stem
 from ..models import Batch
 from ..stream import JsonlRecorder, stream_batches
 from .state import LiveState
@@ -25,7 +25,10 @@ SETTINGS_FILE = Path("data/app/settings.json")
 DEFAULT_SETTINGS: dict[str, Any] = {
     "demo": True, "alert_log": "logs/alerts.jsonl", "alert_webhook": "", "retention_days": 30,
     "model": "models/kinematic_iforest.joblib", "watchlist": "data/watchlist.json", "last_source": None,
+    "allow_unverified_model": False,
 }
+SAMPLES_DIR = Path("data/samples")
+RECORDINGS_DIR = Path("data/recordings")
 
 
 def load_settings() -> dict[str, Any]:
@@ -47,9 +50,12 @@ def build_engine(settings: dict[str, Any]) -> AuditEngine:
     ml = None
     mp = Path(settings.get("model") or "")
     if mp.is_file():
-        from ..ml import KinematicAnomalyModel
+        from ..ml import ModelIntegrityError, load_verified
 
-        ml = KinematicAnomalyModel.load(mp)
+        try:
+            ml = load_verified(mp, bool(settings.get("allow_unverified_model")))
+        except ModelIntegrityError as e:
+            settings.setdefault("_errors", []).append(str(e))  # surfaced by the app; rules still run
     wl = None
     wp = Path(settings.get("watchlist") or "")
     if wp.is_file():
@@ -88,8 +94,11 @@ class SourceManager:
         if not path.is_file():
             raise FileNotFoundError(f"recording not found: {path}")
         demo = self.settings["demo"] if demo is None else demo
-        region = path.stem.split("_")[1] if "_" in path.stem else "?"
+        stem = recording_stem(path)
+        region = stem.split("_")[1] if "_" in stem else "?"
         state = LiveState(build_engine(self.settings), "replay", f"replay:{path.name}", region, demo)
+        for err in self.settings.pop("_errors", []):
+            state.errors.append(err)
         t = threading.Thread(target=self._replay_loop, args=(state, path, speed), daemon=True, name="src-replay")
         with self.lock:
             self.state, self.threads, self.label = state, [t], f"Replay {path.name} at {speed:g}x"
@@ -104,6 +113,8 @@ class SourceManager:
         regions = parse_regions(region, radius)
         label = "+".join(r.key for r in regions)
         state = LiveState(build_engine(self.settings), "live", provider, label, demo)
+        for err in self.settings.pop("_errors", []):
+            state.errors.append(err)
         rec = None
         if record:
             Path("data/recordings").mkdir(parents=True, exist_ok=True)
@@ -233,4 +244,4 @@ def region_catalog() -> list[dict[str, Any]]:
     return out
 
 
-__all__ = ["SourceManager", "build_engine", "get_region", "load_settings", "region_catalog", "save_settings"]
+__all__ = ["RECORDINGS_DIR", "SAMPLES_DIR", "SourceManager", "build_engine", "get_region", "load_settings", "region_catalog", "save_settings"]

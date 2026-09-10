@@ -4,10 +4,34 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
   const fmtTs = t => t ? new Date(t * 1000).toISOString().replace('T', ' ').substr(0, 19) + 'Z' : '-';
   const ago = t => t ? Math.round((Date.now() / 1000 - t) / 60) + ' min ago' : '-';
-  async function api(path, method = 'GET', body) {
-    const r = await fetch(API + path, {method, headers: body ? {'Content-Type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined});
-    const j = await r.json().catch(() => ({})); if (!r.ok && j.error) throw new Error(j.error); return j;
+  /* Every request carries X-Aero-Token: the per-process CSRF token the server hands out on /app (loopback mode),
+     or the shared access token the operator typed (remote mode). A custom header is what forces browsers to
+     preflight cross-site calls, which this server never answers. */
+  let TOKEN = null; try { TOKEN = sessionStorage.getItem('aeroToken'); } catch (e) { /* storage unavailable */ }
+  const headers = () => { const h = {}; if (TOKEN) h['X-Aero-Token'] = TOKEN; return h; };
+  async function api(path, method = 'GET', body, retry = true) {
+    const h = headers(); if (body) h['Content-Type'] = 'application/json';
+    const r = await fetch(API + path, {method, headers: h, body: body ? JSON.stringify(body) : undefined});
+    if (r.status === 401 && retry) { const t = window.prompt('This aero-audit instance requires an access token (printed in the terminal where it was started):'); if (t) { TOKEN = t.trim(); try { sessionStorage.setItem('aeroToken', TOKEN); } catch (e) { /* ignore */ } return api(path, method, body, false); } }
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j;
   }
+  /* Audible alerts: off, tones (Web Audio, no files), or voice (speech synthesis). Only NEW high/critical findings sound. */
+  let sound = 'off'; try { sound = localStorage.getItem('aeroSound') || 'off'; } catch (e) { /* ignore */ }
+  let audioCtx = null, lastEventId = null, seenEvents = false;
+  function beep(freq, dur, when = 0, gain = 0.07) { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = 'square'; o.frequency.value = freq; g.gain.value = gain; o.connect(g); g.connect(audioCtx.destination); const t = audioCtx.currentTime + when; o.start(t); o.stop(t + dur); } catch (e) { /* no audio */ } }
+  function say(text) { try { if (!window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(text); u.rate = 1.05; u.pitch = 0.9; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) { /* no speech */ } }
+  function alertSounds(s) {
+    const ev = s && s.events ? s.events : []; if (!ev.length) { if (!s) seenEvents = false; return; }
+    if (!seenEvents) { seenEvents = true; lastEventId = ev[0].id; return; }
+    const fresh = []; for (const f of ev) { if (f.id === lastEventId) break; fresh.push(f); } lastEventId = ev[0].id;
+    if (sound === 'off' || !fresh.length) return;
+    const worst = fresh.find(f => f.severity === 'critical') || fresh.find(f => f.severity === 'high'); if (!worst) return;
+    if (worst.severity === 'critical') { beep(880, .12); beep(880, .12, .18); beep(1175, .28, .36); } else beep(660, .2);
+    if (sound === 'voice') say(`${worst.severity}. ${worst.rule.replace('-', ' ')}. ${worst.callsign || worst.icao24 || 'unknown aircraft'}. ${worst.title}`);
+  }
+  function setSound(level, announce = true) { sound = ['off', 'tones', 'voice'].includes(level) ? level : 'off'; try { localStorage.setItem('aeroSound', sound); } catch (e) { /* ignore */ }
+    const b = document.getElementById('btnSound'); if (b) { b.textContent = {off: '🔇 SND OFF', tones: '🔔 SND TONES', voice: '🗣 SND VOICE'}[sound]; b.classList.toggle('on', sound !== 'off'); }
+    if (announce && sound !== 'off') beep(660, .08); if (announce && sound === 'voice') say('Voice alerts on'); }
   const store = {app: null, state: null, page: null, el: null, timer: null, query: {}};
   function toast(msg, ms = 3500) { const t = document.getElementById('toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._h); t._h = setTimeout(() => t.hidden = true, ms); }
   function md(text) { // minimal markdown: headings, fences, tables, lists, paragraphs, inline code/bold/links
@@ -42,7 +66,7 @@
   const inactive = (el, what) => { el.innerHTML = `<h1>${what}</h1><div class="empty">No source running. <a href="#/">Choose a source</a> to populate this view.</div>`; };
   const findingRow = f => `<tr class="click s-${f.severity}" data-id="${f.id}"><td>${sevPill(f.severity)}</td><td>${f.rule}</td><td>${esc(f.callsign || '')} <span class="note">${esc(f.operator_code || '')}${f.phase ? ' · ' + f.phase : ''}${f.airport ? ' · ' + f.airport : ''}</span><br><span class="note">${f.icao24 || ''}${f.injected ? ' · <span style="color:#ff5cf0">injected</span>' : ''}</span></td><td>${fmtTs(f.ts)}</td><td>${f.risk}</td><td>${f.occurrences}</td><td>${esc(f.title)}</td></tr>`;
   function jobCard(j) { const pct = j.progress != null ? Math.round(j.progress * 100) : (j.status === 'done' ? 100 : 0); const res = j.result ? Object.entries(j.result).filter(([k]) => !['log'].includes(k)).slice(0, 6).map(([k, v]) => `${k}: ${typeof v === 'object' ? esc(JSON.stringify(v)).slice(0, 80) : esc(v)}`).join(' · ') : '';
-    return `<div class="job"><div class="row"><b>${j.type}</b><span class="note">${j.status}${j.error ? ' · <span class="bad">' + esc(j.error) + '</span>' : ''}</span><span class="grow"></span>${j.status === 'running' ? `<button class="small" onclick="App.cancelJob('${j.id}')">cancel</button>` : ''}<button class="small ghost" onclick="App.toggleLog('${j.id}')">log</button></div>
+    return `<div class="job"><div class="row"><b>${j.type}</b><span class="note">${j.status}${j.error ? ' · <span class="bad">' + esc(j.error) + '</span>' : ''}</span><span class="grow"></span>${j.status === 'running' ? `<button class="small" data-act="cancelJob" data-arg="${j.id}">cancel</button>` : ''}<button class="small ghost" data-act="toggleLog" data-arg="${j.id}">log</button></div>
 <div class="bar"><i style="width:${pct}%"></i></div><div class="note">${esc(res)}</div><pre id="log-${j.id}" hidden>${esc((j.log || []).join('\n'))}</pre></div>`; }
 
   const pages = {
@@ -52,12 +76,13 @@
       const opt = r => `<option value="${r.key}" data-int="${r.interval}" data-prov="${r.providers.join(',')}">${esc(r.name)}${r.kind === 'group' ? '' : ' (' + r.key + ')'}</option>`;
       const groups = [['🇺🇸 Whole country', [...byKind('group').filter(r => r.key === 'usa-hubs'), ...byKind('box').filter(r => r.key === 'conus')]], ['🌎 Continent / world', [...byKind('box').filter(r => r.key !== 'conus'), ...byKind('group').filter(r => r.key !== 'usa-hubs')]], ['🇺🇸 US hubs', byKind('us')], ['🌍 International hubs', byKind('world')], ['📡 Global feeds', byKind('global')]];
       el.innerHTML = `<div class="hero"><div><h1>Watch the sky, audit every message</h1><p>aero-audit follows real aircraft, checks each position report against physics, integrity and safety rules, and tells you what to look at first.</p>
-<div class="row"><button class="primary big" id="qusa">🇺🇸 Show me America live</button><button class="big" id="qreplay" ${civil.length ? '' : 'disabled'}>▶ Replay the newest recording</button>${src.active ? '<a class="btn big" href="#/live">◎ Back to the live picture</a>' : ''}</div>
+<div class="row"><button class="primary big" id="qtour" ${civil.length ? '' : 'disabled'}>🎬 Run the demo tour</button><button class="big" id="qusa">🇺🇸 Show me America live</button><button class="big" id="qreplay" ${civil.length ? '' : 'disabled'}>▶ Replay the newest recording</button>${src.active ? '<a class="btn big" href="#/live">◎ Back to the live picture</a>' : ''}</div>
+<div class="note">The demo tour replays the bundled sample (15 US hubs, 3,900 real aircraft, works offline) and injects eight attack scenarios on a timeline; turn on <b>SND</b> in the header to hear alerts.</div>
 <div class="note">America live uses OpenSky over the contiguous states (about 5,000 aircraft per poll, one poll a minute; anonymous access allows ~100 national polls a day, add OpenSky credentials in .env for more).</div></div></div>
 ${src.active ? `<div class="card accent-green" style="margin:14px 0"><h2>Running: ${esc(src.label)}</h2><p>${src.tracked} aircraft in the last poll · ${src.findings} findings · ${src.batches} polls · last poll ${src.last_ingest_age_s ?? '-'} s ago${src.errors.length ? ' · <span class="bad">' + esc(src.errors.at(-1)) + '</span>' : ''}</p><div class="row"><a class="btn primary" href="#/live">Open the live picture</a><button id="hstop">Stop</button></div></div>` :
 `<div class="steps"><div class="step s1"><b>1 · Choose a source</b>Replay a recording on disk, or go live on a region, a whole country, or a continent.</div><div class="step s2"><b>2 · Watch the live picture</b>Aircraft coloured by their worst finding, altitude, speed or trust; click any for details and playbook steps.</div><div class="step s3"><b>3 · Try an injection</b>Teleport, hijack code, ghost: see detection, escalation and trust erosion in seconds.</div></div>`}
 <div class="cards"><div class="card accent-blue"><h2>▶ Replay a recording</h2><p>Deterministic, works offline. Loops when it reaches the end.</p>
-<div class="row"><select id="rsel" style="max-width:440px">${civil.map(r => `<option value="${esc(r.path)}">${esc(r.file)} · ${r.provider} ${r.regions.join('+')} · ${r.polls} polls · ${r.aircraft} aircraft · ${r.span_min} min</option>`).join('')}</select></div>
+<div class="row"><select id="rsel" style="max-width:440px">${civil.map(r => `<option value="${esc(r.path)}">${r.sample ? '★ bundled sample · ' : ''}${esc(r.file)} · ${r.provider} ${r.regions.join('+')} · ${r.polls} polls · ${r.aircraft} aircraft · ${r.span_min} min</option>`).join('')}</select></div>
 <div class="row"><label>speed <b id="spv">8</b>×</label><input type="range" id="rspeed" min="1" max="40" value="8"><label><input type="checkbox" id="rdemo" ${a.settings.demo ? 'checked' : ''}> demo controls</label></div>
 <div class="row"><button class="primary" id="rstart" ${civil.length ? '' : 'disabled'}>Start replay</button>${civil.length ? '' : '<span class="note">no recordings yet: capture one on the Data page or go live</span>'}</div></div>
 <div class="card accent-green"><h2>● Go live</h2><p>Polls a public feed, records everything for later audit, refreshes weather every 10 minutes.</p>
@@ -78,6 +103,7 @@ ${src.active ? `<div class="card accent-green" style="margin:14px 0"><h2>Running
       el.querySelector('#lstart').onclick = () => App.startSource({mode: 'live', provider: provSel.value, region: regSel.value, radius: +el.querySelector('#lrad').value, interval: +el.querySelector('#lint').value, demo: el.querySelector('#ldemo').checked});
       el.querySelector('#qusa').onclick = () => App.startSource({mode: 'live', provider: 'opensky', region: 'conus', interval: 60, demo: a.settings.demo});
       el.querySelector('#qreplay').onclick = () => { if (civil.length) App.startSource({mode: 'replay', recording: civil[0].path, speed: 8, demo: a.settings.demo}); };
+      el.querySelector('#qtour').onclick = async () => { const rec = civil.find(r => r.sample) || civil[0]; if (!rec) return; await App.startSource({mode: 'replay', recording: rec.path, speed: 10, demo: true}); await App.tour('start'); };
       const hs = el.querySelector('#hstop'); if (hs) hs.onclick = App.stopSource;
     } },
     flights: { title: 'Flights', async render(el) {
@@ -124,10 +150,11 @@ ${faa.length ? `<div class="card accent-amber" style="margin-bottom:8px"><b clas
       el.querySelector('#ogo').onclick = () => location.hash = '#/operators?' + qs({category: el.querySelector('#ocat').value});
     } },
     auditlog: { title: 'Audit log', async render(el) {
-      const q = store.query; const d = await api('/audit?' + qs({action: q.action, actor: q.actor, q: q.q, limit: 400}));
-      el.innerHTML = `<h1>Audit log <span class="note">${d.total} entries · append-only · data/app/audit.jsonl</span></h1><p class="lead">Every source change, injection, settings edit and job, with who did it and when. Findings themselves are in the session reports; this is the record of what was done to the picture.</p>
+      const q = store.query; const [d, v] = await Promise.all([api('/audit?' + qs({action: q.action, actor: q.actor, q: q.q, limit: 400})), api('/audit/verify')]);
+      const chain = v.ok ? `<span class="chain ok">CHAIN VERIFIED · ${v.chained} linked${v.legacy ? ' · ' + v.legacy + ' legacy' : ''} · head ${(v.head || '').slice(0, 12)}</span>` : `<span class="chain bad">CHAIN BROKEN · ${esc(v.error || '')}</span>`;
+      el.innerHTML = `<h1>Audit log <span class="note">${d.total} entries · append-only · hash-chained · data/app/audit.jsonl</span></h1><p class="lead">Every source change, injection, settings edit and job, with who did it and when. Each entry carries the SHA-256 of the previous one; editing, deleting or reordering a line breaks the chain. ${chain}</p>
 <div class="filters">${sel('laction', 'action', d.actions, q.action)}${sel('lactor', 'actor', ['user', 'system'], q.actor)}<input type="text" id="lq" placeholder="search details" value="${esc(q.q || '')}"><button class="primary" id="lgo">Apply</button><span class="grow"></span><a class="btn" href="${API}/audit.csv" download>CSV</a></div><div id="lgrid"></div>`;
-      grid(el.querySelector('#lgrid'), [{k: 'ts', label: 'Time (UTC)', fmt: r => fmtTs(r.ts)}, {k: 'actor', label: 'Actor', cls: r => r.actor === 'system' ? 'amb' : ''}, {k: 'action', label: 'Action'}, {k: 'details', label: 'Details', fmt: r => esc(JSON.stringify(r.details)).slice(0, 220)}], d.items, {sort: 'ts'});
+      grid(el.querySelector('#lgrid'), [{k: 'seq', label: '#', num: true}, {k: 'ts', label: 'Time (UTC)', fmt: r => fmtTs(r.ts)}, {k: 'actor', label: 'Actor', cls: r => r.actor === 'system' ? 'amb' : (r.actor === 'tour' ? 'pos' : '')}, {k: 'action', label: 'Action'}, {k: 'details', label: 'Details', fmt: r => esc(JSON.stringify(r.details)).slice(0, 200)}, {k: 'hash', label: 'Hash', fmt: r => `<span class="note">${(r.hash || '').slice(0, 10)}</span>`}], d.items, {sort: 'seq'});
       el.querySelector('#lgo').onclick = () => location.hash = '#/auditlog?' + qs({action: el.querySelector('#laction').value, actor: el.querySelector('#lactor').value, q: el.querySelector('#lq').value});
     } },
     live: { title: 'Live picture', full: true, async render(el) {
@@ -138,14 +165,14 @@ ${faa.length ? `<div class="card accent-amber" style="margin-bottom:8px"><b clas
       if (!store.app.source.active) { el.innerHTML = `<h1>Findings</h1><div class="empty">No source running. <a href="#/">Choose a source</a> to see findings.</div>`; return; }
       const q = store.query; const d = await api(`/findings?severity=${q.severity || ''}&rule=${q.rule || ''}&category=${q.category || ''}&q=${encodeURIComponent(q.q || '')}&limit=400`);
       el.innerHTML = `<h1>Findings <span class="note">${d.total} this session</span></h1><p class="lead">Ranked by risk score: severity × persistence × evidence quality × measured rule precision. Click a row for evidence and the playbook.</p>
-<div class="filters">${sel('fsev', 'severity', d.severities, q.severity)}${sel('frule', 'rule', d.rules, q.rule)}${sel('fcat2', 'category', ['security', 'safety', 'operations', 'data-quality', 'ml'], q.category)}<input type="text" id="fq" placeholder="callsign, ICAO, operator, text" value="${esc(q.q || '')}"><button class="primary" id="fgo">Apply</button><button class="ghost" onclick="location.hash='#/findings'">Clear</button><span class="grow"></span><a class="btn" href="${API}/findings.csv" download>CSV</a></div>
+<div class="filters">${sel('fsev', 'severity', d.severities, q.severity)}${sel('frule', 'rule', d.rules, q.rule)}${sel('fcat2', 'category', ['security', 'safety', 'operations', 'data-quality', 'ml'], q.category)}<input type="text" id="fq" placeholder="callsign, ICAO, operator, text" value="${esc(q.q || '')}"><button class="primary" id="fgo">Apply</button><button class="ghost" data-act="hash" data-arg="#/findings">Clear</button><span class="grow"></span><a class="btn" href="${API}/findings.csv" download>CSV</a></div>
 <table><tr><th>severity</th><th>rule</th><th>aircraft</th><th>time</th><th>risk</th><th>×</th><th>finding</th></tr>${d.items.map(findingRow).join('') || '<tr><td colspan="7" class="note">nothing matches</td></tr>'}</table><div id="fdetail"></div>`;
       const items = Object.fromEntries(d.items.map(f => [f.id, f]));
       el.querySelector('#fgo').onclick = () => { location.hash = `#/findings?severity=${el.querySelector('#fsev').value}&rule=${el.querySelector('#frule').value}&category=${el.querySelector('#fcat2').value}&q=${encodeURIComponent(el.querySelector('#fq').value)}`; };
       el.querySelector('#fq').onkeydown = e => { if (e.key === 'Enter') el.querySelector('#fgo').click(); };
       el.querySelector('table').addEventListener('click', async e => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; const f = items[tr.dataset.id]; const pb = await api('/playbook/' + f.rule).catch(() => null);
         el.querySelector('#fdetail').innerHTML = `<div class="card" style="margin-top:14px"><h2>${sevPill(f.severity)} ${f.rule} · ${esc(f.title)}</h2><p>${esc(f.callsign || '')} ${f.icao24 || ''} · ${fmtTs(f.ts)} · risk ${f.risk} · seen ${f.occurrences}×${f.injected ? ' · <b style="color:#ff5cf0">demo injection</b>' : ''}</p>
-<div class="row">${f.icao24 ? `<a class="btn small" href="#/live" onclick="setTimeout(()=>LivePage.focus('${f.icao24}'),600)">Show on map</a>` : ''}</div><h3>Evidence</h3><table>${Object.entries(f.evidence).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</td></tr>`).join('')}</table>
+<div class="row">${f.icao24 ? `<a class="btn small" href="#/live" data-act="focus" data-arg="${f.icao24}">Show on map</a>` : ''}</div><h3>Evidence</h3><table>${Object.entries(f.evidence).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</td></tr>`).join('')}</table>
 ${pb ? `<h3>Playbook · triage within ${pb.sla_minutes} min</h3><ol>${pb.triage.map(s => `<li>${esc(s)}</li>`).join('')}</ol><h3>Verify</h3><ul>${pb.verify.map(s => `<li>${esc(s)}</li>`).join('')}</ul><p><b>Escalate:</b> ${esc(pb.escalate)}</p><h3>Contain</h3><ul>${pb.contain.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}</div>`;
         el.querySelector('#fdetail').scrollIntoView({behavior: 'smooth'}); });
     } },
@@ -158,12 +185,13 @@ ${pb ? `<h3>Playbook · triage within ${pb.sla_minutes} min</h3><ol>${pb.triage.
     } },
     reports: { title: 'Reports', async render(el) {
       const [reps, jobs, recs] = await Promise.all([api('/reports'), api('/jobs'), api('/recordings')]); const active = store.app.source.active;
-      el.innerHTML = `<h1>Reports</h1><p class="lead">Every audit writes JSON (machine-readable), Markdown (executive summary, ranked findings, playbook steps) and a self-contained HTML page you can email.</p>
+      el.innerHTML = `<h1>Reports</h1><p class="lead">Every audit writes JSON (machine-readable), Markdown (executive summary, ranked findings, playbook steps), a self-contained HTML page you can email, and a manifest with the SHA-256 of each file plus full provenance (code commit, input hash, model hash, thresholds).</p>
 <div class="row"><button class="primary" id="rsess" ${active ? '' : 'disabled'}>Generate report from the current session</button><select id="rrec">${recs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('')}</select><button id="rrun">Audit this recording</button></div>
 <div class="jobs" id="rjobs">${jobs.filter(j => ['audit_session', 'audit_recording'].includes(j.type)).slice(0, 5).map(jobCard).join('')}</div>
-<h2>On disk (${reps.length})</h2><table><tr><th>report</th><th>kind</th><th>when</th><th>open</th></tr>${reps.map(r => `<tr><td>${esc(r.name)}</td><td>${r.kind}</td><td>${ago(r.mtime)}</td><td>${r.files.html ? `<a href="${r.files.html}" target="_blank">html</a> · ` : ''}${r.files.md ? `<a href="${r.files.md}" target="_blank">md</a> · ` : ''}${r.files.json ? `<a href="${r.files.json}" target="_blank">json</a>` : ''}${r.files.html ? ` · <a href="#" data-view="${r.files.html}">view here</a>` : ''}</td></tr>`).join('')}</table><div id="rview"></div>`;
+<h2>On disk (${reps.length})</h2><table><tr><th>report</th><th>kind</th><th>when</th><th>open</th></tr>${reps.map(r => `<tr><td>${esc(r.name)}</td><td>${r.kind}</td><td>${ago(r.mtime)}</td><td>${r.files.html ? `<a href="${r.files.html}" target="_blank">html</a> · ` : ''}${r.files.md ? `<a href="${r.files.md}" target="_blank">md</a> · ` : ''}${r.files.json ? `<a href="${r.files.json}" target="_blank">json</a>` : ''}${r.files.html ? ` · <a href="#" data-view="${r.files.html}">view here</a>` : ''}${r.files.manifest ? ` · <a href="${r.files.manifest}" target="_blank">manifest</a> · <a href="#" data-verify="${esc(r.name)}">verify</a>` : ''}</td></tr>`).join('')}</table><div id="rview"></div>`;
       el.querySelector('#rsess').onclick = () => App.runJob('audit_session', {}, 'reports');
       el.querySelector('#rrun').onclick = () => App.runJob('audit_recording', {recording: el.querySelector('#rrec').value}, 'reports');
+      el.addEventListener('click', async e => { const v = e.target.closest('a[data-verify]'); if (v) { e.preventDefault(); const r = await api('/reports/' + encodeURIComponent(v.dataset.verify) + '/manifest').catch(err => ({error: err.message})); toast(r.error ? r.error : (r.ok ? 'Verified: every report file matches its manifest hash' : 'MISMATCH: ' + Object.entries(r.files).filter(([, f]) => !f.ok).map(([k]) => k).join(', ') + ' changed since the report was written'), 6000); return; } });
       el.addEventListener('click', e => { const a = e.target.closest('a[data-view]'); if (!a) return; e.preventDefault(); el.querySelector('#rview').innerHTML = `<h2>${esc(a.dataset.view.split('/').pop())}</h2><iframe src="${a.dataset.view}" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>`; });
     } },
     data: { title: 'Data & model', async render(el) {
@@ -188,11 +216,14 @@ ${ev.scenarios ? `<table><tr><th>scenario</th><th>recall</th><th>TTD</th></tr>${
       el.innerHTML = `<h1>Settings</h1><p class="lead">App settings are saved to data/app/settings.json; threshold overrides are written to ${esc(s.aero_toml)} and applied immediately to the running engine.</p>
 <div class="card"><h2>App</h2><div class="row"><label><input type="checkbox" id="sdemo" ${s.app.demo ? 'checked' : ''}> demo controls (injection buttons) on new sources</label></div>
 <div class="row"><label>retention days</label><input type="number" id="sret" value="${s.app.retention_days}" style="width:80px"><label>alert log</label><input type="text" id="slog" value="${esc(s.app.alert_log || '')}"><label>alert webhook</label><input type="text" id="shook" value="${esc(s.app.alert_webhook || '')}" placeholder="https://hooks.example/…"></div>
-<div class="row"><label>model</label><input type="text" id="smodel" value="${esc(s.app.model || '')}" style="width:280px"><label>watchlist</label><input type="text" id="swl" value="${esc(s.app.watchlist || '')}" style="width:220px"></div><div class="row"><button class="primary" id="ssave">Save app settings</button></div></div>
+<div class="row"><label>model</label><input type="text" id="smodel" value="${esc(s.app.model || '')}" style="width:280px"><label>watchlist</label><input type="text" id="swl" value="${esc(s.app.watchlist || '')}" style="width:220px"></div>
+<div class="row"><span class="note">model integrity: ${s.model_integrity ? (s.model_integrity.exists ? (s.model_integrity.match ? '<span class="pos">verified against models/registry.json</span>' : '<span class="neg">NOT VERIFIED (no matching registry entry: retrain, or allow below)</span>') : 'no model file') : 'none'}</span></div>
+<div class="row"><label><input type="checkbox" id="sunv" ${s.app.allow_unverified_model ? 'checked' : ''}> allow loading a model that is not in the registry (a model file is a pickle: only do this for files you produced)</label></div>
+<div class="row"><span class="note">Paths are confined: recordings under data/, models under models/, logs under logs/; webhooks must be http(s).</span></div><div class="row"><button class="primary" id="ssave">Save app settings</button></div></div>
 <h2>Detection thresholds</h2><p class="note">Change a value and press Apply. Names match the constants in the code; the Help page explains each rule.</p>
 ${Object.entries(bySec).map(([sec, rows]) => `<h3>${sec}</h3><table>${rows.map(t => `<tr><td style="width:40%">${t.key}${t.overridden ? ' <span class="warn">(overridden)</span>' : ''}</td><td>${t.editable ? `<input type="number" step="any" data-sec="${sec}" data-key="${t.key}" value="${t.value}" style="width:140px">` : `<span class="note">${esc(JSON.stringify(t.value)).slice(0, 90)}</span>`}</td></tr>`).join('')}</table>`).join('')}
 <div class="row"><button class="primary" id="sapply">Apply thresholds</button></div>`;
-      el.querySelector('#ssave').onclick = async () => { await api('/settings', 'POST', {app: {demo: el.querySelector('#sdemo').checked, retention_days: +el.querySelector('#sret').value, alert_log: el.querySelector('#slog').value, alert_webhook: el.querySelector('#shook').value, model: el.querySelector('#smodel').value, watchlist: el.querySelector('#swl').value}}); toast('Saved'); refresh(); };
+      el.querySelector('#ssave').onclick = async () => { await api('/settings', 'POST', {app: {demo: el.querySelector('#sdemo').checked, retention_days: +el.querySelector('#sret').value, alert_log: el.querySelector('#slog').value, alert_webhook: el.querySelector('#shook').value, model: el.querySelector('#smodel').value, watchlist: el.querySelector('#swl').value, allow_unverified_model: el.querySelector('#sunv').checked}}).then(() => { toast('Saved'); refresh(); }).catch(e => toast('Not saved: ' + e.message, 6000)); };
       el.querySelector('#sapply').onclick = async () => { const t = {}; el.querySelectorAll('input[data-sec]').forEach(i => { (t[i.dataset.sec] = t[i.dataset.sec] || {})[i.dataset.key] = +i.value; });
         try { await api('/settings', 'POST', {tunables: t}); toast('Thresholds applied and written to aero.toml'); pages.settings.render(el); } catch (e) { toast(e.message); } };
     } },
@@ -214,7 +245,7 @@ ${Object.entries(bySec).map(([sec, rows]) => `<h3>${sec}</h3><table>${rows.map(t
     const st = d.state || {}, e = d.enrichment || {};
     el.innerHTML = `<h2>${esc(st.callsign || icao)}</h2><div class="kv2"><div>icao24</div><div>${icao}${d.injected ? ' <span style="color:#ff5cf0">INJECTED</span>' : ''}</div><div>operator</div><div>${esc(e.operator || '-')} <span class="note">${esc(e.operator_cat || '')}</span></div><div>type</div><div>${esc(e.type_name || st.aircraft_type || '-')} <span class="note">${esc(e.type_cat || '')}</span></div><div>registration</div><div>${esc(st.registration || '-')}</div><div>phase</div><div>${phaseCell(e.phase)}${e.airport ? ` near <b>${e.airport}</b> ${n0(e.airport_nm)} nm` : ''}</div>
 <div>altitude</div><div>${n0(st.baro_alt_ft)} ft${e.agl_ft != null ? ` <span class="note">(${n0(e.agl_ft)} AGL)</span>` : ''}</div><div>speed / track</div><div>${n0(st.gs_kt)} kt / ${n0(st.track_deg)}°</div><div>vertical</div><div>${n0(st.vrate_fpm)} fpm</div><div>squawk</div><div>${esc(st.squawk || '-')}</div><div>source</div><div>${esc(st.position_source || '-')} · NIC/NACp/SIL ${st.nic ?? '-'}/${st.nac_p ?? '-'}/${st.sil ?? '-'}</div><div>position</div><div>${n0(st.lat, 4)}, ${n0(st.lon, 4)} @ ${fmtTs(st.ts)}</div><div>trust</div><div class="${d.trust < .5 ? 'neg' : 'pos'}">${d.trust}</div></div>
-<div class="row"><a class="btn small" href="#/live" onclick="setTimeout(()=>LivePage.focus('${icao}'),600)">Show on map</a><a class="btn small" href="#/findings?q=${icao}">Findings</a></div>
+<div class="row"><a class="btn small" href="#/live" data-act="focus" data-arg="${icao}">Show on map</a><a class="btn small" href="#/findings?q=${icao}">Findings</a></div>
 <h3>Findings (${d.findings.length})</h3>${d.findings.slice(0, 12).map(f => `<div class="f s-${f.severity}"><span class="sev ${f.severity}">${f.severity}</span><span class="t">${f.rule} ${esc(f.title)}<small>${fmtTs(f.ts)} · risk ${f.risk}${f.playbook ? ' · ' + esc(f.playbook) : ''}</small></span><span class="r"></span></div>`).join('') || '<div class="note ok">none</div>'}`;
   }
   async function showAirport(el, icao) {
@@ -223,8 +254,8 @@ ${Object.entries(bySec).map(([sec, rows]) => `<h3>${sec}</h3><table>${rows.map(t
 <div>FAA</div><div>${d.faa.length ? d.faa.map(faaBadge).join(' ') + '<br>' + d.faa.map(f => esc(f.reason || '')).join('; ') : '<span class="ok">no programme in effect</span>'}</div>
 <div>weather</div><div>${m ? esc(m.raw || m.summary) : '<span class="note">no METAR loaded</span>'}</div>
 ${act ? `<div>traffic</div><div>${act.nearby} within 40 nm · ${act.ground} ground · <span class="pos">${act.departing} departing</span> · <span class="amb">${act.arriving} arriving</span> (${act.approach} on final) · ${act.terminal} terminal · ${act.overhead} overhead · ${act.holds} holds · ${act.emergencies} emergencies · ${act.findings} findings</div>` : '<div>traffic</div><div class="note">none within 40 nm in the current picture</div>'}</div>
-<div class="row"><a class="btn small" href="#/flights?airport=${icao}">Flights here</a><a class="btn small" href="#/live" onclick="setTimeout(()=>LivePage.goto(${a.lat},${a.lon},9),600)">Show on map</a></div>
-<h3>Flights near ${a.iata} (${d.flights.length})</h3><div class="tablewrap" style="max-height:38vh"><table><tr><th>callsign</th><th>operator</th><th>type</th><th>phase</th><th>alt</th><th>gs</th><th>nm</th></tr>${d.flights.slice(0, 80).map(f => `<tr class="click" onclick="location.hash='#/flights?icao=${f.icao24}'"><td>${esc(f.callsign || f.icao24)}</td><td>${esc(f.operator_code || '')}</td><td>${esc(f.type || '')}</td><td>${phaseCell(f.phase)}</td><td class="num">${n0(f.alt)}</td><td class="num">${n0(f.gs)}</td><td class="num">${n0(f.airport_nm)}</td></tr>`).join('')}</table></div>`;
+<div class="row"><a class="btn small" href="#/flights?airport=${icao}">Flights here</a><a class="btn small" href="#/live" data-act="goto" data-arg="${a.lat},${a.lon},9">Show on map</a></div>
+<h3>Flights near ${a.iata} (${d.flights.length})</h3><div class="tablewrap" style="max-height:38vh"><table><tr><th>callsign</th><th>operator</th><th>type</th><th>phase</th><th>alt</th><th>gs</th><th>nm</th></tr>${d.flights.slice(0, 80).map(f => `<tr class="click" data-act="hash" data-arg="#/flights?icao=${f.icao24}"><td>${esc(f.callsign || f.icao24)}</td><td>${esc(f.operator_code || '')}</td><td>${esc(f.type || '')}</td><td>${phaseCell(f.phase)}</td><td class="num">${n0(f.alt)}</td><td class="num">${n0(f.gs)}</td><td class="num">${n0(f.airport_nm)}</td></tr>`).join('')}</table></div>`;
   }
   function parseHash() { const h = location.hash.replace(/^#\/?/, ''); const [name, qs] = h.split('?'); store.query = Object.fromEntries(new URLSearchParams(qs || '')); return pages[name] ? name : 'home'; }
   async function navigate() {
@@ -241,10 +272,12 @@ ${act ? `<div>traffic</div><div>${act.nearby} within 40 nm · ${act.ground} grou
     document.getElementById('srcinfo').textContent = src.active ? `${src.label} · ${src.tracked} aircraft · ${src.findings} findings · last poll ${src.last_ingest_age_s ?? '-'} s ago` : 'Start a replay or go live to see aircraft';
     document.getElementById('btnStop').hidden = !src.active; document.getElementById('btnStart').hidden = src.active;
     document.getElementById('ver').textContent = 'v' + a.version; document.getElementById('navfoot').textContent = `${a.recordings} recordings · ${a.reports} reports · ${a.jobs_running} jobs running`;
-    const b = document.getElementById('banner'); if (store.state && store.state.injections && store.state.injections.length) { b.hidden = false; b.textContent = 'DEMO INJECTION: ' + store.state.injections.map(i => i.label + (i.icao24 ? ' [' + i.icao24 + ']' : '')).join(' · '); } else b.hidden = true;
+    const b = document.getElementById('banner'), tour = a.tour, inj = store.state && store.state.injections ? store.state.injections : [];
+    if (tour && tour.running) { b.hidden = false; b.className = 'tour'; b.innerHTML = `<b>DEMO TOUR</b> step ${tour.step}/${tour.steps}${tour.next_kind ? ` · next <b>${esc(tour.next_kind)}</b> in ${Math.round(tour.next_in_s || 0)} s` : ''}${tour.last && tour.last.narration ? ` · <span class="narr">${esc(tour.last.narration)}</span>` : ''}${inj.length ? ` · active: ${inj.map(i => i.kind + (i.icao24 ? ' [' + i.icao24 + ']' : '')).join(', ')}` : ''} <a href="#" data-act="tourStop">stop tour</a>`; }
+    else if (inj.length) { b.hidden = false; b.className = ''; b.textContent = 'DEMO INJECTION: ' + inj.map(i => i.label + (i.icao24 ? ' [' + i.icao24 + ']' : '')).join(' · '); } else b.hidden = true;
   }
   async function refresh() {
-    try { store.app = await api('/app'); store.state = store.app.source.active ? await api('/state') : null; updateTop(); ticker(store.state); document.getElementById('fkstatus').textContent = store.state ? `${store.state.kpis.tracked} ACFT · ${store.state.kpis.findings_total} FINDINGS · ${Object.entries(store.state.phases || {}).filter(([k]) => ['departure', 'arrival', 'cruise'].includes(k)).map(([k, v]) => k.toUpperCase() + ' ' + v).join(' · ')}` : 'IDLE'; const p = pages[store.page]; if (p && p.tick) p.tick(store.app, store.state); }
+    try { store.app = await api('/app'); if (store.app.security && store.app.security.csrf) TOKEN = store.app.security.csrf; store.state = store.app.source.active ? await api('/state') : null; updateTop(); ticker(store.state); alertSounds(store.state); document.getElementById('fkstatus').textContent = store.state ? `${store.state.kpis.tracked} ACFT · ${store.state.kpis.findings_total} FINDINGS · ${Object.entries(store.state.phases || {}).filter(([k]) => ['departure', 'arrival', 'cruise'].includes(k)).map(([k, v]) => k.toUpperCase() + ' ' + v).join(' · ')}` : 'IDLE'; const p = pages[store.page]; if (p && p.tick) p.tick(store.app, store.state); }
     catch (e) { document.getElementById('srcinfo').textContent = 'server unreachable'; }
   }
   window.App = {
@@ -254,12 +287,22 @@ ${act ? `<div>traffic</div><div>${act.nearby} within 40 nm · ${act.ground} grou
     async runJob(type, params, page) { try { const j = await api('/jobs', 'POST', {type, params}); toast(`Started ${type} (${j.id})`); setTimeout(() => { if (store.page === page) navigate(); }, 800); } catch (e) { toast(e.message, 6000); } },
     async cancelJob(id) { await api(`/jobs/${id}/cancel`, 'POST', {}); toast('Cancel requested'); },
     toggleLog(id) { const p = document.getElementById('log-' + id); if (p) p.hidden = !p.hidden; },
+    async tour(action) { try { const t = await api('/tour', 'POST', {action}); toast(action === 'start' ? 'Demo tour started: eight scenarios on a timeline, loops until stopped' : 'Demo tour stopped'); await refresh(); return t; } catch (e) { toast(e.message, 6000); } },
+    headers, setSound, tourRunning: () => !!(store.app && store.app.tour && store.app.tour.running),
   };
+  document.addEventListener('click', e => { const t = e.target.closest('[data-act]'); if (!t) return; const act = t.dataset.act, arg = t.dataset.arg;
+    if (act === 'cancelJob') { e.preventDefault(); App.cancelJob(arg); } else if (act === 'toggleLog') { e.preventDefault(); App.toggleLog(arg); }
+    else if (act === 'hash') { e.preventDefault(); location.hash = arg; } else if (act === 'focus') { setTimeout(() => LivePage.focus(arg), 600); }
+    else if (act === 'focusNow') { e.preventDefault(); LivePage.focus(arg); } else if (act === 'zoomTo') { e.preventDefault(); LivePage.zoomTo(arg); } else if (act === 'closeDrawer') LivePage.closeDrawer();
+    else if (act === 'goto') { const [la, lo, z] = arg.split(',').map(Number); setTimeout(() => LivePage.goto(la, lo, z), 600); }
+    else if (act === 'tourStop') { e.preventDefault(); App.tour('stop'); } else if (act === 'tourStart') { e.preventDefault(); App.tour('start'); } });
+  document.getElementById('btnSound').onclick = () => setSound({off: 'tones', tones: 'voice', voice: 'off'}[sound]); setSound(sound, false);
   const MNEMONICS = {HOME: '#/', LIVE: '#/live', FLT: '#/flights', AIRP: '#/airports', OPS: '#/operators', FIND: '#/findings', RISK: '#/risk', RPT: '#/reports', DATA: '#/data', LOG: '#/auditlog', SET: '#/settings', HELP: '#/help'};
   function runCommand(text) {
     const [m, ...rest] = text.trim().toUpperCase().split(/\s+/); const arg = rest.join(' '); if (!m) return;
     if (m === 'STOP') return App.stopSource(); if (m === 'USA') return App.startSource({mode: 'live', provider: 'opensky', region: 'conus', interval: 60});
-    if (!MNEMONICS[m]) { toast('Unknown mnemonic ' + m + '. Try: ' + Object.keys(MNEMONICS).join(' ') + ' STOP USA'); return; }
+    if (m === 'TOUR') return App.tour(store.app && store.app.tour && store.app.tour.running ? 'stop' : 'start'); if (m === 'SND') return setSound(arg ? arg.toLowerCase() : {off: 'tones', tones: 'voice', voice: 'off'}[sound]);
+    if (!MNEMONICS[m]) { toast('Unknown mnemonic ' + m + '. Try: ' + Object.keys(MNEMONICS).join(' ') + ' STOP USA TOUR SND'); return; }
     let h = MNEMONICS[m];
     if (arg) { if (m === 'FLT') h += '?' + (/^[A-Z]{3}$/.test(arg) ? 'operator=' + arg : 'q=' + encodeURIComponent(arg)); else if (m === 'AIRP') h += '?icao=' + (arg.length === 3 ? 'K' + arg : arg) + '&traffic=0'; else if (m === 'FIND') h += '?' + (/^[A-Z]+-\d+$/.test(arg) ? 'rule=' + arg : (['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'].includes(arg) ? 'severity=' + arg.toLowerCase() : 'q=' + encodeURIComponent(arg))); else if (m === 'OPS') h += '?category=' + arg.toLowerCase(); else if (m === 'LOG') h += '?q=' + encodeURIComponent(arg); }
     if (location.hash === h) navigate(); else location.hash = h;

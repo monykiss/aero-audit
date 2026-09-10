@@ -298,7 +298,7 @@ class EvaluationReport:
 
 def evaluate(recording: str | Path, model_path: str | Path | None = None, n_targets: int = 25, seed: int = 42,
              scenarios: list[str] | None = None, max_batches: int | None = None, onset_fraction: float = 0.4,
-             cooldown_s: float = 120.0) -> EvaluationReport:
+             cooldown_s: float = 120.0, allow_unverified_model: bool = False) -> EvaluationReport:
     batches = list(iter_recording(recording))
     if max_batches:
         batches = batches[:max_batches]
@@ -306,9 +306,9 @@ def evaluate(recording: str | Path, model_path: str | Path | None = None, n_targ
         raise ValueError("need at least 8 batches to evaluate")
     model = None
     if model_path:
-        from .anomaly import KinematicAnomalyModel
+        from .registry import load_verified
 
-        model = KinematicAnomalyModel.load(model_path)
+        model = load_verified(model_path, allow_unverified_model)
     onset = max(3, int(onset_fraction * len(batches)))
     all_aircraft = {sv.icao24 for b in batches for sv in b.states}
     real_targets = select_targets(batches, n_targets, seed, onset=onset)

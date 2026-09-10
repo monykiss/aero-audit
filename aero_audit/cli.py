@@ -127,6 +127,7 @@ def _build_engine(
     alert_webhook: str | None,
     alert_log: Path | None,
     alert_min_severity: str,
+    allow_unverified_model: bool = False,
 ) -> AuditEngine:
     from .alerts import Alerter, JsonlSink, WebhookSink
     from .audit.findings import Severity
@@ -134,10 +135,14 @@ def _build_engine(
 
     ml = None
     if model:
-        from .ml import KinematicAnomalyModel
+        from .ml import ModelIntegrityError, load_verified
 
-        ml = KinematicAnomalyModel.load(model)
-        con.print(f"Loaded model {model} (threshold {ml.threshold_:.4f}, trained on {ml.n_train_} rows)")
+        try:
+            ml = load_verified(model, allow_unverified_model)
+        except ModelIntegrityError as e:
+            raise typer.BadParameter(str(e)) from e
+        con.print(f"Loaded model {model} (sha256 {ml.sha256_[:12]}, registry {'match' if ml.verified_ else 'UNVERIFIED'}, "
+                  f"threshold {ml.threshold_:.4f}, trained on {ml.n_train_} rows)")
     wl = Watchlist.load(watchlist) if watchlist else None
     if wl:
         con.print(f"Watchlist: {len(wl)} entries")
@@ -199,14 +204,20 @@ def audit(
     alert_min_severity: str = typer.Option("high", help="info|low|medium|high|critical"),
     out: Path = typer.Option(Path("reports")),
     name: str | None = typer.Option(None),
+    allow_unverified_model: bool = typer.Option(False, "--allow-unverified-model", help="Load a model that is not in models/registry.json"),
 ) -> None:
-    """Run the rules engine (+ optional ML model) and write JSON + Markdown reports."""
-    engine = _build_engine(model, watchlist, alert_webhook, alert_log, alert_min_severity)
+    """Run the rules engine (+ optional ML model) and write JSON, Markdown, HTML reports plus a signed manifest."""
+    from .ingest.replay import recording_stem
+    from .provenance import describe_source
+
+    engine = _build_engine(model, watchlist, alert_webhook, alert_log, alert_min_severity, allow_unverified_model)
+    source = None
 
     if recording:
         for b in iter_recording(recording):
             engine.process_batch(b)
-        name = name or recording.stem
+        name = name or recording_stem(recording)
+        source = describe_source(recording=recording)
     elif live:
         regs = _regions(region, radius, bbox)
         label = "+".join(r.key for r in regs)
@@ -227,12 +238,13 @@ def audit(
         asyncio.run(run())
         con.print(f"Live capture also saved to {rec_path}")
         name = name or f"{provider}_{label}"
+        source = describe_source(mode="live", provider=provider, region=label, interval=interval, recording=None) | {"recorded_to": str(rec_path)}
     else:
         raise typer.BadParameter("Pass --recording PATH or --live")
 
     _print_summary(engine)
-    jp, mp, hp = write_reports(engine, out, name)
-    con.print(f"Reports: [bold]{mp}[/], {hp}, {jp}")
+    jp, mp, hp = write_reports(engine, out, name, source=source)
+    con.print(f"Reports: [bold]{mp}[/], {hp}, {jp} (+ manifest with sha256 of each file)")
 
 
 @app.command()
@@ -469,6 +481,7 @@ def evaluate(
     max_batches: int | None = typer.Option(None, help="Truncate the recording for a quick run"),
     scenario: list[str] | None = typer.Option(None, help="Subset of scenarios (default: all)"),
     onset: float = typer.Option(0.4, help="Fraction of the recording before the attack starts"),
+    allow_unverified_model: bool = typer.Option(False, "--allow-unverified-model", help="Load a model that is not in models/registry.json"),
 ) -> None:
     """Inject attack scenarios into real traffic; measure recall, time-to-detect, and per-rule precision."""
     from .ml.evaluate import SCENARIOS, write_evaluation
@@ -477,7 +490,7 @@ def evaluate(
     unknown = set(scenario or []) - set(SCENARIOS)
     if unknown:
         raise typer.BadParameter(f"unknown scenarios {unknown}; known: {', '.join(SCENARIOS)}")
-    rep = _evaluate(recording, model, targets, seed, scenario or None, max_batches, onset)
+    rep = _evaluate(recording, model, targets, seed, scenario or None, max_batches, onset, allow_unverified_model=allow_unverified_model)
     t = Table("scenario", "expected", "targets", "detected", "recall", "any sec/ML", "median TTD s", "note")
     for r in rep.results:
         color = "green" if r.recall >= 0.8 else ("yellow" if r.recall >= 0.5 else "red")
@@ -538,17 +551,37 @@ def data_prune(
     con.print(f"{len(old)} file(s){' deleted' if apply else ' (dry run; add --apply)'}")
 
 
+def _security_banner(host: str, port: int, token: str | None, allow_unauthenticated: bool) -> None:
+    from .web.security import Guard
+
+    try:
+        g = Guard(host, token, allow_unauthenticated)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from e
+    if g.mode == "loopback":
+        con.print("[dim]Security: bound to loopback (this machine only); cross-site and rebinding requests are refused; "
+                  "POSTs need the per-run token the page fetches itself.")
+    elif g.mode == "token":
+        con.print(f"[yellow]Security: REMOTE MODE on {host}. Every API call needs the header X-Aero-Token; the browser will ask for it once.")
+    else:
+        con.print(f"[red]Security: UNAUTHENTICATED on {host}. Only acceptable when the container host publishes the port on loopback.")
+
+
 @app.command("app")
 def app_cmd(
     port: int = typer.Option(8787),
-    host: str = typer.Option("127.0.0.1"),
+    host: str = typer.Option("127.0.0.1", help="Bind address; anything but loopback needs --token or --allow-unauthenticated"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the browser automatically"),
+    token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN", help="Shared access token for a non-loopback bind"),
+    allow_unauthenticated: bool = typer.Option(False, help="Non-loopback bind without a token (container whose port is published on loopback)"),
+    allowed_host: list[str] | None = typer.Option(None, help="Extra Host header values to accept (e.g. a LAN name)"),
 ) -> None:
     """Start the local app (home screen, live map, findings, risk, reports, data, settings, help)."""
     from .web.app import run_app
 
+    _security_banner(host, port, token, allow_unauthenticated)
     con.print(f"[bold]aero-audit app[/] http://{host}:{port}/  (Ctrl+C to stop)")
-    run_app(port, host, open_browser)
+    run_app(port, host, open_browser, token=token, allow_unauthenticated=allow_unauthenticated, allowed_hosts=tuple(allowed_host or ()))
 
 
 @app.command()
@@ -564,6 +597,9 @@ def serve(
     host: str = typer.Option("127.0.0.1"),
     demo: bool = typer.Option(True),
     open_browser: bool = typer.Option(False, "--open/--no-open"),
+    tour: bool = typer.Option(False, help="Run the scripted attack tour on the preset source"),
+    token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN", help="Shared access token for a non-loopback bind"),
+    allow_unauthenticated: bool = typer.Option(False, help="Non-loopback bind without a token"),
 ) -> None:
     """Start the app with a source already running (replay by default: newest civil recording)."""
     from .web.app import run_app
@@ -579,8 +615,9 @@ def serve(
                 raise typer.BadParameter("no recordings to replay; use --live or `aero app`")
             replay = cands[-1]
         preset = {"mode": "replay", "recording": str(replay), "speed": speed, "demo": demo}
+    _security_banner(host, port, token, allow_unauthenticated)
     con.print(f"[bold]aero-audit app[/] http://{host}:{port}/  preset={preset}  (Ctrl+C to stop)")
-    run_app(port, host, open_browser, preset=preset)
+    run_app(port, host, open_browser, preset=preset, token=token, allow_unauthenticated=allow_unauthenticated, tour=tour)
 
 
 @app.command("docs-build")
@@ -660,6 +697,200 @@ def vision_apron(
     con.print(json.dumps(occ, indent=2))
     for f in zone_findings(occ, zl, str(image), time.time()):
         con.print(f"  [{f.severity.value}] {f.rule_id} {f.title}")
+
+
+# ---- demo / doctor / log -------------------------------------------------------------------
+SAMPLES_DIR = Path("data/samples")
+
+
+def _demo_recording() -> Path | None:
+    samples = sorted(SAMPLES_DIR.glob("*.jsonl.gz"), key=lambda p: p.stat().st_size, reverse=True)
+    if samples:
+        return samples[0]
+    cands = sorted((p for p in Path("data/recordings").glob("*.jsonl") if "_mil_" not in p.name),
+                   key=lambda p: p.stat().st_mtime)
+    return cands[-1] if cands else None
+
+
+@app.command()
+def demo(
+    port: int = typer.Option(8787),
+    host: str = typer.Option("127.0.0.1"),
+    speed: float = typer.Option(10.0, help="Replay speed multiplier"),
+    recording: Path | None = typer.Option(None, help="Recording to replay (default: the largest bundled sample)"),
+    tour: bool = typer.Option(True, "--tour/--no-tour", help="Run the scripted attack tour"),
+    open_browser: bool = typer.Option(True, "--open/--no-open"),
+    train_if_missing: bool = typer.Option(True, help="Train the anomaly model on the bundled samples when none exists"),
+    token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN", help="Shared access token for a non-loopback bind"),
+    allow_unauthenticated: bool = typer.Option(False, help="Non-loopback bind without a token (container with a loopback-published port)"),
+) -> None:
+    """One command, fully offline: replay the bundled real-traffic sample with the scripted attack tour."""
+    from .web.app import run_app
+
+    rec = recording or _demo_recording()
+    if rec is None:
+        from .synthetic import generate
+
+        rec = generate(Path("data/recordings/synthetic_demo.jsonl"), n_aircraft=60, polls=40, seed=11)
+        con.print(f"No sample found; generated synthetic traffic at {rec}")
+    model = Path("models/kinematic_iforest.joblib")
+    if train_if_missing and not model.is_file():
+        from .ml.train import train
+
+        sources = sorted(SAMPLES_DIR.glob("*.jsonl.gz")) or [rec]
+        con.print(f"No anomaly model yet: training one on {len(sources)} sample recording(s)...")
+        stats = train([str(p) for p in sources], model, 0.01)
+        con.print(f"  {stats['samples_total']} rows from {stats['aircraft_total']} aircraft; registered sha256 {stats['sha256'][:12]}")
+    _security_banner(host, port, token, allow_unauthenticated)
+    preset = {"mode": "replay", "recording": str(rec), "speed": speed, "demo": True}
+    con.print(f"[bold]aero-audit demo[/] http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{port}/  replaying {rec.name} at {speed:g}x"
+              f"{' with the scripted tour' if tour else ''}  (Ctrl+C to stop)")
+    run_app(port, host, open_browser, preset=preset, token=token, allow_unauthenticated=allow_unauthenticated, tour=tour)
+
+
+@app.command()
+def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the public feeds")) -> None:
+    """Check this machine: Python, dependencies, samples, model integrity, ports, feeds, audit chain."""
+    import importlib
+    import os
+    import socket
+    import sys
+
+    from .ml import verify_model
+    from .provenance import git_commit
+    from .web.audit import AUDIT_FILE, verify_file
+
+    rows: list[tuple[str, str, str]] = []
+
+    def ok(check: str, detail: str) -> None:
+        rows.append((check, "[green]OK", detail))
+
+    def warn(check: str, detail: str) -> None:
+        rows.append((check, "[yellow]WARN", detail))
+
+    def fail(check: str, detail: str) -> None:
+        rows.append((check, "[red]FAIL", detail))
+
+    v = sys.version_info
+    (ok if v >= (3, 12) else fail)("python", f"{v.major}.{v.minor}.{v.micro} at {sys.executable}")
+    g = git_commit()
+    ok("aero-audit", f"{__version__}" + (f" @ {g['commit'][:10]}{' (dirty)' if g['dirty'] else ''}" if g else " (not a git checkout)"))
+    for mod in ("numpy", "pandas", "sklearn", "httpx", "pydantic", "typer"):
+        try:
+            m = importlib.import_module(mod)
+            ok(f"dep {mod}", getattr(m, "__version__", "?"))
+        except ImportError as e:
+            fail(f"dep {mod}", str(e))
+    try:
+        importlib.import_module("ultralytics")
+        ok("vision extra", "ultralytics importable")
+    except ImportError:
+        warn("vision extra", "not installed (optional: uv pip install -e '.[vision]')")
+    samples = list(SAMPLES_DIR.glob("*.jsonl.gz"))
+    (ok if samples else warn)("bundled samples", f"{len(samples)} file(s): " + ", ".join(p.name for p in samples) if samples else "none; `aero demo` will synthesise traffic")
+    recs = list(Path("data/recordings").glob("*.jsonl"))
+    (ok if recs else warn)("recordings", f"{len(recs)} on disk" if recs else "none yet (capture with `aero stream` or the Data page)")
+    mp = Path("models/kinematic_iforest.joblib")
+    if mp.is_file():
+        vm = verify_model(mp)
+        (ok if vm["match"] else fail)("model integrity", f"sha256 {vm['sha256'][:12]} " + ("matches models/registry.json" if vm["match"] else "has NO matching registry entry (retrain with `aero train`)"))
+    else:
+        warn("model", "none trained yet; `aero demo` trains one on the samples")
+    (ok if Path("models/evaluation.json").is_file() else warn)("evaluation", "models/evaluation.json feeds rule precision into scoring" if Path("models/evaluation.json").is_file() else "missing; scoring uses the precision floor")
+    from . import tuning
+
+    n_over = sum(len(v) for v in tuning.apply().values()) if tuning.DEFAULT_PATH.exists() else 0
+    ok("thresholds", f"{n_over} override(s) in {tuning.DEFAULT_PATH}" if n_over else "defaults (no aero.toml)")
+    creds = bool(os.getenv("OPENSKY_CLIENT_ID")) and bool(os.getenv("OPENSKY_CLIENT_SECRET"))
+    ok("secrets", "OpenSky credentials present in the environment (values never printed)" if creds else "no OpenSky credentials (anonymous quota applies); .env is git-ignored")
+    for d in ("data/recordings", "data/app", "reports", "logs", "models"):
+        try:
+            Path(d).mkdir(parents=True, exist_ok=True)
+            probe = Path(d) / ".write-probe"
+            probe.write_text("x")
+            probe.unlink()
+            ok(f"writable {d}", "yes")
+        except OSError as e:
+            fail(f"writable {d}", str(e))
+    with socket.socket() as s:
+        s.settimeout(0.5)
+        busy = s.connect_ex(("127.0.0.1", 8787)) == 0
+    (warn if busy else ok)("port 8787", "in use (another aero instance? pass --port)" if busy else "free")
+    if AUDIT_FILE.is_file():
+        vr = verify_file(AUDIT_FILE)
+        (ok if vr["ok"] else fail)("audit log chain", f"{vr['chained']} linked entries, head {vr['head'][:12]}" if vr["ok"] else vr["error"] or "broken")
+    else:
+        ok("audit log chain", "no log yet (created on first app start)")
+    if net:
+        for host_, label in (("api.adsb.lol", "adsb.lol"), ("opensky-network.org", "OpenSky"), ("aviationweather.gov", "NOAA METAR"), ("nasstatus.faa.gov", "FAA NAS status")):
+            try:
+                with socket.create_connection((host_, 443), timeout=4):
+                    ok(f"feed {label}", f"{host_}:443 reachable")
+            except OSError as e:
+                import shutil
+                import subprocess
+
+                curl = shutil.which("curl")
+                if curl and subprocess.run([curl, "-sS", "-o", "/dev/null", "--max-time", "6", f"https://{host_}/"], capture_output=True, check=False).returncode == 0:
+                    warn(f"feed {label}", f"Python sockets blocked ({type(e).__name__}) but curl works: set AERO_HTTP_BACKEND=curl (a per-app firewall?)")
+                else:
+                    warn(f"feed {label}", f"unreachable ({type(e).__name__}); replay and the demo still work offline")
+    t = Table("check", "status", "detail")
+    for r in rows:
+        t.add_row(*r)
+    con.print(t)
+    failures = [r for r in rows if "FAIL" in r[1]]
+    con.print(f"{len(rows)} checks, {len(failures)} failing")
+    if failures:
+        raise typer.Exit(1)
+
+
+log_app = typer.Typer(help="Tamper-evident audit log and report manifests.")
+app.add_typer(log_app, name="log")
+
+
+@log_app.command("verify")
+def log_verify(path: Path = typer.Option(Path("data/app/audit.jsonl"))) -> None:
+    """Walk the hash chain of the app audit log; exit 1 if any link is broken."""
+    from .web.audit import verify_file
+
+    r = verify_file(path)
+    if r["error"] and r["ok"]:
+        con.print(f"[yellow]{r['error']}")
+        return
+    con.print(f"{path}: {r['entries']} entries, {r['chained']} chained, {r['legacy']} legacy, head {r['head'][:16]}")
+    if r["ok"]:
+        con.print("[green]chain verified")
+    else:
+        con.print(f"[red]chain broken: {r['error']}")
+        raise typer.Exit(1)
+
+
+@log_app.command("show")
+def log_show(path: Path = typer.Option(Path("data/app/audit.jsonl")), limit: int = typer.Option(40), action: str | None = typer.Option(None)) -> None:
+    """Print the latest audit-log entries."""
+    from .web.audit import AuditLog
+
+    log = AuditLog(path)
+    t = Table("#", "time (UTC)", "actor", "action", "details", "hash")
+    for e in log.entries(limit=limit, action=action):
+        t.add_row(str(e.get("seq", "")), datetime.fromtimestamp(e["ts"], UTC).strftime("%Y-%m-%d %H:%M:%S"), e["actor"], e["action"],
+                  json.dumps(e["details"], default=str)[:80], (e.get("hash") or "")[:10])
+    con.print(t)
+
+
+@log_app.command("verify-report")
+def log_verify_report(manifest: Path = typer.Argument(..., help="reports/<name>.manifest.json")) -> None:
+    """Re-hash the files a report manifest names and compare; exit 1 on any mismatch."""
+    from .provenance import verify_manifest
+
+    r = verify_manifest(manifest)
+    for k, f in r["files"].items():
+        con.print(f"  {'[green]ok  ' if f['ok'] else '[red]BAD '}[/] {k}: {f['path']}")
+    if not r["ok"]:
+        con.print("[red]one or more files differ from the manifest")
+        raise typer.Exit(1)
+    con.print("[green]all files match the manifest")
 
 
 if __name__ == "__main__":

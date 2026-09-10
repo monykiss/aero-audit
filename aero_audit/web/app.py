@@ -19,12 +19,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from .. import __version__, tuning
+from .. import __version__, provenance, tuning
 from ..audit.findings import SEVERITY_ORDER
 from ..audit.report import write_reports
 from ..audit.rules import RULE_CATALOG
 from ..impact import estimate_holding_impact
-from ..ingest.replay import iter_recording
+from ..ingest.replay import RECORDING_SUFFIXES, iter_recording, open_recording, recording_stem
 from ..knowledge import AIRPORTS
 from ..risk import assess
 from ..security.playbooks import PLAYBOOKS, playbook_for
@@ -32,27 +32,55 @@ from ..security.threats import coverage_matrix, load_evaluation
 from .audit import AuditLog
 from .jobs import Job, JobManager
 from .router import Router
-from .sources import SourceManager, load_settings, region_catalog, save_settings
+from .security import Denied, Guard, safe_path, safe_url
+from .sources import (
+    RECORDINGS_DIR,
+    SAMPLES_DIR,
+    SourceManager,
+    load_settings,
+    region_catalog,
+    save_settings,
+)
+from .tour import DemoTour
 
 STATIC = Path(__file__).with_name("static")
 REPORTS = Path("reports")
 DOCS = Path("docs")
+MODELS = Path("models")
+LOGS = Path("logs")
+DATA = Path("data")
 INVENTORY_CACHE = Path("data/app/inventory.json")
+RECORDING_ROOTS = (RECORDINGS_DIR, SAMPLES_DIR)
 
 router = Router()
 
 
 class App:
-    def __init__(self) -> None:
+    def __init__(self, guard: Guard | None = None) -> None:
+        self.guard = guard or Guard()
         self.settings = load_settings()
         self.audit = AuditLog()
         self.sources = SourceManager(self.settings)
         self.jobs = JobManager(self._job_types(), on_finish=lambda j: self.audit.record(
             "job.finish", actor="system", job=j.id, type=j.type, status=j.status, error=j.error))
-        self.audit.record("app.start", actor="system", version=__version__)
+        self.tour = DemoTour(lambda: self.sources.state, on_inject=lambda kind, icao, n, narration: self.audit.record(
+            "inject", actor="tour", kind=kind, icao24=icao, polls=n))
+        self.audit.record("app.start", actor="system", version=__version__, security_mode=self.guard.mode)
         self.started = time.time()
         self._inventory: dict[str, dict[str, Any]] = {}
         self._load_inventory_cache()
+
+    # ---- input validation --------------------------------------------------------------------
+    @staticmethod
+    def recording_path(value: Any) -> Path:
+        """A recording parameter may only name a file under data/recordings or data/samples."""
+        return safe_path(value, RECORDING_ROOTS, RECORDING_SUFFIXES)
+
+    def source_description(self) -> dict[str, Any]:
+        p = self.sources.params
+        if p.get("mode") == "replay":
+            return provenance.describe_source(recording=p.get("recording"))
+        return provenance.describe_source(**{k: v for k, v in p.items() if k in ("mode", "provider", "region", "radius", "interval")})
 
     # ---- inventory ---------------------------------------------------------------------------
     def _load_inventory_cache(self) -> None:
@@ -64,7 +92,8 @@ class App:
     def recordings(self) -> list[dict[str, Any]]:
         out = []
         changed = False
-        for f in sorted(Path("data/recordings").glob("*.jsonl")):
+        files = sorted(RECORDINGS_DIR.glob("*.jsonl")) + sorted(RECORDINGS_DIR.glob("*.jsonl.gz")) + sorted(SAMPLES_DIR.glob("*.jsonl.gz"))
+        for f in files:
             key = f"{f.name}:{f.stat().st_mtime_ns}:{f.stat().st_size}"
             if key not in self._inventory:
                 out_ = self._summarize(f)
@@ -73,6 +102,7 @@ class App:
                 changed = True
             d = dict(self._inventory[key])
             d["path"] = str(f)
+            d["sample"] = f.parent == SAMPLES_DIR
             out.append(d)
         if changed:
             INVENTORY_CACHE.parent.mkdir(parents=True, exist_ok=True)
@@ -143,50 +173,64 @@ class App:
         st = self.sources.state
         if st is None:
             raise RuntimeError("no active source")
+        name = "".join(c for c in str(p.get("name") or f"session_{st.region}") if c.isalnum() or c in "-_.")[:80] or "session"
         with st.lock:
-            jp, mp, hp = write_reports(st.engine, REPORTS, p.get("name") or f"session_{st.region}")
-        job.say(f"wrote {hp.name}")
+            jp, mp, hp = write_reports(st.engine, REPORTS, name, source=self.source_description())
+        job.say(f"wrote {hp.name} (+ manifest)")
         return {"json": str(jp), "md": str(mp), "html": str(hp), "name": hp.stem}
 
     def _job_audit_recording(self, job: Job, p: dict[str, Any]) -> dict[str, Any]:
         from .sources import build_engine
 
-        path = Path(p["recording"])
-        with open(path) as fh:
+        path = self.recording_path(p.get("recording"))
+        with open_recording(path) as fh:
             total = sum(1 for _ in fh)
         eng = build_engine(self.settings)
+        for err in self.settings.pop("_errors", []):
+            job.say(err)
         for i, b in enumerate(iter_recording(path), 1):
             eng.process_batch(b)
             job.progress = i / max(total, 1)
             if job.stop.is_set():
                 break
-        jp, mp, hp = write_reports(eng, REPORTS, path.stem)
+        jp, mp, hp = write_reports(eng, REPORTS, recording_stem(path), source=provenance.describe_source(recording=path))
         s = eng.summary()
-        job.say(f"{s['unique_aircraft']} aircraft, {s['findings_total']} findings -> {hp.name}")
+        job.say(f"{s['unique_aircraft']} aircraft, {s['findings_total']} findings -> {hp.name} (+ manifest)")
         return {"json": str(jp), "md": str(mp), "html": str(hp), "name": hp.stem, "summary": {k: s[k] for k in ("unique_aircraft", "findings_total", "by_severity")}}
 
     def _job_train(self, job: Job, p: dict[str, Any]) -> dict[str, Any]:
         from ..ml.train import train
 
-        recs = p.get("recordings") or [r["path"] for r in self.recordings() if not r["special"]]
+        recs = [str(self.recording_path(r)) for r in (p.get("recordings") or [])] or [r["path"] for r in self.recordings() if not r["special"]]
         if not recs:
             raise RuntimeError("no civil recordings to train on")
-        job.say(f"training on {len(recs)} recordings")
-        stats = train(recs, self.settings.get("model") or "models/kinematic_iforest.joblib", float(p.get("contamination", 0.01)))
-        job.say(f"{stats['samples_total']} rows, holdout flag rate {stats['flag_rate_holdout']:.2%}")
+        out = safe_path(self.settings.get("model") or "models/kinematic_iforest.joblib", [MODELS], (".joblib",), must_exist=False)
+        job.say(f"training on {len(recs)} recordings -> {out}")
+        stats = train(recs, out, float(p.get("contamination", 0.01)))
+        job.say(f"{stats['samples_total']} rows, holdout flag rate {stats['flag_rate_holdout']:.2%}; registered sha256 {stats['sha256'][:12]}")
         return {k: stats[k] for k in ("samples_total", "aircraft_total", "flag_rate_holdout", "model_path", "model_card", "sha256")}
 
     def _job_evaluate(self, job: Job, p: dict[str, Any]) -> dict[str, Any]:
+        from ..ml import verify_model
         from ..ml.evaluate import evaluate, write_evaluation
 
-        rec = p.get("recording") or next((r["path"] for r in self.recordings() if not r["special"] and r["provider"] == "adsblol"), None)
+        rec = str(self.recording_path(p["recording"])) if p.get("recording") else next(
+            (r["path"] for r in self.recordings() if not r["special"] and r["provider"] == "adsblol"), None)
         if not rec:
             raise RuntimeError("no recording to evaluate on")
-        model = self.settings.get("model") if Path(self.settings.get("model") or "").is_file() else None
+        model = None
+        mp = Path(self.settings.get("model") or "")
+        if mp.is_file():
+            v = verify_model(mp)
+            if v["match"] or self.settings.get("allow_unverified_model"):
+                model = str(mp)
+            else:
+                job.say(f"model {mp} skipped: not verified against {v['registry']}")
         job.say(f"evaluating on {Path(rec).name}")
-        rep = evaluate(rec, model, int(p.get("targets", 25)), int(p.get("seed", 42)), None, int(p.get("max_batches", 60)))
-        jp, mp = write_evaluation(rep)
-        return {"json": str(jp), "md": str(mp), "recall": {r.name: r.recall for r in rep.results}, "precision": rep.rule_precision}
+        rep = evaluate(rec, model, int(p.get("targets", 25)), int(p.get("seed", 42)), None, int(p.get("max_batches", 60)),
+                       allow_unverified_model=bool(self.settings.get("allow_unverified_model")))
+        jp, mp_ = write_evaluation(rep)
+        return {"json": str(jp), "md": str(mp_), "recall": {r.name: r.recall for r in rep.results}, "precision": rep.rule_precision}
 
     def _job_prune(self, job: Job, p: dict[str, Any]) -> dict[str, Any]:
         days, apply = int(p.get("days", self.settings.get("retention_days", 30))), bool(p.get("apply", False))
@@ -261,14 +305,36 @@ class App:
 
         rows = [{"section": s, "key": k, "value": _clean(v), "overridden": o, "editable": _finite(v)}
                 for s, k, v, o in tuning.effective()]
-        return {"tunables": rows, "app": {k: self.settings.get(k) for k in ("demo", "alert_log", "alert_webhook", "retention_days", "model", "watchlist")},
+        from ..ml import verify_model
+
+        model = self.settings.get("model") or ""
+        return {"tunables": rows, "app": {k: self.settings.get(k) for k in ("demo", "alert_log", "alert_webhook", "retention_days", "model", "watchlist", "allow_unverified_model")},
+                "model_integrity": verify_model(model) if model else None,
                 "aero_toml": str(tuning.DEFAULT_PATH), "aero_toml_exists": tuning.DEFAULT_PATH.exists()}
+
+    @staticmethod
+    def validate_app_settings(app: dict[str, Any]) -> dict[str, Any]:
+        """Each app setting has a type and, for paths, a directory it must stay inside."""
+        out: dict[str, Any] = {}
+        for k, v in app.items():
+            if k in ("demo", "allow_unverified_model"):
+                out[k] = bool(v)
+            elif k == "retention_days":
+                out[k] = max(1, min(int(v), 3650))
+            elif k == "alert_webhook":
+                out[k] = safe_url(v)
+            elif k == "alert_log":
+                out[k] = str(safe_path(v, [LOGS, DATA], (".jsonl",), must_exist=False)) if str(v or "").strip() else ""
+            elif k == "model":
+                out[k] = str(safe_path(v, [MODELS], (".joblib",), must_exist=False)) if str(v or "").strip() else ""
+            elif k == "watchlist":
+                out[k] = str(safe_path(v, [DATA], (".json",), must_exist=False)) if str(v or "").strip() else ""
+            # unknown keys are dropped
+        return out
 
     def settings_update(self, body: dict[str, Any]) -> dict[str, Any]:
         if "app" in body:
-            for k, v in body["app"].items():
-                if k in self.settings:
-                    self.settings[k] = v
+            self.settings.update(self.validate_app_settings(dict(body["app"] or {})))
             save_settings(self.settings)
         if "tunables" in body:
             import tomllib
@@ -297,8 +363,9 @@ class App:
         for f in REPORTS.glob("*"):
             if f.suffix not in (".html", ".md", ".json") or f.name == ".gitkeep":
                 continue
-            g = groups.setdefault(f.stem, {"name": f.stem, "mtime": f.stat().st_mtime, "files": {}})
-            g["files"][f.suffix[1:]] = f"/reports/{f.name}"
+            stem, kind = (f.stem[:-len(".manifest")], "manifest") if f.name.endswith(".manifest.json") else (f.stem, f.suffix[1:])
+            g = groups.setdefault(stem, {"name": stem, "mtime": f.stat().st_mtime, "files": {}})
+            g["files"][kind] = f"/reports/{f.name}"
             g["mtime"] = max(g["mtime"], f.stat().st_mtime)
         kinds = {"evaluation": "evaluation", "risk_assessment": "risk", "corroborate": "corroboration", "session": "session audit"}
         for g in groups.values():
@@ -314,13 +381,18 @@ class App:
             model["evaluation"] = e.get("evaluation")
         except (OSError, ValueError, IndexError):
             pass
+        tour = self.tour.status()
+        tour.pop("script", None)
         return {
             "version": __version__, "uptime_s": round(time.time() - self.started), "source": self.sources.status(),
             "model": model, "model_file": Path(self.settings.get("model") or "").is_file(),
-            "recordings": len(list(Path("data/recordings").glob("*.jsonl"))), "reports": len(self.reports()),
+            "recordings": len(list(RECORDINGS_DIR.glob("*.jsonl"))) + len(list(RECORDINGS_DIR.glob("*.jsonl.gz"))),
+            "samples": len(list(SAMPLES_DIR.glob("*.jsonl.gz"))), "reports": len(self.reports()),
             "jobs_running": sum(1 for j in self.jobs.jobs.values() if j.status == "running"),
             "settings": {k: self.settings.get(k) for k in ("demo", "retention_days")},
             "evaluation_exists": Path("models/evaluation.json").is_file(),
+            "security": self.guard.describe(), "tour": tour,
+            "audit_chain": {"entries": len(self.audit), "head": self.audit.head},
         }
 
 
@@ -348,16 +420,57 @@ def r_recordings(app: App, req: Any) -> Any:
 @router.route("POST", "/api/v1/source/start")
 def r_source_start(app: App, req: Any) -> Any:
     b = req["body"]
-    app.audit.record("source.start", **{k: v for k, v in b.items() if k != "demo"} , demo=bool(b.get("demo", True)))
     if b.get("mode") == "live":
-        app.sources.start_live(b.get("provider", "adsblol"), b.get("region", "nyc"),
-                               float(b["radius"]) if b.get("radius") else None, float(b.get("interval", 12)),
+        provider, region = str(b.get("provider", "adsblol")), str(b.get("region", "nyc"))
+        if provider not in ("adsblol", "opensky"):
+            return ({"error": f"unknown provider {provider}"}, 400)
+        app.audit.record("source.start", mode="live", provider=provider, region=region, radius=b.get("radius"),
+                         interval=b.get("interval"), demo=bool(b.get("demo", True)))
+        app.sources.start_live(provider, region, float(b["radius"]) if b.get("radius") else None, float(b.get("interval", 12)),
                                b.get("demo"), bool(b.get("record", True)))
     else:
-        app.sources.start_replay(b["recording"], float(b.get("speed", 8)), b.get("demo"))
+        try:
+            rec = app.recording_path(b.get("recording"))
+        except FileNotFoundError as e:
+            return ({"error": str(e)}, 404)
+        except PermissionError as e:
+            app.audit.record("source.start.refused", recording=str(b.get("recording"))[:200], reason=str(e))
+            return ({"error": str(e)}, 400)
+        app.audit.record("source.start", mode="replay", recording=str(rec), speed=b.get("speed", 8), demo=bool(b.get("demo", True)))
+        app.sources.start_replay(rec, float(b.get("speed", 8)), b.get("demo"))
     app.settings["last_source"] = app.sources.params
     save_settings(app.settings)
     return {"ok": True, "source": app.sources.status()}
+
+
+@router.route("GET", "/api/v1/security")
+def r_security(app: App, req: Any) -> Any:
+    return app.guard.describe()
+
+
+@router.route("GET", "/api/v1/tour")
+def r_tour(app: App, req: Any) -> Any:
+    return app.tour.status()
+
+
+@router.route("POST", "/api/v1/tour")
+def r_tour_ctl(app: App, req: Any) -> Any:
+    action = req["body"].get("action", "start")
+    if action == "start":
+        st = app.sources.state
+        if st is None:
+            return ({"error": "start a source first"}, 400)
+        if not st.demo:
+            return ({"error": "demo mode is off for this source"}, 403)
+        app.tour.start()
+    elif action == "stop":
+        app.tour.stop()
+        if app.sources.state:
+            app.sources.state.clear_injections()
+    else:
+        return ({"error": "action must be start or stop"}, 400)
+    app.audit.record(f"tour.{action}")
+    return app.tour.status()
 
 
 @router.route("POST", "/api/v1/source/stop")
@@ -596,6 +709,22 @@ def r_audit_csv(app: App, req: Any) -> Any:
     return (app.audit.to_csv().encode(), "text/csv; charset=utf-8")
 
 
+@router.route("GET", "/api/v1/audit/verify")
+def r_audit_verify(app: App, req: Any) -> Any:
+    return app.audit.verify()
+
+
+@router.route("GET", "/api/v1/reports/{name}/manifest")
+def r_report_manifest(app: App, req: Any) -> Any:
+    from ..provenance import verify_manifest
+
+    name = req["params"]["name"]
+    mp = REPORTS / f"{name}.manifest.json"
+    if "/" in name or ".." in name or not mp.is_file():
+        return ({"error": "no manifest"}, 404)
+    return verify_manifest(mp)
+
+
 @router.route("GET", "/api/v1/jobs")
 def r_jobs(app: App, req: Any) -> Any:
     return app.jobs.list()
@@ -641,7 +770,9 @@ def r_docs(app: App, req: Any) -> Any:
 def r_doc(app: App, req: Any) -> Any:
     name = req["params"]["name"].replace("%2F", "/")
     p = Path(name)
-    if ".." in p.parts or not (p.suffix == ".md" and p.is_file() and (p.resolve().is_relative_to(DOCS.resolve()) or p.name == "README.md")):
+    if p.is_absolute() or ".." in p.parts or p.suffix != ".md" or not p.is_file():
+        return ({"error": "not found"}, 404)
+    if not (p.resolve().is_relative_to(DOCS.resolve()) or p == Path("README.md")):
         return ({"error": "not found"}, 404)
     return {"name": name, "text": p.read_text()}
 
@@ -649,6 +780,9 @@ def r_doc(app: App, req: Any) -> Any:
 # ---- HTTP glue -------------------------------------------------------------------------------
 def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
+        server_version = "aero-audit"
+        sys_version = ""
+
         def log_message(self, fmt: str, *args: Any) -> None:
             pass
 
@@ -656,7 +790,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
+            for k, v in app.guard.response_headers(urlparse(self.path).path):
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
 
@@ -664,6 +799,13 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             u = urlparse(self.path)
             path = u.path
             query = {k: v[0] for k, v in parse_qs(u.query).items()}
+            try:
+                app.guard.check(method, path, self.headers)
+            except Denied as d:
+                if d.status == 401:
+                    app.audit.record("request.denied", actor="system", status=d.status, path=path[:120], reason=d.message)
+                self._send(d.status, json.dumps({"error": d.message}).encode(), "application/json")
+                return
             try:
                 if method == "GET" and (path == "/" or path.startswith("/#")):
                     self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
@@ -688,10 +830,18 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._send(404, json.dumps({"error": "not found"}).encode(), "application/json")
                     return
                 handler, params = m
-                body = {}
+                body: dict[str, Any] = {}
                 if method == "POST":
                     n = int(self.headers.get("Content-Length") or 0)
-                    body = json.loads(self.rfile.read(n) or b"{}") if n else {}
+                    try:
+                        parsed = json.loads(self.rfile.read(n) or b"{}") if n else {}
+                    except ValueError:
+                        self._send(400, json.dumps({"error": "body is not valid JSON"}).encode(), "application/json")
+                        return
+                    if not isinstance(parsed, dict):
+                        self._send(400, json.dumps({"error": "body must be a JSON object"}).encode(), "application/json")
+                        return
+                    body = parsed
                 result = handler(app, {"params": params, "query": query, "body": body})
                 status = 200
                 if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], int):
@@ -713,8 +863,10 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
 
 
 def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True, block: bool = True,
-            preset: dict[str, Any] | None = None) -> tuple[App, ThreadingHTTPServer]:
-    app = App()
+            preset: dict[str, Any] | None = None, token: str | None = None, allow_unauthenticated: bool = False,
+            allowed_hosts: tuple[str, ...] = (), tour: bool = False) -> tuple[App, ThreadingHTTPServer]:
+    guard = Guard(host, token, allow_unauthenticated, allowed_hosts)
+    app = App(guard)
     httpd = ThreadingHTTPServer((host, port), make_handler(app))
     threading.Thread(target=httpd.serve_forever, daemon=True, name="aero-http").start()
     if preset:
@@ -723,7 +875,11 @@ def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True
                                    float(preset.get("interval", 12)), preset.get("demo"))
         elif preset.get("recording"):
             app.sources.start_replay(preset["recording"], float(preset.get("speed", 8)), preset.get("demo"))
-    url = f"http://{host}:{httpd.server_address[1]}/"
+        app.audit.record("source.start", actor="system", **{k: str(v) for k, v in preset.items()})
+    if tour and app.sources.state is not None:
+        app.tour.start()
+        app.audit.record("tour.start", actor="system")
+    url = f"http://{'127.0.0.1' if host in ('0.0.0.0', '::') else host}:{httpd.server_address[1]}/"
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     if block:

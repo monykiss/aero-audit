@@ -44,8 +44,14 @@ def _bars(items: list[tuple[str, int]], width: int = 520) -> str:
     return "".join(out)
 
 
-def render_html(engine: AuditEngine, title: str, max_findings: int = 150) -> str:
+def render_html(engine: AuditEngine, title: str, max_findings: int = 150, provenance: dict | None = None) -> str:
+    from .. import provenance as prov
     from .report import executive_summary
+
+    prov_html = ""
+    if provenance:
+        items = [ln[2:] for ln in prov.render_markdown(provenance) if ln.startswith("- ")]
+        prov_html = "<h2>Provenance</h2><ul class='exec'>" + "".join(f"<li>{html.escape(x)}</li>" for x in items) + "</ul>"
 
     s = engine.summary()
     exec_lines = [ln.strip() for ln in executive_summary(engine) if ln.strip() and not ln.startswith("## ")]
@@ -86,5 +92,6 @@ def render_html(engine: AuditEngine, title: str, max_findings: int = 150) -> str
 <h2>Low-trust aircraft (trust &lt; 0.5)</h2><table><tr><th>ICAO24</th><th>Trust</th><th>Findings</th></tr>{low or "<tr><td colspan='3'>none</td></tr>"}</table>
 <h2>Findings (top {min(max_findings, len(engine.findings))} by risk score)</h2>
 <table><tr><th>Severity</th><th>Rule</th><th>Aircraft</th><th>Time</th><th>Risk</th><th>Occ.</th><th>Finding / first playbook step</th><th>Evidence</th></tr>{"".join(rows)}</table>
+{prov_html}
 <p class='note'>Findings are signals for review, not determinations. Playbooks: <code>aero security playbook &lt;RULE&gt;</code>. Full detail in the JSON report.</p>
 </main></body></html>"""
