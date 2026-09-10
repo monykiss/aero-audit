@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import mimetypes
+import os
 import threading
 import time
 import webbrowser
@@ -380,7 +381,7 @@ class App:
             model = {k: e.get(k) for k in ("model_path", "rows", "aircraft", "holdout_flag_rate", "trained_at", "sha256")}
             model["evaluation"] = e.get("evaluation")
         except (OSError, ValueError, IndexError):
-            pass
+            pass  # no registry yet, or an unreadable one: the app shows "no model" rather than failing
         tour = self.tour.status()
         tour.pop("script", None)
         return {
@@ -790,10 +791,21 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
-            for k, v in app.guard.response_headers(urlparse(self.path).path):
+            for k, v in app.guard.response_headers(report=urlparse(self.path).path.startswith("/reports/")):
                 self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
+
+        def _serve_file(self, root: Path, rel: str, ctype: str | None = None) -> None:
+            """Serve one file from under ``root``; anything that normalises outside it is a 404."""
+            base = os.path.realpath(root)
+            target = os.path.normpath(os.path.join(base, rel.lstrip("/")))
+            if not target.startswith(base + os.sep) or not os.path.isfile(target):
+                self._send(404, b"not found", "text/plain")
+                return
+            with open(target, "rb") as fh:
+                body = fh.read()
+            self._send(200, body, ctype or mimetypes.guess_type(target)[0] or "application/octet-stream")
 
         def _dispatch(self, method: str) -> None:
             u = urlparse(self.path)
@@ -811,19 +823,12 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
                     return
                 if method == "GET" and path.startswith("/static/"):
-                    f = (STATIC / path[len("/static/"):]).resolve()
-                    if not f.is_relative_to(STATIC.resolve()) or not f.is_file():
-                        self._send(404, b"not found", "text/plain")
-                        return
-                    self._send(200, f.read_bytes(), mimetypes.guess_type(f.name)[0] or "application/octet-stream")
+                    self._serve_file(STATIC, path[len("/static/"):])
                     return
                 if method == "GET" and path.startswith("/reports/"):
-                    f = (REPORTS / path[len("/reports/"):]).resolve()
-                    if not f.is_relative_to(REPORTS.resolve()) or not f.is_file():
-                        self._send(404, b"not found", "text/plain")
-                        return
-                    ctype = {".html": "text/html; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".json": "application/json"}.get(f.suffix, "text/plain")
-                    self._send(200, f.read_bytes(), ctype)
+                    rel = path[len("/reports/"):]
+                    ctype = {".html": "text/html; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".json": "application/json"}.get(Path(rel).suffix, "text/plain")
+                    self._serve_file(REPORTS, rel, ctype)
                     return
                 m = router.match(method, path)
                 if not m:

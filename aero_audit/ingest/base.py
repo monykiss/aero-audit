@@ -9,6 +9,8 @@ from ..models import Batch
 class Provider(Protocol):
     name: str
 
-    async def fetch(self, region: Region) -> Batch: ...
+    async def fetch(self, region: Region) -> Batch:
+        """Return one batch of state vectors for the region."""
 
-    async def aclose(self) -> None: ...
+    async def aclose(self) -> None:
+        """Release the HTTP client."""

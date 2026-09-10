@@ -13,7 +13,8 @@ from .security.playbooks import playbook_for
 
 
 class AlertSink(Protocol):
-    def send(self, finding: Finding) -> None: ...
+    def send(self, finding: Finding) -> None:
+        """Deliver one finding."""
 
 
 class JsonlSink:

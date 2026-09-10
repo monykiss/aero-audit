@@ -109,7 +109,7 @@ class JobManager:
             done = sorted(done, key=lambda d: d["created"])[-100:]
             self.persist.write_text(json.dumps(done, indent=1, default=str))
         except OSError:
-            pass
+            pass  # persistence is best-effort; the in-memory job list stays authoritative
 
     def _load(self) -> None:
         try:
@@ -120,4 +120,4 @@ class JobManager:
                 j.log.extend(d.get("log", []))
                 self.jobs[j.id] = j
         except (OSError, ValueError, KeyError):
-            pass
+            pass  # no history file, or an unreadable one: start with an empty job list

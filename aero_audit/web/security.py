@@ -147,9 +147,9 @@ class Guard:
 
     # ---- headers ---------------------------------------------------------------------------
     @staticmethod
-    def response_headers(path: str) -> list[tuple[str, str]]:
-        csp = REPORT_CSP if path.startswith("/reports/") else APP_CSP
-        return [("Content-Security-Policy", csp), *SECURITY_HEADERS]
+    def response_headers(report: bool = False) -> list[tuple[str, str]]:
+        """Constant hardening headers; reports get a stricter, script-free policy."""
+        return [("Content-Security-Policy", REPORT_CSP if report else APP_CSP), *SECURITY_HEADERS]
 
     def describe(self) -> dict[str, Any]:
         """What the front end needs: the mode and, unless a shared secret is in force, the CSRF token."""

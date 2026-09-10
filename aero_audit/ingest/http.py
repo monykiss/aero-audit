@@ -22,6 +22,16 @@ BACKEND = os.getenv("AERO_HTTP_BACKEND", "auto")  # auto | httpx | curl
 _use_curl = BACKEND == "curl"  # sticky: once httpx fails to connect, stay on curl for the process
 
 
+def using_curl() -> bool:
+    """True once the process has switched to the curl transport (or was configured for it)."""
+    return _use_curl
+
+
+def switch_to_curl() -> None:
+    global _use_curl
+    _use_curl = True
+
+
 async def curl_json(url: str, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None,
                     timeout: float = 30.0) -> Any:
     full = url + ("?" + urlencode(params) if params else "")
@@ -44,8 +54,7 @@ async def curl_json(url: str, params: dict[str, Any] | None = None, headers: dic
 
 async def get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None,
                    headers: dict[str, str] | None = None) -> Any:
-    global _use_curl
-    if not _use_curl:
+    if not using_curl():
         try:
             r = await client.get(url, params=params, headers=headers)
             r.raise_for_status()
@@ -54,5 +63,5 @@ async def get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] |
             if BACKEND == "httpx":
                 raise
             print(f"[http] httpx connect failed ({type(e).__name__}); using curl transport from now on", flush=True)
-            _use_curl = True
+            switch_to_curl()
     return await curl_json(url, params, headers)

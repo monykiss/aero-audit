@@ -14,9 +14,6 @@ import httpx
 
 from ..config import settings
 from . import http as _http
-from .http import (
-    get_json,  # noqa: F401  (kept for symmetry; XML fetched with the same client rules)
-)
 
 URL = "https://nasstatus.faa.gov/api/airport-status-information"
 KINDS = {
@@ -61,7 +58,7 @@ async def _curl_text(url: str) -> str:
 
 async def fetch_status() -> dict[str, Any]:
     """Same transport policy as the JSON feeds: httpx unless curl is forced or has already been needed."""
-    if _http._use_curl:
+    if _http.using_curl():
         return parse_status(await _curl_text(URL))
     async with httpx.AsyncClient(timeout=20, headers={"User-Agent": settings.user_agent}) as c:
         try:
@@ -69,5 +66,5 @@ async def fetch_status() -> dict[str, Any]:
             r.raise_for_status()
             return parse_status(r.text)
         except (httpx.ConnectTimeout, httpx.ConnectError):
-            _http._use_curl = True
+            _http.switch_to_curl()
             return parse_status(await _curl_text(URL))

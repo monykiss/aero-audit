@@ -46,7 +46,7 @@ def _bars(items: list[tuple[str, int]], width: int = 520) -> str:
 
 def render_html(engine: AuditEngine, title: str, max_findings: int = 150, provenance: dict | None = None) -> str:
     from .. import provenance as prov
-    from .report import executive_summary
+    from .summary import executive_summary
 
     prov_html = ""
     if provenance:

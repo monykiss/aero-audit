@@ -90,7 +90,7 @@ class AuditLog:
                         if "hash" in e:
                             self._head, self._seq = e["hash"], int(e.get("seq") or self._seq)
         except (OSError, ValueError):
-            pass
+            pass  # no log yet, or a corrupt line: verify() reports it; recording continues from genesis
 
     def record(self, action: str, actor: str = "user", **details: Any) -> dict[str, Any]:
         with self.lock:
@@ -104,7 +104,7 @@ class AuditLog:
                 with open(self.path, "a") as fh:
                     fh.write(json.dumps(entry, default=str) + "\n")
             except OSError:
-                pass
+                pass  # a read-only disk must not break the app; the in-memory chain still advances
         return entry
 
     def verify(self) -> dict[str, Any]:
