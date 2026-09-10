@@ -97,6 +97,9 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-33", "External asset integrity and provenance", "NASA-3D assets verified against git blob ids; library downloads hashed; sidecars and manifests.",
             "compliance", ("space-assets",), ("NASA-NOSA-1.3", "NASA-MEDIA"), "implemented",
             ("module:aero_audit/space/nasa3d.py", "module:aero_audit/space/nasa_images.py", "test:tests/test_space.py", "command:aero space fetch")),
+    Control("C-34", "Crisis extent to operations impact", "Intersect satellite-derived crisis extents with airports and hubs; flag affected operations.",
+            "compliance", ("earth-crisis", "air-operations"), ("NASA-NPR-8715.3", "ICAO-A11"), "partial", ("study:ST-11", "test:tests/test_governance.py"),
+            notes="Extents come from the Crisis Mapping Toolkit or any GeoJSON; the flood algorithms themselves are not re-implemented."),
     # ---- risk ----------------------------------------------------------------------------
     Control("C-13", "Threat catalogue with measured detection coverage", "Twelve surveillance threats mapped to rules and evaluation scenarios.",
             "risk", ("air-surveillance",), ("NIST-CSF-2", "ICAO-A17"), "implemented", ("module:aero_audit/security/threats.py", "artefact:docs/generated/THREATS.md", "test:tests/test_security.py")),

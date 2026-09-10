@@ -19,6 +19,7 @@ owns what. Everything sits on evidence the toolkit already produces or can repro
 | Space: launch and ascent | scaffold | Telemetry plausibility rules, footage frames, caption milestones; inputs supplied as files |
 | Space: orbital operations | planned | TLE propagation, CCSDS orbit and conjunction messages, conjunction screening, debris compliance |
 | Air: UAS, detect-and-avoid, UTM | planned | Well-clear metrics from NASA DAIDALUS/WellClear, encounter-model risk classes, UTM API conformance |
+| Earth observation: crisis overlays | scaffold | Flood, fire and disaster extents (Crisis Mapping Toolkit lineage) intersected with airports and hubs; relief-operation coverage |
 
 **Out of scope, by decision**
 
@@ -63,6 +64,8 @@ custom licence such as the NASA Open Source Agreement, which we do not vendor, o
 | NASA-AMMOS/plandev | 128 | MIT | Spacecraft modelling and planning framework | Activity and constraint model for mission-ops governance studies |
 | NASA-AMMOS/MMGIS, 3DTilesRendererJS | 231 / 2,457 | Apache-2.0 | Multi-mission GIS; 3D Tiles renderer | Future geospatial and 3D views of NASA-3D assets and trajectories |
 | nasa/NASA-3D-Resources | 3,779 | NOSA | Models, textures, imagery | The asset domain; catalogue and integrity tooling is our candidate upstream contribution |
+| nasa/CrisisMappingToolkit | 207 | Apache-2.0 | NASA Ames flood-extent algorithms (MODIS, SAR, Landsat) on Google Earth Engine; XML domain specs | Crisis extents as GeoJSON into ST-11 / C-34; the configurable domain-specification idea; algorithms cited, not vendored (needs an Earth Engine account and PyQt4) |
+| sksalahuddin2828/NASA | 234 | none ("educational, don't sell") | Personal pygame solar-system and TLE orbit visualisers | Reviewed, not adopted: no licence, unmaintained since 2023; the intent (TLE orbit visualisation) is served by phase 3 with python-sgp4/skyfield |
 | nasa/HDTN, nasa-jpl/ION-DTN | 146 / 140 | Apache / NOSA | Delay-tolerant networking | Out of scope; noted so nobody re-plans it |
 | openskynetwork/opensky-api | 466 | GPL-3.0 | OpenSky REST bindings | Already a feed; bindings not vendored (licence) |
 | wiedehopf/readsb, flightaware/dump1090 | 672 / 1,141 | custom / custom | ADS-B decoders | Receiver-level provenance for the next corroboration step |
@@ -104,6 +107,7 @@ at low or medium residual (20%), runnable studies (10%) and evidence freshness o
 | 3. Orbital operations | TLE ingest (CelesTrak), SGP4 propagation, CDM parser, conjunction screening with Pc; debris-rule checklist | ST-06 runnable; C-09/C-10 partial with evidence; register S05/S06 residuals fall |
 | 4. UAS and DAA | Encounters from recorded tracks scored with DAIDALUS well-clear; ASTM risk classes; UTM API conformance | ST-07/08/09 runnable; C-11/C-12/C-21 partial |
 | 5. Software assurance | NPR 7150.2 classification of components; SLIM templates applied; SDLS expectations documented | C-31/C-32 implemented; SECURITY.md extended |
+| 7. Crisis overlays | Extents from CMT or Earth Engine exports intersected with airports, routes and live traffic; relief-flight coverage study | ST-11 on a real flood export; C-34 implemented; E01 residual falls |
 | 6. Upstream | Catalogue and integrity tool offered to nasa/NASA-3D-Resources; library client published; branch becomes public | Contribution accepted or a public home agreed; P-08 lifted |
 
 ## 5. Operating model

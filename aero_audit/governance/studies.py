@@ -123,7 +123,39 @@ def _holding_by_airport(recording: str | Path, **_: Any) -> dict[str, Any]:
     return {"recording": str(recording), "holds": len(holds), "by_airport": rows}
 
 
+def _airports_in_extent(geojson: str | Path, buffer_nm: float = 10.0, **_: Any) -> dict[str, Any]:
+    """Airports inside (or within buffer_nm of) polygons of a GeoJSON crisis extent (e.g. a CMT flood map export)."""
+    from ..features.tracks import haversine_nm
+    from ..knowledge import AIRPORTS
+    from ..vision.apron import point_in_polygon
+
+    gj = json.loads(Path(geojson).read_text())
+    feats = gj.get("features", [gj]) if gj.get("type") != "Feature" else [gj]
+    polys: list[tuple[str, list[tuple[float, float]]]] = []
+    for f in feats:
+        geom = f.get("geometry", f)
+        name = str((f.get("properties") or {}).get("name") or f"feature{len(polys) + 1}")
+        if geom.get("type") == "Polygon":
+            polys.append((name, [(float(x), float(y)) for x, y in geom["coordinates"][0]]))
+        elif geom.get("type") == "MultiPolygon":
+            for k, part in enumerate(geom["coordinates"]):
+                polys.append((f"{name}#{k + 1}", [(float(x), float(y)) for x, y in part[0]]))
+    inside, near = [], []
+    for a in AIRPORTS.values():
+        for name, ring in polys:
+            if point_in_polygon(a.lon, a.lat, ring):
+                inside.append({"icao": a.icao, "iata": a.iata, "name": a.name, "extent": name, "major": a.major})
+                break
+            d = min(haversine_nm(a.lat, a.lon, y, x) for x, y in ring)
+            if d <= buffer_nm:
+                near.append({"icao": a.icao, "iata": a.iata, "name": a.name, "extent": name, "distance_nm": round(d, 1), "major": a.major})
+                break
+    return {"geojson": str(geojson), "extents": [n for n, _ in polys], "buffer_nm": buffer_nm, "airports_inside": inside,
+            "airports_near": sorted(near, key=lambda r: r["distance_nm"]), "major_affected": [r["iata"] for r in inside + near if r["major"]]}
+
+
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
     "telemetry_plausibility": _telemetry_plausibility, "asset_coverage": _asset_coverage, "holding_by_airport": _holding_by_airport,
 }
@@ -155,6 +187,9 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
           ("surveillance recording",), ("risk class distribution",), "planned", None, ("mit-ll/air-risk-class", "mit-ll/em-core")),
     Study("ST-09", "UTM API conformance", "Do exchanges match the NASA UTM OpenAPI contracts?",
           "uas-utm", "Schema validation of captured exchanges against nasa/utm-apis documents.", ("captured exchanges", "OpenAPI documents"), ("conformance failures by endpoint",), "planned", None, ("nasa/utm-apis",)),
+    Study("ST-11", "Airports inside a crisis extent", "Which airports and hubs sit inside or near a flood, fire or disaster extent?",
+          "earth-crisis", "Point-in-polygon of the airport table against GeoJSON extents (Crisis Mapping Toolkit exports), plus a distance buffer.",
+          ("GeoJSON extent",), ("airports inside", "airports near", "major hubs affected"), "runnable", "airports_in_extent", ("nasa/CrisisMappingToolkit",)),
     Study("ST-10", "Cross-feed corroboration baseline", "How far apart do two independent feeds place the same aircraft, and how often do they disagree?",
           "air-surveillance", "Dead-reckoned comparison of adsb.lol and OpenSky over the same region.", ("two live feeds",), ("median separation", "p95", "disagreements"), "needs-network", None),
 )}

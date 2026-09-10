@@ -103,3 +103,16 @@ def test_runnable_studies_on_synthetic_inputs(tmp_path, monkeypatch):
     else:
         raise AssertionError("planned study must not run")
     assert len(STUDIES) >= 10
+
+
+def test_airports_in_crisis_extent(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    # a box around Houston (IAH 29.98N -95.34W, HOU 29.65N -95.28W); DFW is ~200 nm away and must not appear
+    gj = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"name": "houston-flood"},
+          "geometry": {"type": "Polygon", "coordinates": [[[-95.8, 29.4], [-94.9, 29.4], [-94.9, 30.2], [-95.8, 30.2], [-95.8, 29.4]]]}}]}
+    p = tmp_path / "flood.geojson"
+    p.write_text(json.dumps(gj))
+    r = run_study("ST-11", tmp_path / "studies", geojson=p, buffer_nm=0)
+    inside = {a["iata"] for a in r["result"]["airports_inside"]}
+    assert "IAH" in inside and "HOU" in inside and "DFW" not in inside and "IAH" in r["result"]["major_affected"]
+    assert r["result"]["extents"] == ["houston-flood"] and r["params"]["geojson"]["sha256"]

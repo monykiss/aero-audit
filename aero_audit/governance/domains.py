@@ -94,6 +94,18 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
         ("brandon-rhodes/python-sgp4", "skyfielders/python-skyfield", "nasa/GMAT", "open-space-collective/ccsds-data-messages", "nasa/CryptoLib"),
     ),
     Domain(
+        "earth-crisis", "Earth observation: crisis overlays for operations",
+        "Flood, fire and disaster extents from satellite products intersected with airports, routes and relief operations; "
+        "NASA Ames Crisis Mapping Toolkit algorithms (MODIS, SAR, Landsat) as the reference, polygons supplied as GeoJSON.",
+        "scaffold",
+        ("GeoJSON crisis extents (from CMT / Earth Engine exports)", "bundled airport table"),
+        (),
+        ("NASA-NPR-8715.3", "ICAO-A11"),
+        ("aero_audit/governance/studies.py",),
+        ("airports inside a crisis extent", "hubs within N nm of an extent", "relief-flight coverage"),
+        ("nasa/CrisisMappingToolkit", "NASA-AMMOS/MMGIS"),
+    ),
+    Domain(
         "uas-utm", "Air: UAS integration, detect-and-avoid, UTM",
         "Well-clear violation metrics and alerting levels from NASA's DAIDALUS/WellClear definitions, encounter-model "
         "based collision risk classes, UTM API conformance checks.",

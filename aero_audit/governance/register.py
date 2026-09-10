@@ -59,6 +59,7 @@ SPACE_RISKS: tuple[DomainRisk, ...] = (
                notes="Expect SDLS-protected links; treat unauthenticated telemetry like ADS-B: physics and corroboration."),
     DomainRisk("U01", "uas-utm", "Well-clear violation undetected or alerted too late", 3, 5, ("C-11",)),
     DomainRisk("U02", "uas-utm", "UTM exchanges non-conformant with the published API contracts", 2, 3, ("C-12",)),
+    DomainRisk("E01", "earth-crisis", "Operations planned into a flooded or otherwise unusable airport", 2, 4, ("C-34",)),
     DomainRisk("G01", "space-launch", "Flight-software class and assurance level not established before use", 2, 4, ("C-31",)),
 )
 

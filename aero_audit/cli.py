@@ -1133,6 +1133,7 @@ def gov_run_study(
     recording: Path | None = typer.Option(None),
     csv_path: Path | None = typer.Option(None, "--csv"),
     catalog: Path | None = typer.Option(None),
+    geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
     out: Path = typer.Option(Path("reports/studies")),
 ) -> None:
     """Run a study with provenance; results in reports/studies/."""
@@ -1145,6 +1146,8 @@ def gov_run_study(
         params["csv"] = csv_path
     if catalog:
         params["catalog"] = catalog
+    if geojson:
+        params["geojson"] = geojson
     try:
         rec = run_study(study_id.upper(), out, **params)
     except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:

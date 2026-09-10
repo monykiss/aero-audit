@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **73%** over 33 controls; 21 of 33 standards have at least one implemented or partial control.
+Implementation index: **72%** over 34 controls; 22 of 33 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -19,6 +19,7 @@ Implementation index: **73%** over 33 controls; 21 of 33 standards have at least
 | C-11 | UAS well-clear and DAA alerting metrics | planned | uas-utm | ASTM-F3442, RTCA-DO365 | study:ST-07 |
 | C-12 | UTM API conformance | planned | uas-utm | ASTM-F3411 | study:ST-09 |
 | C-33 | External asset integrity and provenance | implemented | space-assets | NASA-NOSA-1.3, NASA-MEDIA | module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py; test:tests/test_space.py; command:aero space fetch |
+| C-34 | Crisis extent to operations impact | partial | earth-crisis, air-operations | NASA-NPR-8715.3, ICAO-A11 | study:ST-11; test:tests/test_governance.py |
 
 ## Risk
 
@@ -76,7 +77,7 @@ Implementation index: **73%** over 33 controls; 21 of 33 standards have at least
 | ICAO-A2 | ICAO Annex 2, Rules of the Air | ICAO | air | 0 / 0 / 0 |
 | ICAO-A6 | ICAO Annex 6, Operation of Aircraft | ICAO | air | 1 / 0 / 0 |
 | ICAO-A10 | ICAO Annex 10 Vol III/IV, Aeronautical Telecommunications | ICAO | air | 2 / 0 / 0 |
-| ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 2 / 0 / 0 |
+| ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 2 / 1 / 0 |
 | ICAO-A14 | ICAO Annex 14, Aerodromes | ICAO | air | 0 / 1 / 0 |
 | ICAO-A17 | ICAO Annex 17, Security | ICAO | air | 5 / 0 / 0 |
 | ICAO-DOC4444 | ICAO Doc 4444 PANS-ATM | ICAO | air | 2 / 0 / 0 |
@@ -93,7 +94,7 @@ Implementation index: **73%** over 33 controls; 21 of 33 standards have at least
 | CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 0 / 0 / 1 |
 | CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 0 / 0 / 1 |
 | CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 0 / 0 / 1 |
-| NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 0 / 0 / 0 |
+| NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 0 / 1 / 0 |
 | NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 0 / 0 / 1 |
 | ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 0 / 0 / 1 |
 | NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 0 / 0 / 1 |
