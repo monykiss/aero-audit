@@ -1014,6 +1014,35 @@ def space_captions(srt: Path = typer.Argument(..., help="SRT caption file (NASA 
     con.print(t)
 
 
+@space_app.command("conjunctions")
+def space_conjunctions(
+    group: str | None = typer.Option("stations", help="CelesTrak group to fetch (stations, active, starlink, gps-ops, ...)"),
+    tle: Path | None = typer.Option(None, help="Local TLE file instead of fetching"),
+    hours: float = typer.Option(24.0),
+    threshold_km: float = typer.Option(10.0),
+    max_sets: int = typer.Option(150, help="Cap the pairwise screen (O(n^2))"),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Fetch elements (keyless, CelesTrak), propagate with SGP4, screen close approaches, flag stale sets (ORB-001..003)."""
+    from .space.orbital import fetch_group, findings, parse_tle, screen
+
+    path = tle or asyncio.run(fetch_group(group or "stations"))
+    sets = parse_tle(Path(path).read_text())
+    con.print(f"{len(sets)} element sets from {path}")
+    res = screen(sets, None, hours, threshold_km, max_sets=max_sets)
+    fs = findings(res, sets[:max_sets], stream=Path(path).stem)
+    con.print(f"screened {res['pairs']} pairs over {hours:g} h: {len(res['approaches'])} approaches under {threshold_km:g} km "
+              f"({len(res['co_moving'])} co-moving pairs set aside); {sum(1 for f in fs if f.rule_id == 'ORB-001')} stale sets; {len(res['propagation_errors'])} propagation errors")
+    t = Table("rule", "sev", "object", "detail")
+    for f in fs[:40]:
+        t.add_row(f.rule_id, f.severity.value, (f.callsign or "")[:24], f.title[:70])
+    con.print(t)
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"conjunctions_{(group or Path(path).stem)}_{_stamp()}.json"
+    jp.write_text(json.dumps({"screen": res, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}  ({res['covariance']})")
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
@@ -1134,6 +1163,7 @@ def gov_run_study(
     csv_path: Path | None = typer.Option(None, "--csv"),
     catalog: Path | None = typer.Option(None),
     geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
+    tle: Path | None = typer.Option(None, help="TLE file for ST-06"),
     out: Path = typer.Option(Path("reports/studies")),
 ) -> None:
     """Run a study with provenance; results in reports/studies/."""
@@ -1148,6 +1178,8 @@ def gov_run_study(
         params["catalog"] = catalog
     if geojson:
         params["geojson"] = geojson
+    if tle:
+        params["tle"] = tle
     try:
         rec = run_study(study_id.upper(), out, **params)
     except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:

@@ -154,7 +154,21 @@ def _airports_in_extent(geojson: str | Path, buffer_nm: float = 10.0, **_: Any) 
             "airports_near": sorted(near, key=lambda r: r["distance_nm"]), "major_affected": [r["iata"] for r in inside + near if r["major"]]}
 
 
+def _conjunction_screen(tle: str | Path, hours: float = 24.0, threshold_km: float = 10.0, **_: Any) -> dict[str, Any]:
+    from ..space.orbital import findings, parse_tle, screen
+
+    sets = parse_tle(Path(tle).read_text())
+    res = screen(sets, None, float(hours), float(threshold_km))
+    fs = findings(res, sets[:200], stream=Path(tle).stem)
+    ages = list(res["element_age_days"].values())
+    return {"tle": str(tle), "sets": res["sets"], "pairs": res["pairs"], "hours": hours, "threshold_km": threshold_km,
+            "approaches": res["approaches"][:50], "approach_count": len(res["approaches"]), "co_moving_pairs": len(res["co_moving"]), "stale_sets": sum(1 for f in fs if f.rule_id == "ORB-001"),
+            "propagation_errors": len(res["propagation_errors"]), "median_element_age_days": round(sorted(ages)[len(ages) // 2], 2) if ages else None,
+            "covariance": res["covariance"]}
+
+
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
     "telemetry_plausibility": _telemetry_plausibility, "asset_coverage": _asset_coverage, "holding_by_airport": _holding_by_airport,
@@ -175,9 +189,9 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-05", "Holding cost by airport", "Where is holding time, fuel and delay cost concentrated?",
           "air-operations", "OPS-002 findings attributed to the nearest airport of the aircraft's last position; impact model per airport.",
           ("recording",), ("holds", "minutes", "fuel", "CO2", "cost"), "runnable", "holding_by_airport"),
-    Study("ST-06", "Conjunction screening trend", "How many close approaches above a Pc threshold per day, and how old were the elements?",
-          "space-orbital", "SGP4 propagation of a catalogue subset; CDM ingest; Pc by the Alfano or Foster method.",
-          ("TLE catalogue", "CDMs"), ("conjunctions per day", "Pc distribution", "element age"), "planned", None,
+    Study("ST-06", "Conjunction screening trend", "How many close approaches under a distance threshold per window, and how old were the elements?",
+          "space-orbital", "SGP4 propagation of a catalogue subset (CelesTrak group or file); pairwise minimum separation; stale-element count. Pc awaits CDMs with covariance.",
+          ("TLE file (aero space conjunctions --group ...)",), ("approaches under threshold", "median element age", "propagation errors"), "runnable", "conjunction_screen",
           ("brandon-rhodes/python-sgp4", "skyfielders/python-skyfield", "open-space-collective/ccsds-data-messages")),
     Study("ST-07", "Well-clear violation rates", "How often do observed encounters violate well-clear, and with what alert lead time?",
           "uas-utm", "Pairwise encounters from surveillance tracks scored with DAIDALUS well-clear definitions.",

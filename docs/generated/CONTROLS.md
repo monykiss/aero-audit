@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **72%** over 34 controls; 22 of 33 standards have at least one implemented or partial control.
+Implementation index: **74%** over 34 controls; 24 of 33 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -14,7 +14,7 @@ Implementation index: **72%** over 34 controls; 22 of 33 standards have at least
 | C-06 | Airspace and operations conformance | implemented | air-operations, air-surveillance | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | rule:OPS-001; rule:OPS-002; rule:OPS-003; rule:OPS-004; rule:OPS-005; rule:SAF-003; rule:SAF-004 |
 | C-07 | Apron capacity from imagery | partial | air-operations | ICAO-A14 | rule:OPS-VIS-001; rule:OPS-VIS-002; module:aero_audit/vision/apron.py |
 | C-08 | Launch telemetry plausibility | partial | space-launch | CCSDS-133, CFR14-450 | rule:SPC-001; rule:SPC-002; rule:SPC-003; rule:SPC-004; rule:SPC-005; test:tests/test_space.py; command:aero space telemetry-audit |
-| C-09 | Conjunction screening | planned | space-orbital | CCSDS-508, CCSDS-502 | study:ST-06 |
+| C-09 | Conjunction screening | partial | space-orbital | CCSDS-508, CCSDS-502 | module:aero_audit/space/orbital.py; rule:ORB-001; rule:ORB-002; rule:ORB-003; test:tests/test_orbital.py; command:aero space conjunctions; study:ST-06 |
 | C-10 | Debris mitigation compliance | planned | space-orbital | NASA-STD-8719.14, ISO-24113 | - |
 | C-11 | UAS well-clear and DAA alerting metrics | planned | uas-utm | ASTM-F3442, RTCA-DO365 | study:ST-07 |
 | C-12 | UTM API conformance | planned | uas-utm | ASTM-F3411 | study:ST-09 |
@@ -91,8 +91,8 @@ Implementation index: **72%** over 34 controls; 22 of 33 standards have at least
 | ASTM-F3442 | ASTM F3442/F3442M, DAA performance for smaller UAS | ASTM | air | 0 / 0 / 2 |
 | CFR14-450 | 14 CFR Part 450, Launch and Reentry Licensing | FAA AST | space | 1 / 1 / 0 |
 | CCSDS-133 | CCSDS 133.0-B, Space Packet Protocol | CCSDS | space | 0 / 1 / 0 |
-| CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 0 / 0 / 1 |
-| CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 0 / 0 / 1 |
+| CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 0 / 1 / 0 |
+| CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 0 / 1 / 0 |
 | CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 0 / 0 / 1 |
 | NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 0 / 1 / 0 |
 | NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 0 / 0 / 1 |

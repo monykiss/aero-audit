@@ -7,7 +7,7 @@
 | ST-03 | Launch telemetry plausibility | space-launch | runnable | telemetry CSV | findings by rule, max speed, max altitude | - |
 | ST-04 | NASA-3D asset coverage | space-assets | runnable | data/space/nasa3d_catalog.json | assets by kind, subjects, models with preview | - |
 | ST-05 | Holding cost by airport | air-operations | runnable | recording | holds, minutes, fuel, CO2, cost | - |
-| ST-06 | Conjunction screening trend | space-orbital | planned | TLE catalogue, CDMs | conjunctions per day, Pc distribution, element age | brandon-rhodes/python-sgp4, skyfielders/python-skyfield, open-space-collective/ccsds-data-messages |
+| ST-06 | Conjunction screening trend | space-orbital | runnable | TLE file (aero space conjunctions --group ...) | approaches under threshold, median element age, propagation errors | brandon-rhodes/python-sgp4, skyfielders/python-skyfield, open-space-collective/ccsds-data-messages |
 | ST-07 | Well-clear violation rates | uas-utm | planned | surveillance recording, DAIDALUS parameters | violations per flight hour, alert lead time | nasa/daidalus, nasa/WellClear |
 | ST-08 | Airborne collision risk classes | uas-utm | planned | surveillance recording | risk class distribution | mit-ll/air-risk-class, mit-ll/em-core |
 | ST-09 | UTM API conformance | uas-utm | planned | captured exchanges, OpenAPI documents | conformance failures by endpoint | nasa/utm-apis |

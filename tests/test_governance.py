@@ -51,7 +51,9 @@ def test_unified_register_spans_domains():
     domains = {r["domain"] for r in rows}
     assert {"air-surveillance", "space-launch", "space-orbital", "uas-utm", "space-assets"} <= domains
     s05 = next(r for r in rows if r["id"] == "S05")
-    assert s05["residual"] == s05["score"] == 15 and s05["residual_rating"] == "critical"  # planned control: no reduction
+    assert s05["score"] == 15 and s05["residual"] == 10 and s05["control_effectiveness"] == 0.35  # C-09 partial: distance screen only
+    s06 = next(r for r in rows if r["id"] == "S06")
+    assert s06["residual"] == s06["score"]  # planned control: no reduction
     s03 = next(r for r in rows if r["id"] == "S03")
     assert s03["residual"] < s03["score"] and s03["control_effectiveness"] == 0.6
     assert rows[0]["residual_rating"] in ("critical", "high")
@@ -97,7 +99,7 @@ def test_runnable_studies_on_synthetic_inputs(tmp_path, monkeypatch):
     r2 = run_study("ST-02", tmp_path / "studies")
     assert r2["result"]["scenarios"][0]["recall"] == 0.96
     try:
-        run_study("ST-06", tmp_path / "studies")
+        run_study("ST-07", tmp_path / "studies")
     except RuntimeError as e:
         assert "planned" in str(e)
     else:

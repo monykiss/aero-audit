@@ -83,13 +83,13 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
     ),
     Domain(
         "space-orbital", "Space: orbital operations and conjunction",
-        "TLE ingest and SGP4 propagation, CCSDS orbit and conjunction data messages, conjunction screening "
-        "with probability of collision, debris-mitigation compliance checks.",
-        "planned",
-        ("CelesTrak / space-track.org TLE", "CCSDS ODM (502.0-B)", "CCSDS CDM (508.0-B)"),
+        "Keyless CelesTrak elements, SGP4 propagation, distance-based conjunction screening with stale-element checks "
+        "(ORB rules); CCSDS orbit and conjunction messages with covariance and Pc are the next slice; debris checks planned.",
+        "scaffold",
+        ("CelesTrak GP elements (keyless)", "space-track.org (credentials, planned)", "CCSDS ODM (502.0-B, planned)", "CCSDS CDM (508.0-B, planned)"),
         ("ORB",),
         ("CCSDS-502", "CCSDS-508", "NASA-STD-8719.14", "ISO-24113", "CCSDS-355"),
-        (),
+        ("aero_audit/space/orbital.py",),
         ("conjunctions screened per day", "Pc above threshold", "manoeuvre decisions with evidence", "debris rule compliance"),
         ("brandon-rhodes/python-sgp4", "skyfielders/python-skyfield", "nasa/GMAT", "open-space-collective/ccsds-data-messages", "nasa/CryptoLib"),
     ),

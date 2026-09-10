@@ -50,6 +50,21 @@ aero space telemetry-audit flight.csv                           # SPC-001..005 p
   SPC-005 altitude discontinuity (> 5 km per step). Findings use the toolkit's `Finding` model with
   evidence, controls and recommendations, and write JSON and Markdown reports.
 
+## Orbital slice (phase 3, first cut)
+
+```bash
+aero space conjunctions --group stations --hours 24 --threshold-km 10     # keyless CelesTrak, SGP4, ORB-001..003
+aero gov run-study ST-06 --tle data/space/elements/celestrak_stations_<stamp>.tle
+```
+
+Elements are fetched from CelesTrak with a provenance sidecar (source, time, SHA-256, set count),
+checksummed per TLE convention, propagated with the MIT-licensed `sgp4` package (`[space]` extra),
+and screened pairwise: coarse 60 s grid, fine 1 s pass around each candidate minimum. ORB-001 flags
+sets older than seven days, ORB-002 an approach under the threshold (high under half of it),
+ORB-003 SGP4 error codes. TLEs carry no covariance, so no probability of collision is claimed;
+the screen tells you which CDMs to ask for. The lock file does not yet include `sgp4` (regenerate
+with `make lock` when the network allows).
+
 ## Honest limits
 
 - The COCO detector has no "rocket" class. Frame detection is a placeholder until a detector is

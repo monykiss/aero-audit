@@ -20,7 +20,7 @@ from .standards import STANDARDS
 PILLARS = ("compliance", "risk", "study", "governance")
 STATUSES = ("implemented", "partial", "planned")
 STATUS_EFFECTIVENESS = {"implemented": 0.6, "partial": 0.35, "planned": 0.0}  # same scale as threat coverage
-SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005")
+SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005", "ORB-001", "ORB-002", "ORB-003")
 
 
 @dataclass(frozen=True)
@@ -84,9 +84,10 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             "compliance", ("space-launch",), ("CCSDS-133", "CFR14-450"), "partial",
             ("rule:SPC-001", "rule:SPC-002", "rule:SPC-003", "rule:SPC-004", "rule:SPC-005", "test:tests/test_space.py", "command:aero space telemetry-audit"),
             notes="CSV input only; overlay OCR and a live packet source are planned."),
-    Control("C-09", "Conjunction screening", "Propagate catalogued objects, screen close approaches, compute probability of collision, ingest CDMs.",
-            "compliance", ("space-orbital",), ("CCSDS-508", "CCSDS-502"), "planned", ("study:ST-06",),
-            notes="Adopt python-sgp4/skyfield for propagation and a CCSDS ODM/CDM parser; GMAT as the reference for validation."),
+    Control("C-09", "Conjunction screening", "Propagate catalogued objects, screen close approaches, flag stale elements; probability of collision once CDMs with covariance are ingested.",
+            "compliance", ("space-orbital",), ("CCSDS-508", "CCSDS-502"), "partial",
+            ("module:aero_audit/space/orbital.py", "rule:ORB-001", "rule:ORB-002", "rule:ORB-003", "test:tests/test_orbital.py", "command:aero space conjunctions", "study:ST-06"),
+            notes="Distance screen on CelesTrak elements via python-sgp4; Pc needs covariance (CDM parser is the next slice); GMAT as the validation reference."),
     Control("C-10", "Debris mitigation compliance", "Check mission parameters against disposal, passivation and lifetime rules.",
             "compliance", ("space-orbital",), ("NASA-STD-8719.14", "ISO-24113"), "planned", ()),
     Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations and alert lead time from DAIDALUS/WellClear definitions.",

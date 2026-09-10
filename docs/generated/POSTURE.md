@@ -1,6 +1,6 @@
 # Governance posture (baseline, generated)
 
-Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90%, studies runnable 55%). Basis: baseline (no session evidence).
+Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90%, studies runnable 64%). Basis: baseline (no session evidence).
 
 ## Domains
 
@@ -10,7 +10,7 @@ Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90
 | Air: operations, airports and ecosystem | active | 11 | 10 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
 | Space: open assets with provenance | active | 0 | 3 / 1 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov; api.nasa.gov Mars Rover Photos (planned) |
 | Space: launch and ascent | scaffold | 5 | 3 / 3 / 2 | telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
-| Space: orbital operations and conjunction | planned | 0 | 1 / 1 / 4 | CelesTrak / space-track.org TLE; CCSDS ODM (502.0-B); CCSDS CDM (508.0-B) |
+| Space: orbital operations and conjunction | scaffold | 3 | 1 / 2 / 3 | CelesTrak GP elements (keyless); space-track.org (credentials, planned); CCSDS ODM (502.0-B, planned); CCSDS CDM (508.0-B, planned) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |
 | Air: UAS integration, detect-and-avoid, UTM | planned | 0 | 1 / 1 / 3 | UTM operator/USS APIs (OpenAPI); ADS-B / Remote ID tracks; encounter models |
 
@@ -18,7 +18,7 @@ Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90
 
 | Pillar | Implemented | Partial | Planned |
 |---|---|---|---|
-| compliance | 7 | 3 | 4 |
+| compliance | 7 | 4 | 3 |
 | risk | 4 | 1 | 0 |
 | study | 2 | 1 | 1 |
 | governance | 9 | 0 | 2 |
@@ -27,8 +27,8 @@ Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90
 
 | Id | Domain | Risk | Inherent | Residual |
 |---|---|---|---|---|
-| S05 | space-orbital | Conjunction not screened or screened on stale elements | 15 critical | 15 critical |
 | U01 | uas-utm | Well-clear violation undetected or alerted too late | 15 critical | 15 critical |
+| S05 | space-orbital | Conjunction not screened or screened on stale elements | 15 critical | 10 high |
 | G01 | space-launch | Flight-software class and assurance level not established before use | 8 medium | 8 medium |
 | R08 | air-surveillance | Toolchain compromise silently degrades detection | 8 medium | 8 medium |
 | S01 | space-launch | Launch telemetry stream manipulated, spliced or replayed | 12 high | 8 medium |
@@ -48,7 +48,7 @@ Governance index: **73%** (controls 72%, standards 67%, risk share low/medium 90
 | S03 | space-assets | Tampered or substituted external asset (model, texture, imagery) enters analysis or training | 6 medium | 2 low |
 | S04 | space-assets | NASA media or NOSA terms breached (insignia, endorsement, attribution) | 4 low | 2 low |
 
-By residual rating: {'critical': 2, 'high': 0, 'medium': 11, 'low': 7}
+By residual rating: {'critical': 1, 'high': 1, 'medium': 11, 'low': 7}
 
 ## Studies
 
@@ -59,7 +59,7 @@ By residual rating: {'critical': 2, 'high': 0, 'medium': 11, 'low': 7}
 | ST-03 | Launch telemetry plausibility | space-launch | runnable |
 | ST-04 | NASA-3D asset coverage | space-assets | runnable |
 | ST-05 | Holding cost by airport | air-operations | runnable |
-| ST-06 | Conjunction screening trend | space-orbital | planned |
+| ST-06 | Conjunction screening trend | space-orbital | runnable |
 | ST-07 | Well-clear violation rates | uas-utm | planned |
 | ST-08 | Airborne collision risk classes | uas-utm | planned |
 | ST-09 | UTM API conformance | uas-utm | planned |
