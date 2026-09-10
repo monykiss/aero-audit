@@ -54,3 +54,18 @@ def test_legacy_entries_are_tolerated(tmp_path):
     log.record("new")
     r = verify_file(p)
     assert r["ok"] and r["legacy"] == 1 and r["chained"] == 1
+
+
+def test_two_processes_share_one_chain(tmp_path):
+    """Two app instances (two AuditLog objects) appending to one file must produce one valid chain."""
+    p = tmp_path / "audit.jsonl"
+    a, b = AuditLog(p), AuditLog(p)
+    a.record("app.start", actor="system", instance="a")
+    b.record("app.start", actor="system", instance="b")   # b never saw a's line in memory: must link to it on disk
+    a.record("inject", kind="teleport")
+    b.record("inject", kind="flood")
+    a.record("source.stop")
+    r = verify_file(p)
+    assert r["ok"] and r["chained"] == 5 and r["entries"] == 5, r
+    seqs = [json.loads(ln)["seq"] for ln in p.read_text().splitlines()]
+    assert seqs == [1, 2, 3, 4, 5]

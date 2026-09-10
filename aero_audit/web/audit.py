@@ -9,10 +9,12 @@ reviewer can prove the record they were handed is the record that was written.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import io
 import json
+import os
 import threading
 import time
 from collections import deque
@@ -71,6 +73,20 @@ def verify_file(path: str | Path) -> dict[str, Any]:
     return out
 
 
+@contextlib.contextmanager
+def _locked(fh: Any):
+    try:
+        import fcntl
+
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+    except ImportError:  # Windows: no flock; single-writer assumption holds there
+        yield
+
+
 class AuditLog:
     def __init__(self, path: str | Path = AUDIT_FILE, keep: int = 5000) -> None:
         self.path = Path(path)
@@ -92,19 +108,43 @@ class AuditLog:
         except (OSError, ValueError):
             pass  # no log yet, or a corrupt line: verify() reports it; recording continues from genesis
 
+    @staticmethod
+    def _tail(fh: Any) -> tuple[str, int] | None:
+        """(hash, seq) of the last chained line on disk, so several processes extend one chain."""
+        try:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            fh.seek(max(0, size - 65536))
+            lines = [ln for ln in fh.read().decode(errors="replace").splitlines() if ln.strip()]
+        except OSError:
+            return None
+        for ln in reversed(lines):
+            try:
+                e = json.loads(ln)
+            except ValueError:
+                continue
+            if "hash" in e and "seq" in e:
+                return e["hash"], int(e["seq"])
+        return None
+
     def record(self, action: str, actor: str = "user", **details: Any) -> dict[str, Any]:
         with self.lock:
             entry: dict[str, Any] = {"seq": self._seq + 1, "ts": time.time(), "actor": actor, "action": action,
                                      "details": details, "prev": self._head}
-            entry["hash"] = digest(entry)
-            self._recent.append(entry)
-            self._head, self._seq = entry["hash"], entry["seq"]
             try:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.path, "a") as fh:
-                    fh.write(json.dumps(entry, default=str) + "\n")
+                with open(self.path, "a+b") as fh, _locked(fh):
+                    tail = self._tail(fh)
+                    if tail and tail[0] != self._head:  # another process appended: link to its head
+                        entry["prev"], entry["seq"] = tail[0], tail[1] + 1
+                    entry["hash"] = digest(entry)
+                    fh.seek(0, os.SEEK_END)
+                    fh.write((json.dumps(entry, default=str) + "\n").encode())
+                    fh.flush()
             except OSError:
-                pass  # a read-only disk must not break the app; the in-memory chain still advances
+                entry["hash"] = digest(entry)  # a read-only disk must not break the app; the in-memory chain still advances
+            self._recent.append(entry)
+            self._head, self._seq = entry["hash"], entry["seq"]
         return entry
 
     def verify(self) -> dict[str, Any]:
