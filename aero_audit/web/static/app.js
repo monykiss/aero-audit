@@ -265,7 +265,7 @@ ${act ? `<div>traffic</div><div>${act.nearby} within 40 nm · ${act.ground} grou
     if (location.hash === h) navigate(); else location.hash = h;
   }
   const cmd = document.getElementById('cmd');
-  cmd.addEventListener('keydown', e => { if (e.key === 'Enter') { runCommand(cmd.value); cmd.value = ''; } });
+  cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Return' || e.keyCode === 13) { e.preventDefault(); runCommand(cmd.value); cmd.value = ''; } });
   document.addEventListener('keydown', e => { const fk = {F1: 'HELP', F2: 'LIVE', F3: 'FLT', F4: 'AIRP', F5: 'OPS', F6: 'FIND', F7: 'RISK', F8: 'LOG'}[e.key]; if (fk) { e.preventDefault(); runCommand(fk); } if (e.key === '/' && document.activeElement !== cmd && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); cmd.focus(); } });
   document.getElementById('fkeys').addEventListener('click', e => { const t = e.target.closest('span'); if (t && /^F\d/.test(t.textContent)) runCommand(t.textContent.split(' ')[1]); });
   setInterval(() => { document.getElementById('clock').textContent = new Date().toISOString().replace('T', ' ').substr(0, 19) + 'Z'; }, 1000);
