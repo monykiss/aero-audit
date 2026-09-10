@@ -9,7 +9,6 @@ from __future__ import annotations
 import csv
 import io
 import json
-import mimetypes
 import os
 import threading
 import time
@@ -52,6 +51,12 @@ LOGS = Path("logs")
 DATA = Path("data")
 INVENTORY_CACHE = Path("data/app/inventory.json")
 RECORDING_ROOTS = (RECORDINGS_DIR, SAMPLES_DIR)
+# Content types come from this fixed table, never from the request, so no request byte reaches a header.
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json", ".md": "text/markdown; charset=utf-8", ".png": "image/png", ".svg": "image/svg+xml",
+    ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2", ".map": "application/json", ".txt": "text/plain; charset=utf-8",
+}
 
 router = Router()
 
@@ -796,7 +801,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.end_headers()
             self.wfile.write(body)
 
-        def _serve_file(self, root: Path, rel: str, ctype: str | None = None) -> None:
+        def _serve_file(self, root: Path, rel: str) -> None:
             """Serve one file from under ``root``; anything that normalises outside it is a 404."""
             base = os.path.realpath(root)
             target = os.path.normpath(os.path.join(base, rel.lstrip("/")))
@@ -805,7 +810,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 return
             with open(target, "rb") as fh:
                 body = fh.read()
-            self._send(200, body, ctype or mimetypes.guess_type(target)[0] or "application/octet-stream")
+            self._send(200, body, CONTENT_TYPES.get(os.path.splitext(target)[1].lower(), "application/octet-stream"))
 
         def _dispatch(self, method: str) -> None:
             u = urlparse(self.path)
@@ -826,9 +831,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._serve_file(STATIC, path[len("/static/"):])
                     return
                 if method == "GET" and path.startswith("/reports/"):
-                    rel = path[len("/reports/"):]
-                    ctype = {".html": "text/html; charset=utf-8", ".md": "text/markdown; charset=utf-8", ".json": "application/json"}.get(Path(rel).suffix, "text/plain")
-                    self._serve_file(REPORTS, rel, ctype)
+                    self._serve_file(REPORTS, path[len("/reports/"):])
                     return
                 m = router.match(method, path)
                 if not m:
