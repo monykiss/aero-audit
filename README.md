@@ -82,15 +82,6 @@ lock; CI runs ruff, pytest, docs-drift, `pip-audit`, gitleaks over the full hist
 container smoke test, with every action pinned to a commit SHA. Threat table and the reporting
 policy: [SECURITY.md](SECURITY.md).
 
-`★ Insight ─────────────────────────────────────`
-- ADS-B has no cryptography, so the detection story is physics and corroboration: an injected
-  fix must still agree with the aircraft's own speed, climb and history, and with a second feed.
-- Detection recall is bounded by the revisit interval, not the rule: one-off manipulations are
-  caught ~96% of the time at 20 s polling and ~60% at 48 s round-robin. Measured, not assumed.
-- A local web app is not private by default; the same-origin policy protects the browser, not
-  the server. Host validation and a custom-header token are what close that door.
-`─────────────────────────────────────────────────`
-
 ## How it fits together
 
 ```
