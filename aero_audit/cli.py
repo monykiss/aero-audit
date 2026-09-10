@@ -1033,5 +1033,169 @@ def space_telemetry(
     con.print(f"Reports: {mp}, {jp}")
 
 
+# ---- governance: the bird's-eye view ----------------------------------------------------------
+gov_app = typer.Typer(help="Holistic governance: domains, standards, controls with evidence, unified register, studies, posture.")
+app.add_typer(gov_app, name="gov")
+
+
+@gov_app.command("domains")
+def gov_domains() -> None:
+    """Air and space domains with status, rules, standards and upstream projects adopted."""
+    from .governance import DOMAINS, coverage
+
+    cov = coverage()["by_domain"]
+    t = Table("domain", "status", "rules", "impl / partial / planned", "data sources", "adopts")
+    for d in DOMAINS.values():
+        k = cov[d.key]
+        t.add_row(d.key, d.status, ",".join(d.rule_prefixes) or "-", f"{k['implemented']} / {k['partial']} / {k['planned']}", "; ".join(d.data_sources)[:60], ", ".join(d.upstream)[:60])
+    con.print(t)
+
+
+@gov_app.command("standards")
+def gov_standards(area: str | None = typer.Option(None, help="air | space | cyber | software | data")) -> None:
+    """Standards library with the number of controls mapped to each."""
+    from .governance import STANDARDS, coverage
+
+    cov = coverage()["by_standard"]
+    t = Table("id", "standard", "body", "area", "impl / partial / planned")
+    for s in STANDARDS.values():
+        if area and s.area != area:
+            continue
+        v = cov[s.id]
+        t.add_row(s.id, s.title[:60], s.body, s.area, f"{v['implemented']} / {v['partial']} / {v['planned']}")
+    con.print(t)
+
+
+@gov_app.command("controls")
+def gov_controls(pillar: str | None = typer.Option(None), status: str | None = typer.Option(None), check: bool = typer.Option(False, help="Verify file-backed evidence exists")) -> None:
+    """Controls with typed evidence; --check verifies that referenced files exist."""
+    from .governance import CONTROLS, implementation_index
+    from .governance.controls import evidence_present, validate
+
+    problems = validate()
+    t = Table("id", "pillar", "control", "status", "domains", "evidence")
+    for c in CONTROLS.values():
+        if (pillar and c.pillar != pillar) or (status and c.status != status):
+            continue
+        ev = "; ".join(c.evidence)[:70]
+        if check:
+            missing = [e for e, ok in evidence_present(c).items() if not ok]
+            ev = ("[red]missing: " + ", ".join(missing)) if missing else "[green]all present"
+        t.add_row(c.id, c.pillar, c.title[:52], c.status, ",".join(c.domains)[:36], ev)
+    con.print(t)
+    con.print(f"implementation index {implementation_index():.0%}; library {'clean' if not problems else 'PROBLEMS: ' + '; '.join(problems)}")
+    if problems:
+        raise typer.Exit(1)
+
+
+@gov_app.command("risks")
+def gov_risks(recording: list[Path] | None = typer.Argument(None, help="Recordings whose audits adjust the air rows")) -> None:
+    """Unified air and space register (residual from evidence for air, from control status elsewhere)."""
+    from .governance import unified_register
+    from .governance.register import by_rating
+    from .risk.register import merge_summaries
+
+    summary = None
+    if recording:
+        summaries = []
+        for rp in recording:
+            eng = AuditEngine()
+            for b in iter_recording(rp):
+                eng.process_batch(b)
+            summaries.append(eng.summary())
+        summary = merge_summaries(summaries)
+    rows = unified_register(summary)
+    t = Table("id", "domain", "risk", "L", "I", "inherent", "residual", "controls / evidence")
+    for r in rows:
+        color = {"critical": "red", "high": "yellow", "medium": "cyan", "low": "green"}[r["residual_rating"]]
+        t.add_row(r["id"], r["domain"], r["title"][:56], str(r["L"]), str(r["I"]), f"{r['score']} {r['rating']}", f"[{color}]{r['residual']} {r['residual_rating']}",
+                  ", ".join(r.get("controls") or r.get("evidence") or [])[:40])
+    con.print(t)
+    con.print(f"by residual rating: {by_rating(rows)}  (basis: {'session evidence' if summary else 'baseline'})")
+
+
+@gov_app.command("studies")
+def gov_studies() -> None:
+    """Study registry: runnable now, needs network, or planned with the upstream method named."""
+    from .governance import STUDIES
+    from .governance.studies import latest_results
+
+    latest = latest_results()
+    t = Table("id", "study", "domain", "status", "inputs", "last result")
+    for s in STUDIES.values():
+        t.add_row(s.id, s.title[:50], s.domain, s.status, ", ".join(s.inputs)[:40], Path(latest[s.id]["file"]).name if s.id in latest else "-")
+    con.print(t)
+
+
+@gov_app.command("run-study")
+def gov_run_study(
+    study_id: str = typer.Argument(..., help="e.g. ST-01"),
+    recording: Path | None = typer.Option(None),
+    csv_path: Path | None = typer.Option(None, "--csv"),
+    catalog: Path | None = typer.Option(None),
+    out: Path = typer.Option(Path("reports/studies")),
+) -> None:
+    """Run a study with provenance; results in reports/studies/."""
+    from .governance import run_study
+
+    params: dict[str, object] = {}
+    if recording:
+        params["recording"] = recording
+    if csv_path:
+        params["csv"] = csv_path
+    if catalog:
+        params["catalog"] = catalog
+    try:
+        rec = run_study(study_id.upper(), out, **params)
+    except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:
+        raise typer.BadParameter(str(e)) from e
+    res = rec["result"]
+    con.print(json.dumps({k: v for k, v in res.items() if k not in ("operators", "findings_detail", "top_subjects", "by_airport")}, indent=1, default=str)[:2500])
+    con.print(f"Result: [bold]{rec['files']['md']}[/] ({rec['duration_s']} s)")
+
+
+@gov_app.command("posture")
+def gov_posture(
+    recording: list[Path] | None = typer.Argument(None, help="Recordings whose audits provide session evidence"),
+    as_json: bool = typer.Option(False, "--json"),
+    out: Path | None = typer.Option(None, help="Write the Markdown posture report here"),
+) -> None:
+    """The bird's-eye view: governance index, domains, pillars, unified risks, studies, evidence on disk."""
+    from .governance import posture, render_posture
+    from .risk.register import merge_summaries
+
+    summary = None
+    if recording:
+        summaries = []
+        for rp in recording:
+            eng = AuditEngine()
+            for b in iter_recording(rp):
+                eng.process_batch(b)
+            summaries.append(eng.summary())
+        summary = merge_summaries(summaries)
+    p = posture(summary)
+    if as_json:
+        con.print(json.dumps(p, indent=1, default=str))
+        return
+    c = p["components"]
+    con.print(f"[bold]Governance index {p['governance_index']:.0%}[/]  controls {c['controls_implementation']:.0%} · standards {c['standards_coverage']:.0%} · "
+              f"risk low/medium {c['risk_share_low_or_medium']:.0%} · studies runnable {c['studies_runnable_share']:.0%} · evidence freshness {c['evidence_freshness']:.0%}  ({p['evidence_basis']})")
+    t = Table("domain", "status", "rules", "impl / partial / planned")
+    for d in p["domains"]:
+        k = d["controls"]
+        t.add_row(d["name"], d["status"], str(d["rules"]), f"{k['implemented']} / {k['partial']} / {k['planned']}")
+    con.print(t)
+    con.print(f"residual risks: {p['risks']['by_residual']}; top: " + "; ".join(f"{r['id']} {r['rating']} ({r['residual']})" for r in p["risks"]["top_residual"]))
+    f = p["freshness"]
+    con.print(f"evidence: chain {'ok' if f['audit_chain_ok'] else 'absent/broken'} · model verified {f['model_verified']} · latest report {f['latest_report_age_h']} h · "
+              f"evaluation {f['evaluation_age_days']} d · study results {f['study_results']}")
+    if p["evidence"]["missing"]:
+        con.print(f"[yellow]evidence claimed but not on disk: {', '.join(p['evidence']['missing'])}")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(render_posture(p))
+        con.print(f"wrote {out}")
+
+
 if __name__ == "__main__":
     app()

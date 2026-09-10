@@ -1,5 +1,8 @@
 # Space intake (private branch)
 
+The delimited plan for the whole programme (air and space, compliance, risk, study, governing) is
+[HOLISTIC_PLAN.md](HOLISTIC_PLAN.md); the governance layer it describes is `aero_audit/governance/` (`aero gov`).
+
 This branch brings NASA open assets and launch footage into aero-audit with the same discipline as
 the ADS-B side: every file has provenance, every stream gets physics checks, nothing is fetched
 from a source whose terms are unclear. It stays on a local branch until it is ready to be offered

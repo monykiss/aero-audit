@@ -1,0 +1,108 @@
+# Controls library (generated)
+
+Implementation index: **73%** over 33 controls; 21 of 33 standards have at least one implemented or partial control.
+
+## Compliance
+
+| Id | Control | Status | Domains | Standards | Evidence |
+|---|---|---|---|---|---|
+| C-01 | Surveillance integrity minimums enforced | implemented | air-surveillance | CFR14-91.227, RTCA-DO260B, EU-1207-2011 | rule:SEC-012; test:tests/test_rules.py; scenario:integrity_degrade |
+| C-02 | Kinematic plausibility of every position report | implemented | air-surveillance | ICAO-DOC9924, ICAO-A10, RTCA-DO260B | rule:SEC-010; rule:SEC-011; rule:SEC-014; rule:SEC-018; scenario:teleport; scenario:velocity_forge; scenario:altitude_forge; scenario:replay; artefact:models/evaluation.json |
+| C-03 | Emergency and unlawful-interference codes with confirmation tiers | implemented | air-surveillance | ICAO-DOC4444, ICAO-A17, RTCA-DO260B | rule:SEC-001; rule:SEC-002; rule:SEC-003; rule:SEC-004; scenario:squawk_hijack; test:tests/test_rules.py |
+| C-04 | Stream health: flooding and coverage collapse | implemented | air-surveillance | ICAO-DOC9924, ICAO-A10 | rule:SEC-016; rule:SEC-017; module:aero_audit/audit/engine.py |
+| C-05 | Cross-feed corroboration | implemented | air-surveillance | ICAO-DOC9924 | rule:SEC-015; command:aero corroborate; test:tests/test_security.py |
+| C-06 | Airspace and operations conformance | implemented | air-operations, air-surveillance | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | rule:OPS-001; rule:OPS-002; rule:OPS-003; rule:OPS-004; rule:OPS-005; rule:SAF-003; rule:SAF-004 |
+| C-07 | Apron capacity from imagery | partial | air-operations | ICAO-A14 | rule:OPS-VIS-001; rule:OPS-VIS-002; module:aero_audit/vision/apron.py |
+| C-08 | Launch telemetry plausibility | partial | space-launch | CCSDS-133, CFR14-450 | rule:SPC-001; rule:SPC-002; rule:SPC-003; rule:SPC-004; rule:SPC-005; test:tests/test_space.py; command:aero space telemetry-audit |
+| C-09 | Conjunction screening | planned | space-orbital | CCSDS-508, CCSDS-502 | study:ST-06 |
+| C-10 | Debris mitigation compliance | planned | space-orbital | NASA-STD-8719.14, ISO-24113 | - |
+| C-11 | UAS well-clear and DAA alerting metrics | planned | uas-utm | ASTM-F3442, RTCA-DO365 | study:ST-07 |
+| C-12 | UTM API conformance | planned | uas-utm | ASTM-F3411 | study:ST-09 |
+| C-33 | External asset integrity and provenance | implemented | space-assets | NASA-NOSA-1.3, NASA-MEDIA | module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py; test:tests/test_space.py; command:aero space fetch |
+
+## Risk
+
+| Id | Control | Status | Domains | Standards | Evidence |
+|---|---|---|---|---|---|
+| C-13 | Threat catalogue with measured detection coverage | implemented | air-surveillance | NIST-CSF-2, ICAO-A17 | module:aero_audit/security/threats.py; artefact:docs/generated/THREATS.md; test:tests/test_security.py |
+| C-14 | Evidence-adjusted risk register | implemented | air-surveillance, air-operations | NIST-CSF-2, ICAO-A17 | module:aero_audit/risk/register.py; command:aero risk assess; test:tests/test_risk.py |
+| C-15 | Unified air and space register | partial | air-surveillance, space-launch, space-orbital, uas-utm | NIST-CSF-2 | module:aero_audit/governance/register.py; command:aero gov risks |
+| C-16 | Response playbooks with triage SLAs | implemented | air-surveillance, air-operations | NIST-SP800-53, ICAO-A17 | module:aero_audit/security/playbooks.py; artefact:docs/generated/PLAYBOOKS.md |
+| C-17 | Operational impact quantification | implemented | air-operations | ICAO-A11 | module:aero_audit/impact.py; command:aero impact; test:tests/test_impact.py |
+
+## Study
+
+| Id | Control | Status | Domains | Standards | Evidence |
+|---|---|---|---|---|---|
+| C-18 | Injected-scenario evaluation | implemented | air-surveillance | NIST-AI-RMF | command:aero evaluate; artefact:models/evaluation.json; test:tests/test_evaluate.py |
+| C-19 | Model card, registry and grouped holdout | implemented | air-surveillance | NIST-AI-RMF | artefact:models/kinematic_iforest.md; module:aero_audit/ml/train.py; test:tests/test_ml.py |
+| C-20 | Study registry with provenance | partial | air-surveillance, air-operations, space-assets, space-launch | NASA-SLIM | module:aero_audit/governance/studies.py; command:aero gov run-study |
+| C-21 | Encounter and collision-risk modelling | planned | uas-utm, air-surveillance | ASTM-F3442 | study:ST-08 |
+
+## Governance
+
+| Id | Control | Status | Domains | Standards | Evidence |
+|---|---|---|---|---|---|
+| C-22 | Provenance and manifests on every report | implemented | air-surveillance, air-operations, space-launch | NIST-SP800-53, ISO-27001 | module:aero_audit/provenance.py; artefact:reports/*.manifest.json; command:aero log verify-report; test:tests/test_provenance_and_tour.py |
+| C-23 | Hash-chained audit log | implemented | air-surveillance, air-operations | NIST-SP800-53, ISO-27001 | module:aero_audit/web/audit.py; command:aero log verify; test:tests/test_audit_chain.py |
+| C-24 | Model integrity gate | implemented | air-surveillance | NIST-SP800-53, NIST-AI-RMF | module:aero_audit/ml/registry.py; test:tests/test_model_registry.py |
+| C-25 | Local application hardening | implemented | air-surveillance, air-operations | NIST-SP800-53, ISO-27001 | module:aero_audit/web/security.py; test:tests/test_app_security.py; doc:SECURITY.md |
+| C-26 | Supply-chain assurance | implemented | air-surveillance, air-operations, space-assets, space-launch | NIST-SP800-53, NASA-SLIM | workflow:.github/workflows/ci.yml; workflow:.github/workflows/codeql.yml; artefact:requirements.lock.txt; doc:SECURITY.md |
+| C-27 | Data retention | implemented | air-surveillance | ISO-27001 | command:aero data prune; doc:SECURITY.md |
+| C-28 | Licence and attribution tracking | implemented | air-surveillance, space-assets | ODbL-1.0, NASA-NOSA-1.3, NASA-MEDIA | doc:data/samples/ATTRIBUTION.md; module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py |
+| C-29 | Passive-only operating policy | implemented | air-surveillance, air-operations, space-launch, space-orbital, uas-utm | ICAO-A17, CFR14-450 | doc:SECURITY.md; doc:CONTRIBUTING.md |
+| C-30 | Threshold change control | implemented | air-surveillance, air-operations | ISO-27001, NIST-SP800-53 | module:aero_audit/tuning.py; command:aero config show; test:tests/test_tuning.py |
+| C-31 | Software assurance classification | planned | space-launch, space-orbital | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM | - |
+| C-32 | Space data link security expectations | planned | space-orbital, space-launch | CCSDS-355 | - |
+
+## Policies
+
+| Id | Policy | Statement | Owner | Controls |
+|---|---|---|---|---|
+| P-01 | Passive only | The programme receives and analyses; it never transmits, commands, or interacts with aircraft, ATC, launch or spacecraft systems. | programme lead | C-29 |
+| P-02 | Feed etiquette | One poller per host, intervals of 12 s or more, 429-aware back-off; never load-test a public feed. | data steward | C-27 |
+| P-03 | Retention and privacy | Recordings default to 30-day retention; watchlist protect entries are honoured; nothing personal is derived beyond the broadcast. | data steward | C-27, C-28 |
+| P-04 | Attribution | Every external dataset or asset carries its licence text and attribution in code and in the tree. | data steward | C-28, C-33 |
+| P-05 | Model release gate | A model is used only with a card, a registry entry, a grouped-holdout evaluation and an injected-scenario evaluation. | ML lead | C-18, C-19, C-24 |
+| P-06 | Change control | Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code. | programme lead | C-26, C-30 |
+| P-07 | Incident triage | Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates. | operations lead | C-16 |
+| P-08 | Private until upstream | Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed. | programme lead | C-28, C-31 |
+| P-09 | Secrets | No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI. | security lead | C-26 |
+
+## Standards
+
+| Id | Standard | Body | Area | Implemented / partial / planned controls |
+|---|---|---|---|---|
+| ICAO-A2 | ICAO Annex 2, Rules of the Air | ICAO | air | 0 / 0 / 0 |
+| ICAO-A6 | ICAO Annex 6, Operation of Aircraft | ICAO | air | 1 / 0 / 0 |
+| ICAO-A10 | ICAO Annex 10 Vol III/IV, Aeronautical Telecommunications | ICAO | air | 2 / 0 / 0 |
+| ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 2 / 0 / 0 |
+| ICAO-A14 | ICAO Annex 14, Aerodromes | ICAO | air | 0 / 1 / 0 |
+| ICAO-A17 | ICAO Annex 17, Security | ICAO | air | 5 / 0 / 0 |
+| ICAO-DOC4444 | ICAO Doc 4444 PANS-ATM | ICAO | air | 2 / 0 / 0 |
+| ICAO-DOC9924 | ICAO Doc 9924, Aeronautical Surveillance Manual | ICAO | air | 3 / 0 / 0 |
+| RTCA-DO260B | RTCA DO-260B, 1090ES ADS-B MOPS | RTCA | air | 3 / 0 / 0 |
+| RTCA-DO365 | RTCA DO-365, DAA MOPS for UAS | RTCA | air | 0 / 0 / 1 |
+| CFR14-91.227 | 14 CFR 91.227 ADS-B Out performance | FAA | air | 1 / 0 / 0 |
+| CFR14-91.135 | 14 CFR 91.135 Class A operations | FAA | air | 1 / 0 / 0 |
+| EU-1207-2011 | EU Regulation 1207/2011 (SPI IR) as amended | EU | air | 1 / 0 / 0 |
+| ASTM-F3411 | ASTM F3411, Remote ID and Tracking | ASTM | air | 0 / 0 / 1 |
+| ASTM-F3442 | ASTM F3442/F3442M, DAA performance for smaller UAS | ASTM | air | 0 / 0 / 2 |
+| CFR14-450 | 14 CFR Part 450, Launch and Reentry Licensing | FAA AST | space | 1 / 1 / 0 |
+| CCSDS-133 | CCSDS 133.0-B, Space Packet Protocol | CCSDS | space | 0 / 1 / 0 |
+| CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 0 / 0 / 1 |
+| CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 0 / 0 / 1 |
+| CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 0 / 0 / 1 |
+| NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 0 / 0 / 0 |
+| NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 0 / 0 / 1 |
+| ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 0 / 0 / 1 |
+| NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 0 / 0 / 1 |
+| NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 0 / 1 |
+| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 1 / 1 / 1 |
+| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 2 / 1 / 0 |
+| NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 7 / 0 / 0 |
+| ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 5 / 0 / 0 |
+| NIST-AI-RMF | NIST AI Risk Management Framework 1.0 | NIST | cyber | 3 / 0 / 0 |
+| ODbL-1.0 | Open Database License 1.0 | ODC | data | 1 / 0 / 0 |
+| NASA-NOSA-1.3 | NASA Open Source Agreement 1.3 | NASA | data | 2 / 0 / 0 |
+| NASA-MEDIA | NASA media usage guidelines | NASA | data | 2 / 0 / 0 |

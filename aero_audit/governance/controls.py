@@ -1,0 +1,271 @@
+"""Controls library with typed evidence, plus the policies that govern the programme.
+
+A control's ``status`` is a claim; its ``evidence`` says where to look. Evidence strings are
+typed by prefix so tooling can check them: ``rule:SEC-010`` (a rule id that must exist),
+``test:tests/test_x.py``, ``artefact:reports/*.manifest.json``, ``command:aero log verify``,
+``workflow:.github/workflows/ci.yml``, ``module:aero_audit/web/security.py``, ``doc:SECURITY.md``,
+``scenario:teleport`` (an evaluation scenario), ``study:ST-01``.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from .domains import DOMAINS
+from .standards import STANDARDS
+
+PILLARS = ("compliance", "risk", "study", "governance")
+STATUSES = ("implemented", "partial", "planned")
+STATUS_EFFECTIVENESS = {"implemented": 0.6, "partial": 0.35, "planned": 0.0}  # same scale as threat coverage
+SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005")
+
+
+@dataclass(frozen=True)
+class Control:
+    id: str
+    title: str
+    objective: str
+    pillar: str
+    domains: tuple[str, ...]
+    standards: tuple[str, ...]
+    status: str
+    evidence: tuple[str, ...]
+    owner: str = "programme lead"
+    cadence_days: int = 90
+    notes: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "title": self.title, "objective": self.objective, "pillar": self.pillar,
+                "domains": list(self.domains), "standards": list(self.standards), "status": self.status,
+                "evidence": list(self.evidence), "owner": self.owner, "cadence_days": self.cadence_days, "notes": self.notes}
+
+
+@dataclass(frozen=True)
+class Policy:
+    id: str
+    title: str
+    statement: str
+    owner: str
+    controls: tuple[str, ...]
+    review_days: int = 180
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"id": self.id, "title": self.title, "statement": self.statement, "owner": self.owner,
+                "controls": list(self.controls), "review_days": self.review_days}
+
+
+CONTROLS: dict[str, Control] = {c.id: c for c in (
+    # ---- compliance ----------------------------------------------------------------------
+    Control("C-01", "Surveillance integrity minimums enforced", "Flag airborne ADS-B fixes below NIC 7 / NACp 8 / SIL 3.",
+            "compliance", ("air-surveillance",), ("CFR14-91.227", "RTCA-DO260B", "EU-1207-2011"), "implemented",
+            ("rule:SEC-012", "test:tests/test_rules.py", "scenario:integrity_degrade"), cadence_days=90),
+    Control("C-02", "Kinematic plausibility of every position report", "Impossible jumps, speed and altitude physics, replayed fixes, ghosts.",
+            "compliance", ("air-surveillance",), ("ICAO-DOC9924", "ICAO-A10", "RTCA-DO260B"), "implemented",
+            ("rule:SEC-010", "rule:SEC-011", "rule:SEC-014", "rule:SEC-018", "scenario:teleport", "scenario:velocity_forge",
+             "scenario:altitude_forge", "scenario:replay", "artefact:models/evaluation.json")),
+    Control("C-03", "Emergency and unlawful-interference codes with confirmation tiers", "7500/7600/7700 and the emergency subfield; single fix unconfirmed, second confirms.",
+            "compliance", ("air-surveillance",), ("ICAO-DOC4444", "ICAO-A17", "RTCA-DO260B"), "implemented",
+            ("rule:SEC-001", "rule:SEC-002", "rule:SEC-003", "rule:SEC-004", "scenario:squawk_hijack", "test:tests/test_rules.py")),
+    Control("C-04", "Stream health: flooding and coverage collapse", "Bursts of never-seen addresses and sudden loss of the picture.",
+            "compliance", ("air-surveillance",), ("ICAO-DOC9924", "ICAO-A10"), "implemented", ("rule:SEC-016", "rule:SEC-017", "module:aero_audit/audit/engine.py")),
+    Control("C-05", "Cross-feed corroboration", "Dead-reckoned comparison of two independent feeds; disagreement is a finding.",
+            "compliance", ("air-surveillance",), ("ICAO-DOC9924",), "implemented", ("rule:SEC-015", "command:aero corroborate", "test:tests/test_security.py"),
+            notes="Needs two live feeds; the known gaps (perfect ghost, slow drift) close only here."),
+    Control("C-06", "Airspace and operations conformance", "Holding, pattern work, level busts, VFR codes at altitude, coverage gaps, separation screen, vertical rates.",
+            "compliance", ("air-operations", "air-surveillance"), ("ICAO-DOC4444", "ICAO-A11", "CFR14-91.135", "ICAO-A6"), "implemented",
+            ("rule:OPS-001", "rule:OPS-002", "rule:OPS-003", "rule:OPS-004", "rule:OPS-005", "rule:SAF-003", "rule:SAF-004")),
+    Control("C-07", "Apron capacity from imagery", "Zone occupancy against declared capacity from detections.",
+            "compliance", ("air-operations",), ("ICAO-A14",), "partial", ("rule:OPS-VIS-001", "rule:OPS-VIS-002", "module:aero_audit/vision/apron.py"),
+            notes="COCO baseline finds 4 of 12 parked transports; fine-tuning on aerial datasets is the next ML task."),
+    Control("C-08", "Launch telemetry plausibility", "Acceleration, altitude/speed consistency, dropouts, time regressions on a telemetry stream.",
+            "compliance", ("space-launch",), ("CCSDS-133", "CFR14-450"), "partial",
+            ("rule:SPC-001", "rule:SPC-002", "rule:SPC-003", "rule:SPC-004", "rule:SPC-005", "test:tests/test_space.py", "command:aero space telemetry-audit"),
+            notes="CSV input only; overlay OCR and a live packet source are planned."),
+    Control("C-09", "Conjunction screening", "Propagate catalogued objects, screen close approaches, compute probability of collision, ingest CDMs.",
+            "compliance", ("space-orbital",), ("CCSDS-508", "CCSDS-502"), "planned", ("study:ST-06",),
+            notes="Adopt python-sgp4/skyfield for propagation and a CCSDS ODM/CDM parser; GMAT as the reference for validation."),
+    Control("C-10", "Debris mitigation compliance", "Check mission parameters against disposal, passivation and lifetime rules.",
+            "compliance", ("space-orbital",), ("NASA-STD-8719.14", "ISO-24113"), "planned", ()),
+    Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations and alert lead time from DAIDALUS/WellClear definitions.",
+            "compliance", ("uas-utm",), ("ASTM-F3442", "RTCA-DO365"), "planned", ("study:ST-07",),
+            notes="Use NASA DAIDALUS as the reference implementation; do not re-derive the maths."),
+    Control("C-12", "UTM API conformance", "Validate USS/operator exchanges against the NASA UTM OpenAPI documents.",
+            "compliance", ("uas-utm",), ("ASTM-F3411",), "planned", ("study:ST-09",)),
+    Control("C-33", "External asset integrity and provenance", "NASA-3D assets verified against git blob ids; library downloads hashed; sidecars and manifests.",
+            "compliance", ("space-assets",), ("NASA-NOSA-1.3", "NASA-MEDIA"), "implemented",
+            ("module:aero_audit/space/nasa3d.py", "module:aero_audit/space/nasa_images.py", "test:tests/test_space.py", "command:aero space fetch")),
+    # ---- risk ----------------------------------------------------------------------------
+    Control("C-13", "Threat catalogue with measured detection coverage", "Twelve surveillance threats mapped to rules and evaluation scenarios.",
+            "risk", ("air-surveillance",), ("NIST-CSF-2", "ICAO-A17"), "implemented", ("module:aero_audit/security/threats.py", "artefact:docs/generated/THREATS.md", "test:tests/test_security.py")),
+    Control("C-14", "Evidence-adjusted risk register", "Precision-weighted hits per 1,000 aircraft at the Wilson lower bound move likelihood bands; residual from control effectiveness.",
+            "risk", ("air-surveillance", "air-operations"), ("NIST-CSF-2", "ICAO-A17"), "implemented", ("module:aero_audit/risk/register.py", "command:aero risk assess", "test:tests/test_risk.py")),
+    Control("C-15", "Unified air and space register", "One register across domains with residuals from control status where detectors do not exist yet.",
+            "risk", ("air-surveillance", "space-launch", "space-orbital", "uas-utm"), ("NIST-CSF-2",), "partial", ("module:aero_audit/governance/register.py", "command:aero gov risks")),
+    Control("C-16", "Response playbooks with triage SLAs", "Triage, verify, escalate, contain per rule.",
+            "risk", ("air-surveillance", "air-operations"), ("NIST-SP800-53", "ICAO-A17"), "implemented", ("module:aero_audit/security/playbooks.py", "artefact:docs/generated/PLAYBOOKS.md")),
+    Control("C-17", "Operational impact quantification", "Holding minutes to fuel, CO2 and delay cost with stated assumptions.",
+            "risk", ("air-operations",), ("ICAO-A11",), "implemented", ("module:aero_audit/impact.py", "command:aero impact", "test:tests/test_impact.py")),
+    # ---- study ---------------------------------------------------------------------------
+    Control("C-18", "Injected-scenario evaluation", "Recall, time-to-detect and per-rule precision on real traffic with eight attack scenarios; results weight scoring.",
+            "study", ("air-surveillance",), ("NIST-AI-RMF",), "implemented", ("command:aero evaluate", "artefact:models/evaluation.json", "test:tests/test_evaluate.py")),
+    Control("C-19", "Model card, registry and grouped holdout", "Every trained model documented, checksummed and evaluated on unseen aircraft.",
+            "study", ("air-surveillance",), ("NIST-AI-RMF",), "implemented", ("artefact:models/kinematic_iforest.md", "module:aero_audit/ml/train.py", "test:tests/test_ml.py")),
+    Control("C-20", "Study registry with provenance", "Reproducible analyses with inputs, method, metrics and hashed outputs.",
+            "study", ("air-surveillance", "air-operations", "space-assets", "space-launch"), ("NASA-SLIM",), "partial", ("module:aero_audit/governance/studies.py", "command:aero gov run-study")),
+    Control("C-21", "Encounter and collision-risk modelling", "Airborne collision risk classes from encounter models (MIT LL lineage).",
+            "study", ("uas-utm", "air-surveillance"), ("ASTM-F3442",), "planned", ("study:ST-08",)),
+    # ---- governance ----------------------------------------------------------------------
+    Control("C-22", "Provenance and manifests on every report", "Code commit, input hash, model hash, evaluation hash, threshold overrides; SHA-256 per file.",
+            "governance", ("air-surveillance", "air-operations", "space-launch"), ("NIST-SP800-53", "ISO-27001"), "implemented",
+            ("module:aero_audit/provenance.py", "artefact:reports/*.manifest.json", "command:aero log verify-report", "test:tests/test_provenance_and_tour.py")),
+    Control("C-23", "Hash-chained audit log", "Every action linked to the previous one; verification names the first broken line.",
+            "governance", ("air-surveillance", "air-operations"), ("NIST-SP800-53", "ISO-27001"), "implemented",
+            ("module:aero_audit/web/audit.py", "command:aero log verify", "test:tests/test_audit_chain.py")),
+    Control("C-24", "Model integrity gate", "A model loads only when its SHA-256 matches the registry.",
+            "governance", ("air-surveillance",), ("NIST-SP800-53", "NIST-AI-RMF"), "implemented", ("module:aero_audit/ml/registry.py", "test:tests/test_model_registry.py")),
+    Control("C-25", "Local application hardening", "Host validation, CSRF token, Origin checks, CSP, path confinement, token mode beyond loopback.",
+            "governance", ("air-surveillance", "air-operations"), ("NIST-SP800-53", "ISO-27001"), "implemented",
+            ("module:aero_audit/web/security.py", "test:tests/test_app_security.py", "doc:SECURITY.md")),
+    Control("C-26", "Supply-chain assurance", "Hash-pinned universal lock, pip-audit, gitleaks over history, CodeQL, actions pinned to SHAs, non-root container.",
+            "governance", ("air-surveillance", "air-operations", "space-assets", "space-launch"), ("NIST-SP800-53", "NASA-SLIM"), "implemented",
+            ("workflow:.github/workflows/ci.yml", "workflow:.github/workflows/codeql.yml", "artefact:requirements.lock.txt", "doc:SECURITY.md")),
+    Control("C-27", "Data retention", "Recordings pruned by age; state and outputs kept out of version control.",
+            "governance", ("air-surveillance",), ("ISO-27001",), "implemented", ("command:aero data prune", "doc:SECURITY.md")),
+    Control("C-28", "Licence and attribution tracking", "ODbL, NOSA and NASA media terms carried with data and in attribution files.",
+            "governance", ("air-surveillance", "space-assets"), ("ODbL-1.0", "NASA-NOSA-1.3", "NASA-MEDIA"), "implemented",
+            ("doc:data/samples/ATTRIBUTION.md", "module:aero_audit/space/nasa3d.py", "module:aero_audit/space/nasa_images.py")),
+    Control("C-29", "Passive-only operating policy", "Receive and analyse only; never transmit or interact with aircraft, ATC, launch or spacecraft systems.",
+            "governance", ("air-surveillance", "air-operations", "space-launch", "space-orbital", "uas-utm"), ("ICAO-A17", "CFR14-450"), "implemented",
+            ("doc:SECURITY.md", "doc:CONTRIBUTING.md")),
+    Control("C-30", "Threshold change control", "Overrides live in aero.toml, are logged in the audit chain and stamped into every report's provenance.",
+            "governance", ("air-surveillance", "air-operations"), ("ISO-27001", "NIST-SP800-53"), "implemented",
+            ("module:aero_audit/tuning.py", "command:aero config show", "test:tests/test_tuning.py")),
+    Control("C-31", "Software assurance classification", "Classify components per NPR 7150.2 and apply the matching assurance activities and SLIM templates.",
+            "governance", ("space-launch", "space-orbital"), ("NASA-NPR-7150.2", "NASA-STD-8739.8", "NASA-SLIM"), "planned", ()),
+    Control("C-32", "Space data link security expectations", "State SDLS expectations for any spacecraft telemetry ingested; verify authenticated links where offered.",
+            "governance", ("space-orbital", "space-launch"), ("CCSDS-355",), "planned", (),
+            notes="NASA CryptoLib is the reference implementation; the toolkit only consumes what such links deliver."),
+)}
+
+
+POLICIES: tuple[Policy, ...] = (
+    Policy("P-01", "Passive only", "The programme receives and analyses; it never transmits, commands, or interacts with aircraft, ATC, launch or spacecraft systems.", "programme lead", ("C-29",)),
+    Policy("P-02", "Feed etiquette", "One poller per host, intervals of 12 s or more, 429-aware back-off; never load-test a public feed.", "data steward", ("C-27",)),
+    Policy("P-03", "Retention and privacy", "Recordings default to 30-day retention; watchlist protect entries are honoured; nothing personal is derived beyond the broadcast.", "data steward", ("C-27", "C-28")),
+    Policy("P-04", "Attribution", "Every external dataset or asset carries its licence text and attribution in code and in the tree.", "data steward", ("C-28", "C-33")),
+    Policy("P-05", "Model release gate", "A model is used only with a card, a registry entry, a grouped-holdout evaluation and an injected-scenario evaluation.", "ML lead", ("C-18", "C-19", "C-24")),
+    Policy("P-06", "Change control", "Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code.", "programme lead", ("C-26", "C-30")),
+    Policy("P-07", "Incident triage", "Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates.", "operations lead", ("C-16",)),
+    Policy("P-08", "Private until upstream", "Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed.", "programme lead", ("C-28", "C-31")),
+    Policy("P-09", "Secrets", "No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI.", "security lead", ("C-26",)),
+)
+
+
+def validate() -> list[str]:
+    """Referential integrity of the library; empty list means clean."""
+    from ..audit.rules import RULE_CATALOG
+    from ..ml.evaluate import SCENARIOS
+    from .studies import STUDIES
+
+    problems: list[str] = []
+    for c in CONTROLS.values():
+        if c.pillar not in PILLARS:
+            problems.append(f"{c.id}: unknown pillar {c.pillar}")
+        if c.status not in STATUSES:
+            problems.append(f"{c.id}: unknown status {c.status}")
+        for d in c.domains:
+            if d not in DOMAINS:
+                problems.append(f"{c.id}: unknown domain {d}")
+        for s in c.standards:
+            if s not in STANDARDS:
+                problems.append(f"{c.id}: unknown standard {s}")
+        if c.status == "implemented" and not c.evidence:
+            problems.append(f"{c.id}: implemented without evidence")
+        for e in c.evidence:
+            kind, _, ref = e.partition(":")
+            if kind == "rule" and ref not in RULE_CATALOG and ref not in SPACE_RULES:
+                problems.append(f"{c.id}: unknown rule {ref}")
+            elif kind == "scenario" and ref not in SCENARIOS:
+                problems.append(f"{c.id}: unknown scenario {ref}")
+            elif kind == "study" and ref not in STUDIES:
+                problems.append(f"{c.id}: unknown study {ref}")
+            elif kind in ("test", "module", "doc", "workflow") and not Path(ref).exists():
+                problems.append(f"{c.id}: missing file {ref}")
+            elif kind == "artefact" and "*" not in ref and not Path(ref).exists() and not ref.startswith("reports/"):
+                problems.append(f"{c.id}: missing artefact {ref}")
+            elif kind not in ("rule", "scenario", "study", "test", "module", "doc", "workflow", "artefact", "command"):
+                problems.append(f"{c.id}: unknown evidence kind {kind}")
+    for p in POLICIES:
+        for cid in p.controls:
+            if cid not in CONTROLS:
+                problems.append(f"{p.id}: unknown control {cid}")
+    return problems
+
+
+def evidence_present(control: Control) -> dict[str, bool]:
+    """Which file-backed evidence items exist on disk right now (rules, commands and studies are assumed present)."""
+    out: dict[str, bool] = {}
+    for e in control.evidence:
+        kind, _, ref = e.partition(":")
+        if kind in ("test", "module", "doc", "workflow"):
+            out[e] = Path(ref).exists()
+        elif kind == "artefact":
+            if "*" in ref:
+                folder, pat = ref.rsplit("/", 1)
+                out[e] = any(fnmatch.fnmatch(p.name, pat) for p in Path(folder).glob("*")) if Path(folder).is_dir() else False
+            else:
+                out[e] = Path(ref).exists()
+        else:
+            out[e] = True
+    return out
+
+
+def coverage() -> dict[str, Any]:
+    """Standards and domains by control status."""
+    by_std: dict[str, dict[str, int]] = {s: {"implemented": 0, "partial": 0, "planned": 0} for s in STANDARDS}
+    by_dom: dict[str, dict[str, int]] = {d: {"implemented": 0, "partial": 0, "planned": 0} for d in DOMAINS}
+    by_pillar: dict[str, dict[str, int]] = {p: {"implemented": 0, "partial": 0, "planned": 0} for p in PILLARS}
+    for c in CONTROLS.values():
+        by_pillar[c.pillar][c.status] += 1
+        for s in c.standards:
+            by_std[s][c.status] += 1
+        for d in c.domains:
+            by_dom[d][c.status] += 1
+    covered_standards = sum(1 for v in by_std.values() if v["implemented"] or v["partial"])
+    return {"by_standard": by_std, "by_domain": by_dom, "by_pillar": by_pillar,
+            "standards_total": len(STANDARDS), "standards_with_controls": covered_standards}
+
+
+def implementation_index(controls: dict[str, Control] | None = None) -> float:
+    cs = list((controls or CONTROLS).values())
+    if not cs:
+        return 0.0
+    return round(sum({"implemented": 1.0, "partial": 0.5, "planned": 0.0}[c.status] for c in cs) / len(cs), 3)
+
+
+def render_markdown() -> str:
+    cov = coverage()
+    head = (f"Implementation index: **{implementation_index():.0%}** over {len(CONTROLS)} controls; "
+            f"{cov['standards_with_controls']} of {cov['standards_total']} standards have at least one implemented or partial control.")
+    lines = ["# Controls library (generated)", "", head, ""]
+    for pillar in PILLARS:
+        lines += [f"## {pillar.title()}", "", "| Id | Control | Status | Domains | Standards | Evidence |", "|---|---|---|---|---|---|"]
+        for c in CONTROLS.values():
+            if c.pillar != pillar:
+                continue
+            lines.append(f"| {c.id} | {c.title} | {c.status} | {', '.join(c.domains)} | {', '.join(c.standards)} | {'; '.join(c.evidence) or '-'} |")
+        lines.append("")
+    lines += ["## Policies", "", "| Id | Policy | Statement | Owner | Controls |", "|---|---|---|---|---|"]
+    lines += [f"| {p.id} | {p.title} | {p.statement} | {p.owner} | {', '.join(p.controls)} |" for p in POLICIES]
+    lines += ["", "## Standards", "", "| Id | Standard | Body | Area | Implemented / partial / planned controls |", "|---|---|---|---|---|"]
+    for s in STANDARDS.values():
+        v = cov["by_standard"][s.id]
+        lines.append(f"| {s.id} | {s.title} | {s.body} | {s.area} | {v['implemented']} / {v['partial']} / {v['planned']} |")
+    return "\n".join(lines) + "\n"
+
+
+__all__ = ["CONTROLS", "PILLARS", "POLICIES", "SPACE_RULES", "STATUSES", "STATUS_EFFECTIVENESS", "Control", "Policy",
+           "coverage", "evidence_present", "implementation_index", "render_markdown", "validate"]

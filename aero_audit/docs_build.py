@@ -33,6 +33,21 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
     p.write_text(render_register(assess(None), "Risk register (baseline, generated)"))
     written.append(p)
 
+    from .governance.controls import render_markdown as render_controls
+    from .governance.posture import posture as build_posture
+    from .governance.posture import render_markdown as render_posture
+    from .governance.studies import render_markdown as render_studies
+
+    p = out / "CONTROLS.md"
+    p.write_text(render_controls())
+    written.append(p)
+    p = out / "STUDIES.md"
+    p.write_text(render_studies())
+    written.append(p)
+    p = out / "POSTURE.md"
+    p.write_text(render_posture(build_posture(static=True), "Governance posture (baseline, generated)"))
+    written.append(p)
+
     p = out / "RULES.md"
     lines = ["# Rule ids (generated)", "", "| Rule | Category | Description |", "|---|---|---|"]
     lines += [f"| {rid} | {cat} | {desc} |" for rid, (cat, desc) in RULE_CATALOG.items()]

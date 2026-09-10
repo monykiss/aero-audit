@@ -715,6 +715,14 @@ def r_audit_csv(app: App, req: Any) -> Any:
     return (app.audit.to_csv().encode(), "text/csv; charset=utf-8")
 
 
+@router.route("GET", "/api/v1/governance")
+def r_governance(app: App, req: Any) -> Any:
+    from ..governance import posture
+
+    st = app.sources.state
+    return posture(st.engine.summary() if st else None)
+
+
 @router.route("GET", "/api/v1/audit/verify")
 def r_audit_verify(app: App, req: Any) -> Any:
     return app.audit.verify()
