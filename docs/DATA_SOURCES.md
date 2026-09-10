@@ -22,7 +22,8 @@ them, and do not resell their data.
 
 - Endpoint: `GET https://opensky-network.org/api/states/all?lamin&lomin&lamax&lomax&extended=1`.
 - Anonymous: ~400 credits/day, 10 s resolution, observed latency ~19 s per request. A
-  9x11 degree box (US Northeast) costs 2 credits and returns ~1,150 aircraft.
+  9x11 degree box (US Northeast) costs 2 credits and returns ~1,150 aircraft; the whole contiguous
+  US (`conus`, 26x59 degrees) costs 4 credits and returned 4,886 aircraft in one call (715 KB).
 - OAuth2 client credentials (set `OPENSKY_CLIENT_ID/SECRET` in `.env`) raise limits and
   resolution. Token endpoint is wired in `ingest/opensky.py`.
 - Units are SI in the API (m, m/s); the mapper converts to ft, kt, fpm.

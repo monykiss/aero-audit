@@ -193,10 +193,25 @@ class SourceManager:
 
 
 def region_catalog() -> list[dict[str, Any]]:
-    from ..config import REGIONS
+    """Regions and groups with a `kind` the UI uses to group the picker and choose defaults."""
+    from ..config import GROUP_NAMES, GROUPS, REGIONS
 
-    return [{"key": r.key, "name": r.name, "lat": r.lat, "lon": r.lon, "radius_nm": r.radius_nm,
-             "metar_stations": list(r.metar_stations), "endpoint": r.endpoint} for r in REGIONS.values()]
+    us_hubs = set(GROUPS["usa-hubs"]) | {"bos"}
+    out = [{"key": k, "name": GROUP_NAMES[k], "kind": "group", "members": list(v), "providers": ["adsblol"],
+            "interval": 10, "radius_nm": 250} for k, v in GROUPS.items()]
+    for r in REGIONS.values():
+        if r.custom_bbox:
+            kind, providers, interval = "box", ["opensky"], 60
+        elif r.endpoint:
+            kind, providers, interval = "global", ["adsblol"], 15
+        elif r.key in us_hubs:
+            kind, providers, interval = "us", ["adsblol", "opensky"], 12
+        else:
+            kind, providers, interval = "world", ["adsblol", "opensky"], 12
+        out.append({"key": r.key, "name": r.name, "lat": r.lat, "lon": r.lon, "radius_nm": r.radius_nm,
+                    "metar_stations": list(r.metar_stations), "endpoint": r.endpoint, "kind": kind,
+                    "providers": providers, "interval": interval, "bbox": r.custom_bbox})
+    return out
 
 
 __all__ = ["SourceManager", "build_engine", "get_region", "load_settings", "region_catalog", "save_settings"]

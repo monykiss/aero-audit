@@ -41,7 +41,7 @@ def test_app_pages_sources_findings_and_jobs(tmp_path, monkeypatch):
         assert status == 200 and info["source"]["active"] is False and info["recordings"] == 1
         status, recs = _get(port, "/api/v1/recordings")
         assert recs[0]["aircraft"] == 20 and recs[0]["special"] is True
-        assert _get(port, "/api/v1/regions")[1][0]["key"] == "nyc"
+        assert {r["key"] for r in _get(port, "/api/v1/regions")[1]} >= {"nyc", "conus", "usa-hubs"}
         # start a replay source, wait for polls
         status, r = _post(port, "/api/v1/source/start", {"mode": "replay", "recording": str(rec), "speed": 200, "demo": True})
         assert status == 200 and r["source"]["active"] and r["source"]["mode"] == "replay"

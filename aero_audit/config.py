@@ -50,11 +50,35 @@ REGIONS: dict[str, Region] = {
     "dxb": Region("dxb", "Dubai", 25.25, 55.36, 60, ("OMDB", "OMDW")),
     "sin": Region("sin", "Singapore", 1.36, 103.99, 60, ("WSSS",)),
     "hnd": Region("hnd", "Tokyo", 35.55, 139.78, 60, ("RJTT", "RJAA")),
+    # more US hubs so a round-robin covers the contiguous states at 250 nm
+    "sea": Region("sea", "Seattle", 47.45, -122.31, 60, ("KSEA", "KPDX")),
+    "den": Region("den", "Denver", 39.86, -104.67, 60, ("KDEN",)),
+    "phx": Region("phx", "Phoenix", 33.43, -112.01, 60, ("KPHX",)),
+    "slc": Region("slc", "Salt Lake City", 40.79, -111.98, 60, ("KSLC",)),
+    "iah": Region("iah", "Houston", 29.98, -95.34, 60, ("KIAH", "KHOU")),
+    "msp": Region("msp", "Minneapolis", 44.88, -93.22, 60, ("KMSP",)),
+    "mci": Region("mci", "Kansas City", 39.30, -94.71, 60, ("KMCI",)),
+    "mia": Region("mia", "Miami", 25.79, -80.29, 60, ("KMIA", "KFLL")),
+    "dca": Region("dca", "Washington DC", 38.85, -77.04, 60, ("KDCA", "KIAD", "KBWI")),
+    "bos": Region("bos", "Boston", 42.36, -71.01, 60, ("KBOS",)),
+    # whole-country / continent boxes (best with OpenSky; adsb.lol point queries cap at 250 nm)
+    "conus": Region("conus", "USA: contiguous states in one box", 38.0, -96.0, 250, ("KJFK", "KORD", "KLAX", "KDFW", "KATL"),
+                    custom_bbox=(24.0, -125.0, 50.0, -66.0)),
+    "americas": Region("americas", "The Americas in one box", 10.0, -90.0, 250, (), custom_bbox=(-56.0, -170.0, 72.0, -30.0)),
     # adsb.lol global feeds (not geographic): military-flagged, FAA LADD, and PIA-address traffic
     "mil": Region("mil", "adsb.lol global military-flagged", 0.0, 0.0, 0, endpoint="mil"),
     "ladd": Region("ladd", "adsb.lol FAA LADD programme aircraft", 0.0, 0.0, 0, endpoint="ladd"),
     "pia": Region("pia", "adsb.lol privacy ICAO address traffic", 0.0, 0.0, 0, endpoint="pia"),
 }
+
+
+# Named groups expand to several regions for round-robin polling (adsb.lol has no daily quota but
+# caps a point query at 250 nm; 15 hubs at 250 nm cover the contiguous United States).
+GROUPS: dict[str, tuple[str, ...]] = {
+    "usa-hubs": ("sea", "sfo", "lax", "phx", "slc", "den", "dfw", "iah", "msp", "ord", "mci", "atl", "mia", "dca", "nyc"),
+    "world-hubs": ("nyc", "ord", "lax", "lhr", "fra", "dxb", "sin", "hnd"),
+}
+GROUP_NAMES = {"usa-hubs": "USA: 15 hubs round-robin (250 nm each)", "world-hubs": "World: 8 major hubs round-robin"}
 
 
 def get_region(key: str) -> Region:
@@ -68,9 +92,18 @@ def parse_regions(spec: str, radius_nm: float | None = None) -> list[Region]:
     """'nyc,lhr' -> regions, optionally overriding the radius (adsb.lol allows up to 250 nm)."""
     import dataclasses
 
-    regions = [get_region(k.strip()) for k in spec.split(",") if k.strip()]
-    if radius_nm:
-        regions = [dataclasses.replace(r, radius_nm=radius_nm) for r in regions]
+    keys: list[str] = []
+    grouped = False
+    for k in (x.strip().lower() for x in spec.split(",") if x.strip()):
+        if k in GROUPS:
+            keys.extend(GROUPS[k])
+            grouped = True
+        else:
+            keys.append(k)
+    regions = [get_region(k) for k in keys]
+    radius = radius_nm or (250.0 if grouped else None)
+    if radius:
+        regions = [dataclasses.replace(r, radius_nm=radius) for r in regions]
     return regions
 
 

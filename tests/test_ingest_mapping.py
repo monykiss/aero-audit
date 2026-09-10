@@ -35,3 +35,17 @@ def test_endpoint_regions_exist_and_opensky_rejects_them():
     with pytest.raises(ValueError):
         asyncio.run(p.fetch(get_region("mil")))
     asyncio.run(p.aclose())
+
+
+def test_region_groups_expand_and_boxes_exist():
+    from aero_audit.config import GROUPS, get_region, parse_regions
+
+    hubs = parse_regions("usa-hubs")
+    assert [r.key for r in hubs] == list(GROUPS["usa-hubs"]) and all(r.radius_nm == 250 for r in hubs)
+    assert parse_regions("usa-hubs", 100)[0].radius_nm == 100
+    conus = get_region("conus")
+    assert conus.bbox() == (24.0, -125.0, 50.0, -66.0)
+    from aero_audit.web.sources import region_catalog
+
+    kinds = {r["key"]: r["kind"] for r in region_catalog()}
+    assert kinds["usa-hubs"] == "group" and kinds["conus"] == "box" and kinds["mil"] == "global" and kinds["den"] == "us"

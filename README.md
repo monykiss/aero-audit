@@ -21,8 +21,9 @@ live feeds ──► normalize ──► JSONL recording ──► TrackStore (k
 .venv/bin/aero app                        # opens http://127.0.0.1:8787 in your browser
 ```
 
-A local application: Home (choose a replay or go live with dropdowns), Live picture (map,
-KPIs, findings, safety, security, operations panels, demo injections), Findings (filter, evidence,
+A local application: Home (one click for a live picture of all of America, or choose a replay or
+region with dropdowns), Live picture (canvas map for thousands of aircraft, colour by findings,
+altitude, speed or trust, KPIs, findings, safety, security, operations panels, demo injections), Findings (filter, evidence,
 playbooks, CSV), Risk, Reports (generate and browse), Data & model (capture, inventory, train,
 evaluate, prune, job logs), Settings (thresholds applied live), Help (rules, playbooks, docs).
 Sources start, stop, and switch at runtime; long tasks are background jobs. See
@@ -125,6 +126,7 @@ Data captured in one session, all keyless public feeds, one poller per host:
 |---|---|---|---|---|---|
 | four hubs A | adsb.lol | NYC, ORD, LAX, LHR at 250 nm | 94 | 3,819 | 98.9% of 44,377 fixes |
 | four hubs B | adsb.lol | SFO, DFW, ATL, HND at 250 nm | 91 | 2,811 | 95.4% of 34,217 fixes |
+| whole USA probe | OpenSky | contiguous states in one box | 1 | 4,886 | n/a |
 | US Northeast box | OpenSky | 36-45N, 80-69W | 60 | 1,498 | n/a (no integrity fields) |
 | US Southwest box | OpenSky | 30-42N, 125-108W | 40 | 1,412 | n/a |
 | global military feed | adsb.lol `/v2/mil` | worldwide | 12 | 333 | 95.9% |

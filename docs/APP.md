@@ -14,8 +14,8 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 
 | Page | What it is for |
 |---|---|
-| Home | Pick a source: replay a recording (speed, demo controls) or go live (feed, region, radius, poll interval). Shows what is running and what is on the machine. |
-| Live picture | Map of every tracked aircraft, KPI strip, and the Findings / Safety / Security / Operations panels. Demo buttons inject attacks. Click an aircraft for its drawer; use the search box for a callsign or ICAO address. |
+| Home | One-click **Show me America live** (OpenSky over the contiguous states, ~5,000 aircraft per poll) or **Replay the newest recording**; otherwise pick a source: replay (speed, demo controls) or go live with a grouped picker: whole country, continent, US hubs, international hubs, global feeds. Poll interval and radius default per choice. |
+| Live picture | Canvas-rendered map that stays smooth with 10,000 aircraft; colour by findings, altitude, speed, or trust (legend switch); hover for a tooltip, click for the drawer; rings mark emergencies, injections, and the selection; a **?** button explains the picture. KPI strip, Findings / Safety / Security / Operations panels, demo buttons, search box. |
 | Findings | Every finding this session, filterable by severity, rule, and text; click for evidence and the full playbook; export CSV. |
 | Risk | Register re-scored from this session's evidence, threat coverage with measured recall, holding cost. |
 | Reports | Generate a report from the running session or from any recording; browse and view past reports (HTML, Markdown, JSON). |
@@ -25,6 +25,17 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 
 Sources can be started, stopped, and switched at any time from Home, the Data page, or the top
 bar; long tasks run as background jobs with progress and logs and survive page changes.
+
+## Nationwide and continental feeds
+
+| Choice | Feed | How it works | Notes |
+|---|---|---|---|
+| `conus` | OpenSky | one bounding box 24-50N, 125-66W per poll, ~4,900 aircraft | 4 API credits per poll; anonymous accounts get ~400 a day, so the default is one poll a minute (about 100 minutes of national coverage per day). OpenSky credentials in `.env` raise the quota. |
+| `americas` | OpenSky | one box from Tierra del Fuego to the Arctic | same cost as `conus`; larger payloads |
+| `usa-hubs` | adsb.lol | 15 hubs at 250 nm polled in turn (Seattle to Miami) | no daily quota; each hub revisited every ~150 s at a 10 s interval, so one-off kinematic checks have a longer clock (see docs/THREAT_MODEL.md) but integrity fields are present |
+| `world-hubs` | adsb.lol | 8 major hubs worldwide in turn | same trade-off |
+
+Groups are defined in `aero_audit/config.py` (`GROUPS`); add a group by listing region keys.
 
 ## Architecture (for expanding it)
 
