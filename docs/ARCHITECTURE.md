@@ -36,16 +36,21 @@ findings with response playbooks and a risk posture.
 | `ingest/adsblol.py` | readsb JSON -> `StateVector` incl. NIC/NACp/SIL, selected altitude, emergency field | `AdsbLolProvider` |
 | `ingest/opensky.py` | OpenSky state vectors -> `StateVector`, unit conversion, optional OAuth2 | `OpenSkyProvider` |
 | `ingest/metar.py` | NOAA AWC METAR fetch + one-line summary | `fetch_metars` |
-| `ingest/replay.py` | Iterate JSONL recordings | `iter_recording` |
+| `ingest/replay.py` | Iterate JSONL recordings, plain or gzip (bundled samples) | `iter_recording`, `recording_stem` |
+| `ingest/faa_status.py` | FAA NAS status XML: ground stops, delay programmes, closures | `fetch_status`, `parse_status` |
+| `ingest/http.py` | httpx client with a sticky, Apple-signed curl fallback for per-app firewalls | `get_json`, `using_curl` |
 | `stream/poller.py` | Async round-robin polling, 429-aware back-off, JSONL recorder | `stream_batches`, `JsonlRecorder` |
 | `features/tracks.py` | Rolling window of fixes per aircraft; derived kinematics | `TrackStore`, `TrackFeatures` |
 | `audit/rules.py` | Deterministic rules with thresholds as module constants; `RULE_CATALOG` | `RULES`, `BATCH_RULES`, `RuleContext` |
 | `audit/engine.py` | Orchestrates rules, watchlist, ML, stream checks, de-dup, scoring, trust, alerts | `AuditEngine` |
 | `audit/policy.py` | Risk-scoring policy: severity x repeat factor x evidence quality x measured precision, ML capped | `risk_score` |
-| `audit/report.py` | JSON + Markdown reports with executive summary and playbook pointers | `write_reports` |
+| `audit/report.py` | JSON + Markdown reports with executive summary, provenance block and a SHA-256 manifest | `write_reports` |
+| `audit/summary.py` | Executive-summary lines shared by the Markdown and HTML renderers | `executive_summary` |
+| `provenance.py` | Tool version, git commit, input / model / evaluation hashes, threshold overrides; manifests and their verification | `build`, `manifest`, `verify_manifest` |
 | `audit/html_report.py` | Self-contained HTML rendering (KPI tiles, charts, ranked findings) | `render_html` |
 | `ml/anomaly.py` | IsolationForest pipeline with imputation/scaling, explanations, persistence | `KinematicAnomalyModel` |
 | `ml/train.py` | Grouped holdout training, model card, registry entry | `train` |
+| `ml/registry.py` | Model integrity gate: a pickle loads only when its SHA-256 matches the registry | `load_verified`, `verify_model` |
 | `ml/evaluate.py` | Injected-scenario evaluation on real traffic: recall, time-to-detect, per-rule precision | `evaluate`, `SCENARIOS` |
 | `tuning.py` | `aero.toml` threshold overrides applied at CLI start | `apply`, `effective` |
 | `security/threats.py` | Threat catalog and coverage matrix (validated against rules by tests) | `THREATS` |
@@ -59,10 +64,16 @@ findings with response playbooks and a risk posture.
 | `vision/detect.py` | YOLO detection, tiled inference, NMS, annotation | `detect`, `detect_tiled` |
 | `vision/apron.py` | Polygon zones, occupancy, capacity findings | `Zone`, `occupancy` |
 | `synthetic.py` | Deterministic traffic generator with 8 injected anomaly types | `generate` |
-| `web/state.py` | Thread-safe live state: engine, latest batch, trails, events, demo injections, JSON snapshots | `LiveState` |
-| `web/server.py` | Stdlib HTTP server: JSON API + page; live, replay, and METAR source threads | `serve`, `start_live`, `start_replay` |
-| `web/index.html` | Single-page dashboard (Leaflet map, panels, demo controls) | |
-| `cli.py` | `aero` command groups: stream, audit, train, evaluate, corroborate, serve, security, risk, config, data, vision | |
+| `ecosystem.py`, `knowledge/` | Operator, type, phase and nearest-airport enrichment from bundled reference tables | `enrich`, `summarize` |
+| `web/app.py` | The local app: versioned JSON API (`/api/v1`), static front end, jobs, settings, reports, docs | `App`, `run_app` |
+| `web/security.py` | Request guard: Host validation, CSRF token, Origin checks, body cap, CSP and hardening headers, path confinement | `Guard`, `safe_path`, `safe_url` |
+| `web/audit.py` | Hash-chained append-only audit log with verification | `AuditLog`, `verify_file` |
+| `web/sources.py` | Replay and live source threads, engine construction (verified model), METAR and FAA loops | `SourceManager` |
+| `web/state.py` | Thread-safe live state: engine, latest batch, trails, events, enrichment, demo injections, JSON snapshots | `LiveState` |
+| `web/tour.py` | Scripted demo: injections on a timeline with narration | `DemoTour` |
+| `web/jobs.py`, `web/router.py` | Background jobs with logs and persistence; tiny pattern router | `JobManager`, `Router` |
+| `web/static/` | Terminal-style front end (vanilla JS, vendored Leaflet, canvas aircraft layer, audible alerts) | |
+| `cli.py` | `aero` command groups: demo, doctor, app, serve, stream, audit, train, evaluate, corroborate, impact, security, risk, config, data, log, vision, docs-build | |
 
 ## Data flow guarantees
 
@@ -74,6 +85,11 @@ findings with response playbooks and a risk posture.
   scoring policy uses. A more severe finding for the same pair always passes (escalation bypass).
 - **Explainability.** Deterministic rules cite thresholds and controls; ML findings carry the
   top standardized feature deviations.
+- **Traceability.** Every report states which code, input, model, evaluation and thresholds
+  produced it and ships a manifest of file hashes; the app's audit log is a hash chain; models
+  load only when their checksum matches the registry.
+- **Containment.** The app confines every user-supplied path to project directories, refuses
+  cross-site and rebinding requests, and binds to loopback unless a token is configured.
 
 ## Scoring and risk math
 

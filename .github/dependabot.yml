@@ -8,6 +8,9 @@ updates:
     groups:
       python-deps:
         patterns: ["*"]
+    ignore:
+      # pydantic-core is pinned by pydantic itself; regenerate the lock with `make lock` instead
+      - dependency-name: "pydantic-core"
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -16,3 +19,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # the base image tracks the Python line declared in pyproject; bump majors deliberately
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]
