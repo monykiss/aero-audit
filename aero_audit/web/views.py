@@ -1,0 +1,124 @@
+"""Read-only summaries for the Space and UAS pages: what is on disk, how fresh it is, and the
+latest results of each analysis. Everything is derived from files the CLI and jobs write, so the
+pages tell the truth about the evidence rather than recomputing it on every request."""
+
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+from typing import Any
+
+REPORTS = Path("reports")
+
+
+def _load(p: Path) -> dict[str, Any] | None:
+    try:
+        return json.loads(p.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _latest_report(prefix: str) -> tuple[Path | None, dict[str, Any] | None]:
+    files = sorted(REPORTS.glob(f"{prefix}_*.json")) if REPORTS.is_dir() else []
+    files = [f for f in files if not f.name.endswith(".manifest.json")]
+    if not files:
+        return None, None
+    return files[-1], _load(files[-1])
+
+
+def _report_rows(prefix: str, limit: int = 8) -> list[dict[str, Any]]:
+    files = sorted(REPORTS.glob(f"{prefix}_*.json"), key=lambda f: f.stat().st_mtime, reverse=True) if REPORTS.is_dir() else []
+    out = []
+    for f in [x for x in files if not x.name.endswith(".manifest.json")][:limit]:
+        d = _load(f) or {}
+        out.append({"name": f.stem, "mtime": f.stat().st_mtime, "findings": len(d.get("findings", [])), "url": f"/reports/{f.name}"})
+    return out
+
+
+def _findings_of(d: dict[str, Any] | None) -> list[dict[str, Any]]:
+    return [{k: f.get(k) for k in ("rule_id", "severity", "title", "callsign", "ts")} for f in (d or {}).get("findings", [])][:40]
+
+
+def space_summary() -> dict[str, Any]:
+    from ..space import cdm_inbox, launches, orbital, spaceweather
+
+    now = time.time()
+    # elements on disk with ages
+    elements = []
+    if orbital.ELEMENTS_DIR.is_dir():
+        for f in sorted(orbital.ELEMENTS_DIR.glob("*.tle"), key=lambda x: x.stat().st_mtime, reverse=True)[:10]:
+            prov = _load(f.with_suffix(".tle.provenance.json")) or {}
+            elements.append({"file": f.name, "sets": prov.get("sets"), "fetched_at": prov.get("fetched_at"), "age_h": round((now - f.stat().st_mtime) / 3600, 1)})
+    conj_path, conj = _latest_report("conjunctions")
+    cdm_path, cdm = _latest_report("cdm")
+    debris_path, debris = _latest_report("debris")
+    # CDM ledger and events
+    ledger_rows = 0
+    events: list[dict[str, Any]] = []
+    if cdm_inbox.LEDGER.is_file():
+        try:
+            ledger_rows = sum(1 for _ in cdm_inbox.LEDGER.open())
+            events = cdm_inbox.events(cdm_inbox.LEDGER, now=now)[:20]
+        except (OSError, ValueError):
+            pass
+    # space weather (cached product)
+    swx: dict[str, Any] | None = None
+    swp = spaceweather.latest()
+    if swp:
+        payload = _load(swp)
+        if payload:
+            summ, fs = spaceweather.assess(payload, now=now)
+            swx = {"file": swp.name, **summ, "findings_list": [{"rule_id": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
+    # launches (cached)
+    lch: dict[str, Any] | None = None
+    lp = launches.latest()
+    if lp:
+        payload = _load(lp) or {}
+        rows = payload.get("launches", [])
+        lch = {"file": lp.name, "fetched_at": payload.get("fetched_at"), "mode": payload.get("mode"), "count": len(rows),
+               "rows": [{k: r.get(k) for k in ("name", "provider", "status", "net", "window_start", "window_end", "pad", "location")} for r in rows[:15]]}
+    # assets, dataset, classifier
+    cat = _load(Path("data/space/nasa3d_catalog.json")) or {}
+    media = _load(Path("data/space/nasa_media/manifest.json"))
+    dataset = _load(Path("data/space/dataset/manifest.json")) or {}
+    reg = _load(Path("models/registry.json")) or []
+    clf = next((e for e in reversed(reg) if isinstance(e, dict) and "scene_classifier" in str(e.get("model_path", ""))), None) if isinstance(reg, list) else None
+    return {
+        "generated_at": now,
+        "elements": elements,
+        "conjunctions": {"report": conj_path.name if conj_path else None, "mtime": conj_path.stat().st_mtime if conj_path else None,
+                         "approaches": len((conj or {}).get("screen", {}).get("approaches", [])), "pairs": (conj or {}).get("screen", {}).get("pairs"),
+                         "findings": _findings_of(conj)},
+        "cdm": {"report": cdm_path.name if cdm_path else None, "assessment": (cdm or {}).get("assessment") or (cdm or {}).get("summary"), "findings": _findings_of(cdm),
+                "ledger_rows": ledger_rows, "events": events},
+        "debris": {"report": debris_path.name if debris_path else None, "summary": (debris or {}).get("summary"), "findings": _findings_of(debris)},
+        "space_weather": swx,
+        "launches": lch,
+        "assets": {"nasa3d_files": len(cat.get("files", [])) if isinstance(cat.get("files"), list) else cat.get("count"), "nasa3d_subjects": cat.get("subjects") if not isinstance(cat.get("subjects"), list) else len(cat["subjects"]),
+                   "media_items": len(media) if isinstance(media, list) else (len(media.get("items", [])) if isinstance(media, dict) else 0),
+                   "dataset_items": len(dataset.get("items", [])), "dataset_classes": dataset.get("counts"),
+                   "classifier": None if not clf else {k: clf.get(k) for k in ("trained_at", "sha256", "rows")} | {"accuracy": (clf.get("evaluation") or {}).get("accuracy")}},
+        "reports": {k: _report_rows(k) for k in ("conjunctions", "cdm", "debris", "space_weather", "launches")},
+    }
+
+
+def uas_summary() -> dict[str, Any]:
+    wc_path, wc = _latest_report("wellclear")
+    risk_path, risk = _latest_report("uas_risk")
+    utm_path, utm = _latest_report("utm_check")
+    s = (wc or {}).get("summary", {})
+    return {
+        "generated_at": time.time(),
+        "wellclear": {"report": wc_path.name if wc_path else None, "mtime": wc_path.stat().st_mtime if wc_path else None,
+                      "kpis": {k: s.get(k) for k in ("aircraft_airborne", "flight_hours", "encounter_pairs", "violations", "violations_per_flight_hour", "nmac_proximate", "pairs_with_alert", "median_lead_time_s")},
+                      "pairs": (s.get("pairs") or [])[:30], "findings": _findings_of(wc)},
+        "risk": {"report": risk_path.name if risk_path else None, "summary": (risk or {}).get("summary"), "findings": _findings_of(risk)},
+        "utm": {"report": utm_path.name if utm_path else None, "summary": (utm or {}).get("summary"), "findings": _findings_of(utm)},
+        "definitions": {"well_clear": "DO-365 Phase 1: DTHR 4000 ft, ZTHR 450 ft, TTHR 35 s", "nmac": "500 ft horizontal / 100 ft vertical",
+                        "alert_levels": "preventive (700 ft, 55 s) · corrective (450 ft, 55 s) · warning (450 ft, 25 s)", "risk_ratio": "observed bound; programme limit 0.2"},
+        "reports": {k: _report_rows(k) for k in ("wellclear", "uas_risk", "utm_check")},
+    }
+
+
+__all__ = ["space_summary", "uas_summary"]

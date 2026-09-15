@@ -119,6 +119,28 @@ checksum gate as the anomaly model. It labels scenes (launch, orbit, station, su
 a detector. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
 when that extra is installed.
 
+## Space weather, launch windows, scheduled intake (cross-domain)
+
+```bash
+aero space weather                                   # NOAA scales + Kp (keyless) -> ICAO advisory conditions, SWX-001..004
+aero space weather --recording <rec> --lat-min 60    # plus the flights exposed poleward of 60° (SWX-005)
+aero space launches --recording <rec>                # Launch Library 2 windows joined to traffic near the pad, LCH-001..003
+aero space watch --schedule cdm_inbox=600,space_weather=900,launches=3600   # headless scheduled intake
+AERO_SCHEDULE=cdm_inbox=600,space_weather=900 aero app                      # the same inside the web app
+aero accounts                                        # which services are configured; values never printed
+```
+
+`space/spaceweather.py` maps NOAA's R / S / G levels onto the two ICAO Annex 3 advisory levels
+per effect (the mapping is in the module and in every report); G and S conditions also list the
+high-latitude aircraft in a recording, because the same storm degrades ADS-B integrity fields,
+HF on polar routes and drag on LEO objects. `space/launches.py` reduces Launch Library 2 records
+to windows and pads and counts aircraft inside a hazard radius during each window that overlaps a
+recording, with the traffic outside the window as the displacement baseline; the NOTAM geometry
+stays authoritative. `web/schedule.py` runs any registered job on an interval as an ordinary,
+audited job (network jobs are skipped under `AERO_OFFLINE=1`), and `web/space_jobs.py` is the one
+registry the app, the scheduler and `aero space watch` share. The SPACE page in the app shows all
+of it with buttons that submit the same jobs.
+
 ## Honest limits
 
 - The COCO detector has no "rocket" class. Frame detection stays a placeholder until the ultralytics
@@ -126,6 +148,8 @@ when that extra is installed.
   segmentation, not detection.
 - Debris lifetimes are estimates from a simple decay model, not certified analyses; Space-Track
   summaries carry the originator's Pc only.
+- The ICAO mapping of NOAA scales is a programme choice; the advisory centres apply the normative
+  thresholds. The launch hazard radius is a default, not the published TFR.
 - Telemetry must be supplied as CSV. Reading the numbers off a webcast overlay (OCR) is not
   implemented; when it is, it stays optional (tesseract) and its output is audited by the same rules.
 - The GitHub tree API is rate-limited to 60 calls an hour anonymously; set `GITHUB_TOKEN` for more.

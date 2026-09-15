@@ -782,6 +782,19 @@ def demo(
 
 
 @app.command()
+def accounts() -> None:
+    """External services: what each unlocks, its keyless fallback, where to sign up, and whether it is configured (values never printed)."""
+    from .integrations import status
+
+    t = Table("service", "configured", "env", "unlocks", "without it", "sign up")
+    for i in status():
+        conf = "[green]yes" if i["configured"] and i["required"] else ("[cyan]keyless" if not i["required"] else "[yellow]no")
+        t.add_row(i["name"], conf, " ".join(i["env"] + i["optional_env"]), i["unlocks"][:70], i["keyless"][:50], i["signup"][:60])
+    con.print(t)
+    con.print("Set variables in a git-ignored .env (see docs/ACCOUNTS.md); never on the command line.")
+
+
+@app.command()
 def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the public feeds")) -> None:
     """Check this machine: Python, dependencies, samples, model integrity, ports, feeds, audit chain."""
     import importlib
@@ -836,6 +849,10 @@ def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the publ
     ok("thresholds", f"{n_over} override(s) in {tuning.DEFAULT_PATH}" if n_over else "defaults (no aero.toml)")
     creds = bool(os.getenv("OPENSKY_CLIENT_ID")) and bool(os.getenv("OPENSKY_CLIENT_SECRET"))
     ok("secrets", "OpenSky credentials present in the environment (values never printed)" if creds else "no OpenSky credentials (anonymous quota applies); .env is git-ignored")
+    from .integrations import INTEGRATIONS, missing
+
+    miss = missing()
+    (warn if miss else ok)("integrations", f"{len(INTEGRATIONS) - len(miss)}/{len(INTEGRATIONS)} configured or keyless; missing: {', '.join(miss)} (see `aero accounts`)" if miss else "every integration configured or keyless")
     for d in ("data/recordings", "data/app", "reports", "logs", "models"):
         try:
             Path(d).mkdir(parents=True, exist_ok=True)
@@ -1238,6 +1255,85 @@ def space_classify(paths: list[Path] = typer.Argument(..., help="Images, or one 
         con.print(f"  {r['label']:<10} {r['proba']:.2f}  {r['path']}")
 
 
+@space_app.command("weather")
+def space_weather_cmd(file: Path | None = typer.Option(None, help="Cached or sample SWPC product instead of fetching (e.g. data/samples/swpc_scales_sample.json)"),
+                      recording: Path | None = typer.Option(None, help="Recording whose high-latitude traffic to list as exposed"),
+                      lat_min: float = typer.Option(60.0, help="Poleward of this latitude counts as exposed"), out: Path = typer.Option(Path("reports"))) -> None:
+    """NOAA SWPC scales and Kp (keyless) mapped to ICAO advisory conditions (SWX-001..004); optionally the flights exposed (SWX-005)."""
+    from .space import spaceweather
+
+    path = file or asyncio.run(spaceweather.fetch())
+    summary, fs = spaceweather.assess(json.loads(Path(path).read_text()))
+    if recording:
+        exp, fs2 = spaceweather.exposed_flights(recording, summary["icao_advisory_conditions"], lat_min)
+        summary["exposed"] = exp
+        fs += fs2
+    con.print(f"product {summary['product_time']}: R{summary['scales_now']['R']} S{summary['scales_now']['S']} G{summary['scales_now']['G']} · Kp {summary['kp']} · "
+              f"ICAO conditions {summary['icao_advisory_conditions']}" + (f" · exposed aircraft {summary['exposed']['aircraft']}" if recording else ""))
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"space_weather_{_stamp()}.json"
+    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("launches")
+def space_launches_cmd(mode: str = typer.Option("upcoming", help="upcoming | previous"), limit: int = typer.Option(20),
+                       file: Path | None = typer.Option(None, help="Cached or sample launch file instead of fetching (e.g. data/samples/ll2_launches_sample.json)"),
+                       recording: Path | None = typer.Option(None, help="Recording to join: aircraft inside the hazard radius during each window"),
+                       hazard_nm: float = typer.Option(50.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """Launch windows and pads from Launch Library 2 (keyless, 15/h); joined to a recording they give LCH-001..003."""
+    from .space import launches
+
+    path = file or asyncio.run(launches.fetch(mode, limit))
+    payload = json.loads(Path(path).read_text())
+    rows = payload.get("launches", [])
+    t = Table("launch", "provider", "status", "window start", "pad", "location")
+    for r in rows[:20]:
+        t.add_row((r.get("name") or "")[:40], (r.get("provider") or "")[:20], str(r.get("status")), str(r.get("window_start")), str(r.get("pad"))[:22], str(r.get("location"))[:30])
+    con.print(t)
+    if recording:
+        summary, fs = launches.join_traffic(payload, recording, hazard_nm)
+        con.print(f"{summary['overlapping']} window(s) overlap the recording; findings {len(fs)}")
+        for f in fs:
+            con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+        out.mkdir(parents=True, exist_ok=True)
+        jp = out / f"launches_{_stamp()}.json"
+        jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+        con.print(f"Report: {jp}")
+
+
+@space_app.command("watch")
+def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,launches=3600", help="job=seconds,... (jobs: cdm_inbox spacetrack_pull conjunctions space_weather launches catalog_build)"),
+                offline: bool = typer.Option(False, help="Skip network jobs"), once: bool = typer.Option(False, help="Run every job once and exit")) -> None:
+    """Headless scheduled intake without the web app: the same job registry, the same reports, one log line per run."""
+    import time as _time
+
+    from .web.jobs import JobManager
+    from .web.schedule import Scheduler, parse_schedule
+    from .web.space_jobs import REGISTRY
+
+    jm = JobManager(REGISTRY, persist=Path("data/app/jobs.json"))
+    sched = Scheduler(lambda t, p: jm.submit(t, p), set(REGISTRY), parse_schedule(schedule), offline=offline)
+    if sched.unknown:
+        raise typer.BadParameter(f"unknown job(s): {', '.join(sched.unknown)}")
+    con.print(f"watching: {sched.schedule} (offline={offline}); Ctrl-C to stop")
+    try:
+        while True:
+            for name in sched.tick(_time.time() + (1e9 if once else 0.0)):
+                con.print(f"{_stamp()} submitted {name}")
+            if once:
+                while any(j.status in ("queued", "running") for j in jm.jobs.values()):
+                    _time.sleep(0.5)
+                for j in jm.jobs.values():
+                    con.print(f"  {j.type}: {j.status} {j.error or json.dumps(j.result, default=str)[:160]}")
+                break
+            _time.sleep(5)
+    except KeyboardInterrupt:
+        con.print("stopped")
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
@@ -1360,6 +1456,9 @@ def gov_run_study(
     geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
     tle: Path | None = typer.Option(None, help="TLE file for ST-06"),
     cdm_path: Path | None = typer.Option(None, "--cdm", help="CDM file for ST-12"),
+    mission: Path | None = typer.Option(None, help="Mission JSON for ST-13"),
+    scales: Path | None = typer.Option(None, help="SWPC product file for ST-17 (default: the bundled sample)"),
+    launches: Path | None = typer.Option(None, help="Launch file for ST-18 (default: the bundled sample)"),
     out: Path = typer.Option(Path("reports/studies")),
 ) -> None:
     """Run a study with provenance; results in reports/studies/."""
@@ -1378,6 +1477,12 @@ def gov_run_study(
         params["tle"] = tle
     if cdm_path:
         params["cdm"] = cdm_path
+    if mission:
+        params["mission"] = mission
+    if scales:
+        params["scales"] = scales
+    if launches:
+        params["launches"] = launches
     try:
         rec = run_study(study_id.upper(), out, **params)
     except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:
@@ -1467,6 +1572,27 @@ def uas_wellclear(recording: Path = typer.Argument(..., help="Recording (.jsonl 
     con.print(t)
     out.mkdir(parents=True, exist_ok=True)
     jp = out / f"wellclear_{recording.stem.split('.')[0]}_{_stamp()}.json"
+    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("risk")
+def uas_risk_cmd(recording: Path = typer.Argument(..., help="Recording (.jsonl / .jsonl.gz)"), max_batches: int | None = typer.Option(None), out: Path = typer.Option(Path("reports"))) -> None:
+    """Airspace density classes per altitude band and the observed DAA risk ratio (DAA-003/004)."""
+    from .uas import risk
+
+    summary, fs = risk.assess(recording, max_batches=max_batches)
+    rr = summary["risk_ratio"]
+    con.print(f"{summary['flight_hours']} flight hours; encounters {rr['encounters']}, NMAC-proximate {rr['nmac_proximate']}, unresolvable {rr['unresolvable']}; risk ratio {rr['risk_ratio']} (limit {rr['limit']})")
+    t = Table("band ft", "aircraft-hours", "cells", "sparse", "moderate", "dense", "very dense")
+    for band, v in summary["density"]["bands"].items():
+        c = v["classes"]
+        t.add_row(band, str(v["aircraft_hours"]), str(v["cells"]), str(c.get("sparse", 0)), str(c.get("moderate", 0)), str(c.get("dense", 0)), str(c.get("very-dense", 0)))
+    con.print(t)
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"uas_risk_{recording.stem.split('.')[0]}_{_stamp()}.json"
     jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
     con.print(f"Report: {jp}")
 

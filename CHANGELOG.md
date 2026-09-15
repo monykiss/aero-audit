@@ -15,6 +15,12 @@ All notable changes to aero-audit. Dates are UTC.
   runnable), posture index, NPR 7150.2 assurance classification with a SLIM checklist, CMR-style data catalogue with
   reconciliation; `aero gov`, `aero uas`, `aero space`, `aero data catalog`; GOV page; docs/HOLISTIC_PLAN.md.
 - Upstream package for nasa/NASA-3D-Resources (standalone script and PR text).
+- Cross-domain feeds: NOAA space weather mapped to ICAO advisory effects with exposed high-latitude traffic (SWX-001..005);
+  Launch Library 2 windows joined to traffic near the pad (LCH-001..003); airspace density classes and the observed DAA
+  risk ratio (DAA-003/004); `space-environment` domain; C-38..C-41; ST-16..ST-18.
+- App: SPACE and UAS pages with job buttons; `/api/v1/space`, `/api/v1/uas`, `/api/v1/integrations`, `/api/v1/schedule`;
+  scheduled intake (`AERO_SCHEDULE`, `AERO_OFFLINE`) sharing one job registry with `aero space watch`; `aero accounts`
+  and docs/ACCOUNTS.md; report kinds for every space and UAS report.
 
 ## 0.6.0 - 2026-09-15 - contract, evidence, release engineering
 

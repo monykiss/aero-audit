@@ -67,7 +67,7 @@ response carries `X-Request-Id`; an incoming id or `traceparent` is honoured. Se
 
 ## Terminal chrome
 
-- **Command line** (top left, or press `/`): mnemonics `HOME LIVE FLT AIRP OPS FIND RISK RPT DATA LOG SET HELP`, plus
+- **Command line** (top left, or press `/`): mnemonics `HOME LIVE FLT AIRP OPS FIND RISK RPT DATA LOG GOV SPACE UAS OBS SET HELP`, plus
   `STOP`, `USA` (start the nationwide live feed), `TOUR` (scripted demo) and `SND` (audible alerts). Arguments narrow the view: `FLT AAL`, `FLT B738`,
   `AIRP JFK`, `FIND SEC-010`, `FIND HIGH`, `OPS cargo`, `LOG inject`.
 - **Function keys** F1 to F8 jump to Help, Live, Flights, Airports, Operators, Findings, Risk, Audit log.

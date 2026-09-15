@@ -210,6 +210,38 @@ def _classifier_eval(manifest: str | Path = "data/space/dataset/manifest.json", 
     return {k: stats[k] for k in ("manifest", "classes", "counts", "n_train", "n_val", "accuracy", "per_class", "sha256")}
 
 
+def _risk_classes(recording: str | Path, max_batches: int | None = None, **_: Any) -> dict[str, Any]:
+    from ..uas import risk
+
+    summary, fs = risk.assess(recording, max_batches=max_batches)
+    return {"risk_ratio": summary["risk_ratio"], "bands": summary["density"]["bands"], "flight_hours": summary["flight_hours"], "findings": [f.rule_id for f in fs]}
+
+
+def _space_weather(scales: str | Path = "data/samples/swpc_scales_sample.json", recording: str | Path | None = None, lat_min: float = 60.0, **_: Any) -> dict[str, Any]:
+    import json as _json
+
+    from ..space import spaceweather
+
+    payload = _json.loads(Path(scales).read_text())
+    summary, fs = spaceweather.assess(payload)
+    out = {k: summary[k] for k in ("product_time", "scales_now", "scales_24h", "kp", "icao_advisory_conditions", "age_s")}
+    if recording:
+        exp, fs2 = spaceweather.exposed_flights(recording, summary["icao_advisory_conditions"], lat_min)
+        out["exposed_aircraft"] = exp["aircraft"]
+        fs += fs2
+    out["findings"] = [f.rule_id for f in fs]
+    return out
+
+
+def _launch_join(recording: str | Path, launches: str | Path = "data/samples/ll2_launches_sample.json", hazard_nm: float = 50.0, **_: Any) -> dict[str, Any]:
+    import json as _json
+
+    from ..space import launches as ll
+
+    summary, fs = ll.join_traffic(_json.loads(Path(launches).read_text()), recording, hazard_nm)
+    return {"launches": summary["launches"], "overlapping": summary["overlapping"], "rows": summary["rows"], "findings": [f.rule_id for f in fs]}
+
+
 def _catalog_reconcile(**_: Any) -> dict[str, Any]:
     from .catalog import build_catalog, load_catalog, reconcile, save_catalog
 
@@ -223,7 +255,7 @@ def _catalog_reconcile(**_: Any) -> dict[str, Any]:
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
     "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
     "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
-    "cdm_assessment": _cdm_assessment,
+    "cdm_assessment": _cdm_assessment, "risk_classes": _risk_classes, "space_weather": _space_weather, "launch_join": _launch_join,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
@@ -253,7 +285,7 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
           "uas-utm", "Pairwise encounters from surveillance tracks scored with the DO-365 / DAIDALUS well-clear definitions and alert levels.",
           ("recording",), ("violations per flight hour", "NMAC-proximate pairs", "median alert lead time"), "runnable", "wellclear", ("nasa/daidalus", "nasa/WellClear")),
     Study("ST-08", "Encounter and NMAC-proximate rates", "How many encounters, and how many within NMAC distances, per flight hour?",
-          "uas-utm", "Encounter extraction on recorded tracks; NMAC-proximate = 500 ft / 100 ft. Risk classes (ASTM F3442 lineage) are the next step.",
+          "uas-utm", "Encounter extraction on recorded tracks; NMAC-proximate = 500 ft / 100 ft (risk classes and the risk ratio: ST-16).",
           ("recording",), ("encounters per flight hour", "NMAC-proximate per flight hour"), "runnable", "encounter_rates", ("mit-ll/air-risk-class", "mit-ll/em-core")),
     Study("ST-09", "UTM API conformance", "Do exchanges match the NASA UTM OpenAPI contracts?",
           "uas-utm", "Schema validation of captured exchanges against an OpenAPI document (nasa/utm-apis, or this app's own).", ("OpenAPI document", "captured exchange"),
@@ -264,6 +296,16 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-14", "Scene classifier evaluation", "How well does the scene classifier separate launch, orbit, station and surface imagery on held-out data?",
           "space-assets", "Train on the manifest's train split, evaluate on the validation split; per-class precision and recall.", ("dataset manifest",),
           ("accuracy", "per-class precision/recall"), "runnable", "classifier_eval"),
+    Study("ST-16", "Airspace density classes and DAA risk ratio", "How dense is the low-altitude airspace, and what bound does observation put on the DAA risk ratio?",
+          "uas-utm", "Aircraft-hours per 0.2° cell and altitude band normalised to area and time (density classes, MIT-LL air-risk-class lineage); risk ratio bounded by "
+          "NMAC-proximate encounters whose alert lead was below the warning time (ASTM F3442 lineage). Programme thresholds, stated in the report.",
+          ("recording",), ("cells per class per band", "observed risk ratio"), "runnable", "risk_classes", ("mit-ll/air-risk-class", "ASTM F3442")),
+    Study("ST-17", "Space weather exposure of observed traffic", "Which ICAO advisory conditions hold, and which observed flights are exposed?",
+          "space-environment", "NOAA scales and Kp mapped to ICAO moderate / severe conditions per effect; aircraft poleward of 60° during G/S conditions listed.",
+          ("SWPC product (sample bundled)", "recording (optional)"), ("conditions per effect", "exposed aircraft"), "runnable", "space_weather", ("NOAA SWPC",)),
+    Study("ST-18", "Traffic near launch pads during windows", "Did aircraft stay out of the hazard radius during each launch window that overlaps the recording?",
+          "space-launch", "Launch windows and pad coordinates joined to recorded positions; aircraft inside the radius during the window versus outside it.",
+          ("launch file (sample bundled)", "recording"), ("aircraft inside during window", "baseline outside window"), "runnable", "launch_join", ("TheSpaceDevs/Launch Library 2",)),
     Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
           "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
           ("nasa/Common-Metadata-Repository", "nasa/cumulus")),

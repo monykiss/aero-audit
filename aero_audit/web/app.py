@@ -30,6 +30,7 @@ from ..knowledge import AIRPORTS
 from ..risk import assess
 from ..security.playbooks import PLAYBOOKS, playbook_for
 from ..security.threats import coverage_matrix, load_evaluation
+from . import space_jobs
 from .audit import AuditLog
 from .jobs import Job, JobManager
 from .router import Router
@@ -77,6 +78,10 @@ class App:
         self.started = time.time()
         self._inventory: dict[str, dict[str, Any]] = {}
         self._load_inventory_cache()
+        from .schedule import Scheduler
+
+        self.scheduler = Scheduler(lambda t, params: self.jobs.submit(t, params), set(self._job_types()), offline=os.getenv("AERO_OFFLINE") == "1")
+        self.scheduler.start()
 
     # ---- observability ----------------------------------------------------------------------
     def readiness(self) -> tuple[bool, dict[str, Any]]:
@@ -174,6 +179,7 @@ class App:
             "capture": self._job_capture, "audit_session": self._job_audit_session, "audit_recording": self._job_audit_recording,
             "train": self._job_train, "evaluate": self._job_evaluate, "prune": self._job_prune, "docs_build": self._job_docs,
             "corroborate": self._job_corroborate,
+            **space_jobs.REGISTRY,
         }
 
     def _job_capture(self, job: Job, p: dict[str, Any]) -> dict[str, Any]:
@@ -405,7 +411,9 @@ class App:
             g = groups.setdefault(stem, {"name": stem, "mtime": f.stat().st_mtime, "files": {}})
             g["files"][kind] = f"/reports/{f.name}"
             g["mtime"] = max(g["mtime"], f.stat().st_mtime)
-        kinds = {"evaluation": "evaluation", "risk_assessment": "risk", "corroborate": "corroboration", "session": "session audit"}
+        kinds = {"evaluation": "evaluation", "risk_assessment": "risk", "corroborate": "corroboration", "session": "session audit", "conjunctions": "space: conjunctions",
+                 "cdm": "space: CDM", "debris": "space: debris", "space_weather": "space: weather", "launches": "space: launches", "wellclear": "uas: well-clear",
+                 "uas_risk": "uas: risk classes", "utm_check": "uas: UTM contract", "bench": "bench"}
         for g in groups.values():
             g["kind"] = next((v for k, v in kinds.items() if g["name"].startswith(k)), "audit")
         return sorted(groups.values(), key=lambda g: g["mtime"], reverse=True)
@@ -765,6 +773,32 @@ def r_governance(app: App, req: Any) -> Any:
     return posture(st.engine.summary() if st else None)
 
 
+@router.route("GET", "/api/v1/space")
+def r_space(app: App, req: Any) -> Any:
+    from .views import space_summary
+
+    return space_summary()
+
+
+@router.route("GET", "/api/v1/uas")
+def r_uas(app: App, req: Any) -> Any:
+    from .views import uas_summary
+
+    return uas_summary()
+
+
+@router.route("GET", "/api/v1/integrations")
+def r_integrations(app: App, req: Any) -> Any:
+    from ..integrations import missing, status
+
+    return {"items": status(), "missing": missing(), "note": "values are never returned; configure through the environment"}
+
+
+@router.route("GET", "/api/v1/schedule")
+def r_schedule(app: App, req: Any) -> Any:
+    return app.scheduler.status() | {"job_types": sorted(app.jobs.registry)}
+
+
 @router.route("GET", "/api/v1/openapi.json")
 def r_openapi(app: App, req: Any) -> Any:
     from .openapi import build_spec
@@ -977,6 +1011,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
 def shutdown(app: App, httpd: ThreadingHTTPServer, reason: str = "signal") -> None:
     """Orderly stop: sources and tour first, then the audit entry and log line, then the listener."""
     app.tour.stop()
+    app.scheduler.stop()
     app.sources.stop()
     app.audit.record("app.stop", actor="system", reason=reason)
     obs.log_event("app.stop", reason=reason)

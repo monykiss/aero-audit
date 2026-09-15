@@ -37,6 +37,23 @@ Limits that matter: surveillance updates every 10 to 60 s, so lead times are coa
 encounters are seen at only a few samples; round-robin recordings only pair aircraft inside one
 region per batch; the metrics describe what the feed saw, not what the aircraft's own DAA saw.
 
+## Airspace density classes and the DAA risk ratio
+
+```bash
+aero uas risk <recording>          # density class per 0.2° cell and altitude band; observed DAA risk ratio (DAA-003/004)
+aero gov run-study ST-16 --recording <recording>
+```
+
+Density is aircraft-hours per cell per band, normalised to the cell area and the recording span,
+classed sparse / moderate / dense / very dense at programme thresholds (0.05, 0.5, 5 aircraft-hours
+per 100 nm² per hour, the MIT-LL air-risk-class idea of density-driven classes). The risk ratio
+follows the ASTM F3442 lineage, bounded from observation: NMAC-proximate encounters whose alert
+lead time was below the warning time, over all NMAC-proximate encounters. A value of 1.0 on a
+surveillance feed with 10 to 60 s revisits is expected and is the point: at that rate the alerting
+horizon is shorter than the update interval, which a DAA case must address with better
+surveillance, not with a lower threshold. The UAS page in the app shows the bands, the pairs and
+the ratio with buttons that run both analyses on any recording.
+
 ## UTM contract checks
 
 ```bash

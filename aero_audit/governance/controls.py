@@ -21,7 +21,8 @@ PILLARS = ("compliance", "risk", "study", "governance")
 STATUSES = ("implemented", "partial", "planned")
 STATUS_EFFECTIVENESS = {"implemented": 0.6, "partial": 0.35, "planned": 0.0}  # same scale as threat coverage
 SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005", "ORB-001", "ORB-002", "ORB-003", "ORB-004", "ORB-005",
-               "DEB-001", "DEB-002", "DEB-003", "DEB-004", "DEB-005", "DEB-006", "DEB-007", "DEB-008", "DAA-001", "DAA-002")
+               "DEB-001", "DEB-002", "DEB-003", "DEB-004", "DEB-005", "DEB-006", "DEB-007", "DEB-008", "DAA-001", "DAA-002", "DAA-003", "DAA-004",
+               "SWX-001", "SWX-002", "SWX-003", "SWX-004", "SWX-005", "LCH-001", "LCH-002", "LCH-003")
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,8 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             notes="Checklist with a simple decay-model lifetime estimate; not a certified orbital-lifetime analysis."),
     Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations, NMAC-proximate encounters and alert lead time from the DO-365 / DAIDALUS definitions on recorded tracks.",
             "compliance", ("uas-utm", "air-surveillance"), ("ASTM-F3442", "RTCA-DO365"), "partial",
-            ("module:aero_audit/uas/wellclear.py", "module:aero_audit/uas/encounters.py", "rule:DAA-001", "rule:DAA-002", "test:tests/test_uas.py", "command:aero uas wellclear", "study:ST-07"),
+            ("module:aero_audit/uas/wellclear.py", "module:aero_audit/uas/encounters.py", "module:aero_audit/uas/risk.py", "rule:DAA-001", "rule:DAA-002", "rule:DAA-003", "rule:DAA-004",
+             "test:tests/test_uas.py", "test:tests/test_feeds_risk.py", "command:aero uas wellclear", "command:aero uas risk", "study:ST-07", "study:ST-16"),
             notes="Definitions re-implemented from DAIDALUS/DO-365 for offline metrics at surveillance update rates; not a DAA system."),
     Control("C-12", "UTM API conformance", "Validate captured exchanges against OpenAPI contracts (NASA utm-apis, and this app's own document).",
             "compliance", ("uas-utm",), ("ASTM-F3411",), "partial", ("module:aero_audit/uas/utm.py", "test:tests/test_uas.py", "command:aero uas utm-check", "study:ST-09")),
@@ -170,6 +172,20 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             "study", ("space-assets", "space-launch"), ("NIST-AI-RMF", "NASA-MEDIA"), "partial",
             ("module:aero_audit/space/dataset.py", "module:aero_audit/space/classifier.py", "test:tests/test_dataset_classifier.py", "command:aero space classify-train", "study:ST-14"),
             notes="Colour and gradient features with logistic regression; object detection needs the ultralytics fine-tune in scripts/train_detector.py."),
+    Control("C-38", "Space weather watch", "NOAA scales and Kp fetched keyless, mapped to ICAO advisory conditions (GNSS, HF, radiation), stale products flagged, exposed high-latitude traffic listed.",
+            "compliance", ("space-environment", "air-operations", "space-orbital"), ("ICAO-A3", "NOAA-SCALES"), "implemented",
+            ("module:aero_audit/space/spaceweather.py", "rule:SWX-001", "rule:SWX-002", "rule:SWX-003", "rule:SWX-004", "rule:SWX-005", "test:tests/test_feeds_risk.py",
+             "command:aero space weather", "study:ST-17"), cadence_days=30),
+    Control("C-39", "Launch-window airspace", "Launch windows and pads joined to observed traffic: aircraft inside the hazard radius during the window, stale launch records, coverage gaps.",
+            "risk", ("space-launch", "air-operations"), ("CFR14-91.143",), "implemented",
+            ("module:aero_audit/space/launches.py", "rule:LCH-001", "rule:LCH-002", "rule:LCH-003", "test:tests/test_feeds_risk.py", "command:aero space launches", "study:ST-18"),
+            notes="Hazard radius is a programme default (50 nm); the NOTAM/TFR geometry is authoritative."),
+    Control("C-40", "Scheduled intake", "CDM inbox, space weather, launch windows, conjunction screens and catalogue builds run on an interval as ordinary jobs, audited and counted; network jobs skipped offline.",
+            "governance", ("space-orbital", "space-environment", "space-launch"), ("NASA-SLIM", "NIST-CSF-2"), "implemented",
+            ("module:aero_audit/web/schedule.py", "module:aero_audit/web/space_jobs.py", "test:tests/test_feeds_risk.py", "command:aero space watch"), cadence_days=30),
+    Control("C-41", "Integration inventory", "Every external service listed with what it unlocks, its keyless fallback and whether its credentials are present; values never printed; credentials only from the environment.",
+            "governance", ("air-surveillance", "space-assets", "space-orbital", "space-environment", "space-launch"), ("NIST-SP800-53", "ISO-27001"), "implemented",
+            ("module:aero_audit/integrations.py", "test:tests/test_feeds_risk.py", "command:aero accounts", "doc:docs/ACCOUNTS.md")),
 )}
 
 

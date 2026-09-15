@@ -71,15 +71,15 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
     ),
     Domain(
         "space-launch", "Space: launch and ascent",
-        "Launch telemetry plausibility (SPC rules), footage frames with hashed manifests, caption milestone "
-        "timelines. Inputs are supplied files; no live telemetry source yet.",
-        "scaffold",
-        ("telemetry CSV (t, speed, altitude)", "local footage", "NASA library captions (.srt)"),
-        ("SPC",),
-        ("CCSDS-133", "CFR14-450", "NASA-NPR-8715.3", "NIST-SP800-53"),
-        ("aero_audit/space/telemetry.py", "aero_audit/space/footage.py"),
-        ("SPC findings per flight", "telemetry dropout seconds", "milestone timing vs published profile"),
-        ("nasa/openmct", "nasa/hermes", "NASA-AMMOS/AIT-Core", "nasa/cFS (HS app)"),
+        "Launch windows and pads (Launch Library 2, keyless) joined to observed air traffic (LCH rules); launch telemetry "
+        "plausibility (SPC rules) on supplied files; footage frames with hashed manifests; caption milestone timelines.",
+        "active",
+        ("Launch Library 2 upcoming/previous (keyless, 15/h)", "telemetry CSV (t, speed, altitude)", "local footage", "NASA library captions (.srt)"),
+        ("SPC", "LCH"),
+        ("CCSDS-133", "CFR14-450", "CFR14-91.143", "NASA-NPR-8715.3", "NIST-SP800-53"),
+        ("aero_audit/space/launches.py", "aero_audit/space/telemetry.py", "aero_audit/space/footage.py"),
+        ("aircraft inside the hazard radius during a window", "SPC findings per flight", "telemetry dropout seconds", "milestone timing vs published profile"),
+        ("TheSpaceDevs/Launch Library 2", "nasa/openmct", "nasa/hermes", "NASA-AMMOS/AIT-Core", "nasa/cFS (HS app)"),
     ),
     Domain(
         "space-orbital", "Space: orbital operations and conjunction",
@@ -108,14 +108,27 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
     Domain(
         "uas-utm", "Air: UAS integration, detect-and-avoid, UTM",
         "Well-clear violations, alert levels and NMAC-proximate rates from the DAIDALUS / DO-365 definitions on recorded tracks; "
-        "OpenAPI contract checks for UTM exchanges. Encounter-model risk classes are next.",
-        "scaffold",
-        ("surveillance recordings (ADS-B)", "UTM operator/USS APIs (OpenAPI)", "encounter models (planned)"),
+        "airspace density classes per altitude band and an observed bound on the DAA risk ratio; OpenAPI contract checks for UTM exchanges.",
+        "active",
+        ("surveillance recordings (ADS-B, live or replayed)", "UTM operator/USS APIs (OpenAPI)"),
         ("DAA",),
         ("ASTM-F3442", "RTCA-DO365", "ASTM-F3411", "ICAO-A2"),
-        ("aero_audit/uas/wellclear.py", "aero_audit/uas/encounters.py", "aero_audit/uas/utm.py"),
-        ("well-clear violation rate per flight hour", "alert lead time", "API conformance failures"),
+        ("aero_audit/uas/wellclear.py", "aero_audit/uas/encounters.py", "aero_audit/uas/risk.py", "aero_audit/uas/utm.py"),
+        ("well-clear violation rate per flight hour", "alert lead time", "density class per band", "observed DAA risk ratio", "API conformance failures"),
         ("nasa/daidalus", "nasa/WellClear", "nasa/icarous", "nasa/utm-apis", "mit-ll/em-core", "mit-ll/air-risk-class"),
+    ),
+    Domain(
+        "space-environment", "Space: environment and space weather",
+        "NOAA scales and Kp (keyless) mapped to the ICAO advisory effects (GNSS, HF, radiation); stale products flagged; the high-latitude "
+        "traffic exposed during an event listed from the recordings. Cross-domain by construction: the same event degrades ADS-B integrity "
+        "fields, HF on polar routes and drag on LEO objects.",
+        "active",
+        ("NOAA SWPC noaa-scales.json and planetary_k_index_1m.json (keyless)", "surveillance recordings for exposure"),
+        ("SWX",),
+        ("ICAO-A3", "NOAA-SCALES", "ICAO-A6"),
+        ("aero_audit/space/spaceweather.py",),
+        ("ICAO advisory conditions now and past 24 h", "Kp", "aircraft exposed poleward of 60°", "product age"),
+        ("NOAA SWPC services", "nasa/DONKI (api.nasa.gov, optional key)"),
     ),
 )}
 

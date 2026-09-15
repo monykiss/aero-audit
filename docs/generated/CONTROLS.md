@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **82%** over 37 controls; 32 of 33 standards have at least one implemented or partial control.
+Implementation index: **84%** over 41 controls; 35 of 36 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -16,10 +16,11 @@ Implementation index: **82%** over 37 controls; 32 of 33 standards have at least
 | C-08 | Launch telemetry plausibility | partial | space-launch | CCSDS-133, CFR14-450 | rule:SPC-001; rule:SPC-002; rule:SPC-003; rule:SPC-004; rule:SPC-005; test:tests/test_space.py; command:aero space telemetry-audit |
 | C-09 | Conjunction screening | partial | space-orbital | CCSDS-508, CCSDS-502 | module:aero_audit/space/orbital.py; module:aero_audit/space/cdm.py; rule:ORB-001; rule:ORB-002; rule:ORB-003; rule:ORB-004; rule:ORB-005; test:tests/test_orbital.py; test:tests/test_cdm.py; command:aero space conjunctions; command:aero space cdm; study:ST-06; study:ST-12 |
 | C-10 | Debris mitigation compliance | partial | space-orbital | NASA-STD-8719.14, ISO-24113 | module:aero_audit/space/debris.py; rule:DEB-001; rule:DEB-002; rule:DEB-003; rule:DEB-004; rule:DEB-005; rule:DEB-006; rule:DEB-007; rule:DEB-008; test:tests/test_space_ops.py; command:aero space debris; study:ST-13 |
-| C-11 | UAS well-clear and DAA alerting metrics | partial | uas-utm, air-surveillance | ASTM-F3442, RTCA-DO365 | module:aero_audit/uas/wellclear.py; module:aero_audit/uas/encounters.py; rule:DAA-001; rule:DAA-002; test:tests/test_uas.py; command:aero uas wellclear; study:ST-07 |
+| C-11 | UAS well-clear and DAA alerting metrics | partial | uas-utm, air-surveillance | ASTM-F3442, RTCA-DO365 | module:aero_audit/uas/wellclear.py; module:aero_audit/uas/encounters.py; module:aero_audit/uas/risk.py; rule:DAA-001; rule:DAA-002; rule:DAA-003; rule:DAA-004; test:tests/test_uas.py; test:tests/test_feeds_risk.py; command:aero uas wellclear; command:aero uas risk; study:ST-07; study:ST-16 |
 | C-12 | UTM API conformance | partial | uas-utm | ASTM-F3411 | module:aero_audit/uas/utm.py; test:tests/test_uas.py; command:aero uas utm-check; study:ST-09 |
 | C-33 | External asset integrity and provenance | implemented | space-assets | NASA-NOSA-1.3, NASA-MEDIA | module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py; test:tests/test_space.py; command:aero space fetch |
 | C-34 | Crisis extent to operations impact | partial | earth-crisis, air-operations | NASA-NPR-8715.3, ICAO-A11 | study:ST-11; test:tests/test_governance.py |
+| C-38 | Space weather watch | implemented | space-environment, air-operations, space-orbital | ICAO-A3, NOAA-SCALES | module:aero_audit/space/spaceweather.py; rule:SWX-001; rule:SWX-002; rule:SWX-003; rule:SWX-004; rule:SWX-005; test:tests/test_feeds_risk.py; command:aero space weather; study:ST-17 |
 
 ## Risk
 
@@ -30,6 +31,7 @@ Implementation index: **82%** over 37 controls; 32 of 33 standards have at least
 | C-15 | Unified air and space register | partial | air-surveillance, space-launch, space-orbital, uas-utm | NIST-CSF-2 | module:aero_audit/governance/register.py; command:aero gov risks |
 | C-16 | Response playbooks with triage SLAs | implemented | air-surveillance, air-operations | NIST-SP800-53, ICAO-A17 | module:aero_audit/security/playbooks.py; artefact:docs/generated/PLAYBOOKS.md |
 | C-17 | Operational impact quantification | implemented | air-operations | ICAO-A11 | module:aero_audit/impact.py; command:aero impact; test:tests/test_impact.py |
+| C-39 | Launch-window airspace | implemented | space-launch, air-operations | CFR14-91.143 | module:aero_audit/space/launches.py; rule:LCH-001; rule:LCH-002; rule:LCH-003; test:tests/test_feeds_risk.py; command:aero space launches; study:ST-18 |
 
 ## Study
 
@@ -58,6 +60,8 @@ Implementation index: **82%** over 37 controls; 32 of 33 standards have at least
 | C-31 | Software assurance classification | partial | space-launch, space-orbital, air-surveillance | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM | module:aero_audit/governance/assurance.py; test:tests/test_assurance_catalog.py; command:aero gov assurance; artefact:docs/generated/ASSURANCE.md |
 | C-32 | Space data link security expectations | partial | space-orbital, space-launch | CCSDS-355 | module:aero_audit/governance/assurance.py; artefact:docs/generated/ASSURANCE.md |
 | C-36 | Data catalogue and reconciliation | implemented | air-surveillance, air-operations, space-assets, space-launch, space-orbital | NASA-SLIM, ISO-27001 | module:aero_audit/governance/catalog.py; test:tests/test_assurance_catalog.py; command:aero data catalog; study:ST-15 |
+| C-40 | Scheduled intake | implemented | space-orbital, space-environment, space-launch | NASA-SLIM, NIST-CSF-2 | module:aero_audit/web/schedule.py; module:aero_audit/web/space_jobs.py; test:tests/test_feeds_risk.py; command:aero space watch |
+| C-41 | Integration inventory | implemented | air-surveillance, space-assets, space-orbital, space-environment, space-launch | NIST-SP800-53, ISO-27001 | module:aero_audit/integrations.py; test:tests/test_feeds_risk.py; command:aero accounts; doc:docs/ACCOUNTS.md |
 
 ## Policies
 
@@ -90,6 +94,9 @@ Implementation index: **82%** over 37 controls; 32 of 33 standards have at least
 | RTCA-DO365 | RTCA DO-365, DAA MOPS for UAS | RTCA | air | 0 / 1 / 0 |
 | CFR14-91.227 | 14 CFR 91.227 ADS-B Out performance | FAA | air | 1 / 0 / 0 |
 | CFR14-91.135 | 14 CFR 91.135 Class A operations | FAA | air | 1 / 0 / 0 |
+| CFR14-91.143 | 14 CFR 91.143 Flight limitation in the proximity of space flight operations | FAA | air | 1 / 0 / 0 |
+| ICAO-A3 | ICAO Annex 3, Meteorological Service (space weather advisories, Amdt 78+) | ICAO | air | 1 / 0 / 0 |
+| NOAA-SCALES | NOAA Space Weather Scales (R / S / G) | NOAA SWPC | space | 1 / 0 / 0 |
 | EU-1207-2011 | EU Regulation 1207/2011 (SPI IR) as amended | EU | air | 1 / 0 / 0 |
 | ASTM-F3411 | ASTM F3411, Remote ID and Tracking | ASTM | air | 0 / 1 / 0 |
 | ASTM-F3442 | ASTM F3442/F3442M, DAA performance for smaller UAS | ASTM | air | 0 / 2 / 0 |
@@ -103,10 +110,10 @@ Implementation index: **82%** over 37 controls; 32 of 33 standards have at least
 | ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 0 / 1 / 0 |
 | NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 0 / 1 / 0 |
 | NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 1 / 0 |
-| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 2 / 2 / 0 |
-| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 3 / 1 / 0 |
-| NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 8 / 0 / 0 |
-| ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 7 / 0 / 0 |
+| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 3 / 2 / 0 |
+| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 4 / 1 / 0 |
+| NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 9 / 0 / 0 |
+| ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 8 / 0 / 0 |
 | NIST-AI-RMF | NIST AI Risk Management Framework 1.0 | NIST | cyber | 3 / 1 / 0 |
 | ODbL-1.0 | Open Database License 1.0 | ODC | data | 1 / 0 / 0 |
 | NASA-NOSA-1.3 | NASA Open Source Agreement 1.3 | NASA | data | 2 / 0 / 0 |

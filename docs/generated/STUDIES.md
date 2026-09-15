@@ -13,6 +13,9 @@
 | ST-09 | UTM API conformance | uas-utm | runnable | OpenAPI document, captured exchange | conformance failures | nasa/utm-apis |
 | ST-13 | Debris-mitigation checklist | space-orbital | runnable | mission JSON | checks passed / failed, estimated lifetime | nasa/GMAT |
 | ST-14 | Scene classifier evaluation | space-assets | runnable | dataset manifest | accuracy, per-class precision/recall | - |
+| ST-16 | Airspace density classes and DAA risk ratio | uas-utm | runnable | recording | cells per class per band, observed risk ratio | mit-ll/air-risk-class, ASTM F3442 |
+| ST-17 | Space weather exposure of observed traffic | space-environment | runnable | SWPC product (sample bundled), recording (optional) | conditions per effect, exposed aircraft | NOAA SWPC |
+| ST-18 | Traffic near launch pads during windows | space-launch | runnable | launch file (sample bundled), recording | aircraft inside during window, baseline outside window | TheSpaceDevs/Launch Library 2 |
 | ST-15 | Data catalogue reconciliation | air-surveillance | runnable |  | added, removed, changed | nasa/Common-Metadata-Repository, nasa/cumulus |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable | GeoJSON extent | airports inside, airports near, major hubs affected | nasa/CrisisMappingToolkit |
 | ST-12 | Conjunction data message assessment | space-orbital | runnable | CDM file (KVN) | Pc, miss distance, consistency | open-space-collective/ccsds-data-messages, nasa/GMAT |

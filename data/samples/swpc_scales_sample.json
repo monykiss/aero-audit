@@ -1,0 +1,67 @@
+{
+ "scales": {
+  "0": {
+   "DateStamp": "2026-09-15",
+   "TimeStamp": "12:00:00",
+   "R": {
+    "Scale": "3",
+    "Text": "strong"
+   },
+   "S": {
+    "Scale": "2",
+    "Text": "moderate"
+   },
+   "G": {
+    "Scale": "4",
+    "Text": "severe"
+   }
+  },
+  "-1": {
+   "DateStamp": "2026-09-14",
+   "TimeStamp": "12:00:00",
+   "R": {
+    "Scale": "1",
+    "Text": "minor"
+   },
+   "S": {
+    "Scale": "0",
+    "Text": "none"
+   },
+   "G": {
+    "Scale": "2",
+    "Text": "moderate"
+   }
+  },
+  "1": {
+   "DateStamp": "2026-09-16",
+   "TimeStamp": "12:00:00",
+   "R": {
+    "Scale": "2",
+    "Text": "moderate",
+    "Prob": "60"
+   },
+   "S": {
+    "Scale": "1",
+    "Text": "minor",
+    "Prob": "40"
+   },
+   "G": {
+    "Scale": "3",
+    "Text": "strong"
+   }
+  }
+ },
+ "kp": [
+  {
+   "time_tag": "2026-09-15T11:58:00",
+   "kp_index": 8,
+   "estimated_kp": 8.33,
+   "kp": "8+"
+  }
+ ],
+ "fetched_at": "20260915T120000Z",
+ "source": [
+  "synthetic, in the shape of services.swpc.noaa.gov/products/noaa-scales.json"
+ ],
+ "note": "synthetic sample: a severe geomagnetic storm day used by tests and the offline study"
+}
