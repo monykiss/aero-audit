@@ -25,7 +25,7 @@ supports so an auditor can cite it in an assessment. It does not claim certifica
 |---|---|---|
 | NIST CSF 2.0 | GV.RM (risk management strategy) | `docs/RISK_REGISTER`, `aero risk assess` |
 | | ID.RA (risk assessment) | Threat catalog, evidence-adjusted likelihoods |
-| | DE.CM (continuous monitoring), DE.AE (adverse event analysis) | Live audit, stream checks, alerts, explainable findings |
+| | DE.CM (continuous monitoring), DE.AE (adverse event analysis) | Live audit, stream checks, alerts, explainable findings; process metrics, probes and structured logs (`/metrics`, `/readyz`, `logs/app.jsonl`) with Prometheus alert rules |
 | | RS.MA / RS.AN (incident management, analysis) | Playbooks with triage SLAs, JSONL alert log, replayable recordings |
 | NIST SP 800-53 r5 | AU-6 (audit review), AU-12 (audit generation) | JSON/Markdown/HTML reports with evidence; hash-chained app audit log (`aero log verify`) |
 | | AU-9 (protection of audit information), AU-10 (non-repudiation) | Tamper-evident audit chain; report manifests with SHA-256 per file and provenance (`aero log verify-report`) |

@@ -113,7 +113,7 @@ class Guard:
         host = headers.get("Host", "")
         if not self.host_ok(host):
             raise Denied(403, "host header not allowed (loopback names only)")
-        api = path.startswith("/api/")
+        api = path.startswith("/api/") or path == "/metrics"
         presented = headers.get(TOKEN_HEADER, "")
         if self.mode == "token" and api and not hmac.compare_digest(presented, self.token):
             raise Denied(401, "access token required")

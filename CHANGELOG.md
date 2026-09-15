@@ -2,6 +2,22 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 0.5.0 - 2026-09-15 - observable
+
+- `aero_audit/observability.py`: dependency-free metrics registry (counters, gauges, histograms with
+  labels) exposed as Prometheus text at `/metrics`, JSON at `/api/v1/observability`; liveness `/healthz`
+  and readiness `/readyz` (static assets, writable state, audit chain, model registry, fresh ingest);
+  structured JSON logs in `logs/app.jsonl` with `X-Request-Id` / W3C `traceparent` correlation and
+  `/api/v1/logs`.
+- Instrumented: HTTP (by route class and status, latency, guard denials), ingest batches and state
+  vectors, engine time per batch, findings by rule and severity, feed calls by host and outcome,
+  source loop errors, jobs, alerts, audit entries, tour injections, process uptime / RSS / threads.
+- Observability page (`OBS`) with readiness checks, counters, latency percentiles and a log tail;
+  `aero obs health | metrics | logs -f`.
+- `ops/`: Prometheus scrape config and alert rules, Grafana provisioning and dashboard;
+  `compose.observability.yaml` overlay (loopback-bound).
+- `/metrics` needs the token in remote mode; probes stay open.
+
 ## 0.4.0 - 2026-09-10 - public, demoable, auditable
 
 **Runs anywhere, offline**

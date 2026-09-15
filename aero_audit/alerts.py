@@ -65,4 +65,8 @@ class Alerter:
                     s.send(f)
                 n += 1
         self.sent += n
+        if n:
+            from . import observability as obs
+
+            obs.METRICS.inc("aero_alerts_sent_total", n)
         return n

@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: aero-audit
+    folder: aero-audit
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

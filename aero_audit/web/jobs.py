@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .. import observability as obs
+
 JOBS_FILE = Path("data/app/jobs.json")
 
 
@@ -81,6 +83,10 @@ class JobManager:
             job.log.append(traceback.format_exc()[-1500:])
         finally:
             job.finished = time.time()
+            obs.METRICS.inc("aero_jobs_total", type=job.type, status=job.status)
+            obs.METRICS.observe("aero_job_seconds", job.finished - (job.started or job.finished), type=job.type)
+            obs.log_event("job.finish", "error" if job.status == "failed" else "info", job=job.id, type=job.type, status=job.status,
+                          seconds=round(job.finished - (job.started or job.finished), 2), error=job.error)
             self._save()
             if self.on_finish:
                 self.on_finish(job)

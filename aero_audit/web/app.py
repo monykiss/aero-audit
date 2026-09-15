@@ -20,6 +20,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from .. import __version__, provenance, tuning
+from .. import observability as obs
 from ..audit.findings import SEVERITY_ORDER
 from ..audit.report import write_reports
 from ..audit.rules import RULE_CATALOG
@@ -72,9 +73,40 @@ class App:
         self.tour = DemoTour(lambda: self.sources.state, on_inject=lambda kind, icao, n, narration: self.audit.record(
             "inject", actor="tour", kind=kind, icao24=icao, polls=n))
         self.audit.record("app.start", actor="system", version=__version__, security_mode=self.guard.mode)
+        obs.log_event("app.start", version=__version__, security_mode=self.guard.mode, bind_host=self.guard.bind_host)
         self.started = time.time()
         self._inventory: dict[str, dict[str, Any]] = {}
         self._load_inventory_cache()
+
+    # ---- observability ----------------------------------------------------------------------
+    def readiness(self) -> tuple[bool, dict[str, Any]]:
+        st = self.sources.status()
+        return obs.readiness(expect_source=bool(self.sources.state), source_active=bool(st.get("active")),
+                             last_ingest_age_s=st.get("last_ingest_age_s"))
+
+    def refresh_gauges(self) -> None:
+        st = self.sources.status()
+        obs.METRICS.set("aero_source_tracked_aircraft", st.get("tracked") or 0)
+        obs.METRICS.set("aero_jobs_running", sum(1 for j in self.jobs.jobs.values() if j.status == "running"))
+
+    def observability(self) -> dict[str, Any]:
+        obs.refresh_process_metrics()
+        self.refresh_gauges()
+        m = obs.METRICS
+        ok, ready = self.readiness()
+        return {
+            "health": obs.health(), "ready": ok, "readiness": ready,
+            "kpis": {
+                "requests_total": m.counter_total("aero_http_requests_total"), "denied_total": m.counter_total("aero_http_denied_total"),
+                "http_p95_ms": _ms(m.quantile("aero_http_request_seconds", 0.95, method="GET", route="/api/v1/state")),
+                "ingest_batches": m.counter_total("aero_ingest_batches_total"), "ingest_states": m.counter_total("aero_ingest_states_total"),
+                "engine_p95_ms": _ms(_first_quantile(m, "aero_engine_batch_seconds", 0.95)),
+                "findings_total": m.counter_total("aero_findings_total"), "source_errors": m.counter_total("aero_source_errors_total"),
+                "alerts_sent": m.counter_total("aero_alerts_sent_total"), "feed_requests": m.counter_total("aero_feed_requests_total"),
+                "jobs_total": m.counter_total("aero_jobs_total"), "audit_entries": m.counter_total("aero_audit_entries_total"),
+            },
+            "metrics": m.snapshot(), "log_file": str(obs.LOG_FILE),
+        }
 
     # ---- input validation --------------------------------------------------------------------
     @staticmethod
@@ -402,6 +434,16 @@ class App:
         }
 
 
+def _ms(v: float | None) -> float | None:
+    return None if v is None else round(v * 1000, 1)
+
+
+def _first_quantile(m: Any, name: str, q: float) -> float | None:
+    snap = m.snapshot()["histograms"].get(name) or []
+    vals = [h[f"p{int(q * 100)}"] for h in snap if h.get(f"p{int(q * 100)}") is not None]
+    return max(vals) if vals else None
+
+
 # ---- routes ----------------------------------------------------------------------------------
 def _state_or_inactive(app: App) -> dict[str, Any]:
     st = app.sources.state
@@ -715,6 +757,17 @@ def r_audit_csv(app: App, req: Any) -> Any:
     return (app.audit.to_csv().encode(), "text/csv; charset=utf-8")
 
 
+@router.route("GET", "/api/v1/observability")
+def r_observability(app: App, req: Any) -> Any:
+    return app.observability()
+
+
+@router.route("GET", "/api/v1/logs")
+def r_logs(app: App, req: Any) -> Any:
+    q = req["query"]
+    return {"items": obs.tail_logs(min(int(q.get("limit") or 200), 2000), q.get("level"), q.get("event")), "file": str(obs.LOG_FILE)}
+
+
 @router.route("GET", "/api/v1/audit/verify")
 def r_audit_verify(app: App, req: Any) -> Any:
     return app.audit.verify()
@@ -796,10 +849,18 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Request-Id", getattr(self, "_rid", "") or "-")
             for k, v in app.guard.response_headers(report=urlparse(self.path).path.startswith("/reports/")):
                 self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
+            route = obs.route_class(self.path)
+            dt = time.perf_counter() - getattr(self, "_t0", time.perf_counter())
+            obs.METRICS.inc("aero_http_requests_total", method=self.command, route=route, status=str(status))
+            obs.METRICS.observe("aero_http_request_seconds", dt, method=self.command, route=route)
+            if status >= 400 or self.command == "POST" or dt > 1.0:
+                obs.log_event("http.request", "warning" if status >= 400 else "info", method=self.command, route=route,
+                              status=status, ms=round(dt * 1000, 1), bytes=len(body))
 
         def _serve_file(self, root: Path, rel: str) -> None:
             """Serve one file from under ``root``; anything that normalises outside it is a 404."""
@@ -813,17 +874,40 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self._send(200, body, CONTENT_TYPES.get(os.path.splitext(target)[1].lower(), "application/octet-stream"))
 
         def _dispatch(self, method: str) -> None:
+            self._t0 = time.perf_counter()
+            self._rid = obs.bind_request(self.headers.get("X-Request-Id"), self.headers.get("traceparent"))
+            try:
+                self._dispatch_inner(method)
+            finally:
+                obs.clear_request()
+
+        def _dispatch_inner(self, method: str) -> None:
             u = urlparse(self.path)
             path = u.path
             query = {k: v[0] for k, v in parse_qs(u.query).items()}
             try:
                 app.guard.check(method, path, self.headers)
             except Denied as d:
+                obs.METRICS.inc("aero_http_denied_total", status=str(d.status))
+                obs.log_event("http.denied", "warning", status=d.status, path=path[:120], reason=d.message,
+                              host=self.headers.get("Host", "")[:80])
                 if d.status == 401:
                     app.audit.record("request.denied", actor="system", status=d.status, path=path[:120], reason=d.message)
                 self._send(d.status, json.dumps({"error": d.message}).encode(), "application/json")
                 return
             try:
+                if method == "GET" and path == "/healthz":
+                    self._send(200, json.dumps(obs.health()).encode(), "application/json")
+                    return
+                if method == "GET" and path == "/readyz":
+                    ok, body = app.readiness()
+                    self._send(200 if ok else 503, json.dumps(body).encode(), "application/json")
+                    return
+                if method == "GET" and path == "/metrics":
+                    obs.refresh_process_metrics()
+                    app.refresh_gauges()
+                    self._send(200, obs.METRICS.render_prometheus().encode(), "text/plain; version=0.0.4; charset=utf-8")
+                    return
                 if method == "GET" and (path == "/" or path.startswith("/#")):
                     self._send(200, (STATIC / "index.html").read_bytes(), "text/html; charset=utf-8")
                     return
@@ -859,6 +943,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     return
                 self._send(status, json.dumps(result, default=str).encode(), "application/json")
             except Exception as e:  # noqa: BLE001
+                obs.log_event("http.error", "error", path=path[:120], error=f"{type(e).__name__}: {e}")
                 self._send(500, json.dumps({"error": f"{type(e).__name__}: {e}"}).encode(), "application/json")
 
         def do_GET(self) -> None:

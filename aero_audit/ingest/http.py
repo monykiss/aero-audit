@@ -11,8 +11,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 
@@ -54,6 +55,24 @@ async def curl_json(url: str, params: dict[str, Any] | None = None, headers: dic
 
 async def get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None,
                    headers: dict[str, str] | None = None) -> Any:
+    from .. import observability as obs
+
+    host = urlsplit(url).netloc
+    t0 = time.perf_counter()
+    try:
+        result = await _get_json(client, url, params, headers)
+    except Exception as e:
+        obs.METRICS.inc("aero_feed_requests_total", host=host, outcome=type(e).__name__)
+        obs.METRICS.observe("aero_feed_request_seconds", time.perf_counter() - t0, host=host)
+        obs.log_event("feed.error", "warning", host=host, error=f"{type(e).__name__}: {str(e)[:160]}")
+        raise
+    obs.METRICS.inc("aero_feed_requests_total", host=host, outcome="ok")
+    obs.METRICS.observe("aero_feed_request_seconds", time.perf_counter() - t0, host=host)
+    return result
+
+
+async def _get_json(client: httpx.AsyncClient, url: str, params: dict[str, Any] | None = None,
+                    headers: dict[str, str] | None = None) -> Any:
     if not using_curl():
         try:
             r = await client.get(url, params=params, headers=headers)

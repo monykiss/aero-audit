@@ -893,5 +893,84 @@ def log_verify_report(manifest: Path = typer.Argument(..., help="reports/<name>.
     con.print("[green]all files match the manifest")
 
 
+# ---- observability -------------------------------------------------------------------------------
+obs_app = typer.Typer(help="Metrics, probes and structured logs of a running app, or the local log file.")
+app.add_typer(obs_app, name="obs")
+
+
+def _fetch(url: str, token: str | None) -> bytes:
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"X-Aero-Token": token} if token else {})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.read()
+
+
+@obs_app.command("health")
+def obs_health(url: str = typer.Option("http://127.0.0.1:8787"), token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN")) -> None:
+    """Liveness and readiness of a running app (exit 1 when not ready)."""
+    import urllib.error
+
+    con.print(json.loads(_fetch(f"{url}/healthz", token)))
+    try:
+        body = json.loads(_fetch(f"{url}/readyz", token))
+    except urllib.error.HTTPError as e:
+        body = json.loads(e.read() or b"{}")
+    t = Table("check", "ok", "detail")
+    for name, c in body.get("checks", {}).items():
+        t.add_row(name, "[green]yes" if c.get("ok") else "[red]NO", ", ".join(f"{k}={v}" for k, v in c.items() if k != "ok"))
+    con.print(t)
+    con.print(f"status: {body.get('status')}")
+    if body.get("status") != "ready":
+        raise typer.Exit(1)
+
+
+@obs_app.command("metrics")
+def obs_metrics(url: str = typer.Option("http://127.0.0.1:8787"), token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN"),
+                raw: bool = typer.Option(False, help="Print the Prometheus exposition text")) -> None:
+    """Key metrics of a running app (or the raw /metrics text)."""
+    if raw:
+        con.print(_fetch(f"{url}/metrics", token).decode(), highlight=False, markup=False)
+        return
+    o = json.loads(_fetch(f"{url}/api/v1/observability", token))
+    t = Table("kpi", "value")
+    for k, v in o["kpis"].items():
+        t.add_row(k, str(v))
+    con.print(t)
+    con.print(f"ready={o['ready']} version={o['health']['version']} uptime={o['health']['uptime_s']} s")
+
+
+@obs_app.command("logs")
+def obs_logs(limit: int = typer.Option(50), level: str | None = typer.Option(None), event: str | None = typer.Option(None),
+             path: Path = typer.Option(Path("logs/app.jsonl")), follow: bool = typer.Option(False, "-f", "--follow")) -> None:
+    """Tail the structured log (newest first; -f streams new lines)."""
+    from .observability import tail_logs
+
+    def show(rows: list[dict]) -> None:
+        for e in reversed(rows):
+            extra = " ".join(f"{k}={v}" for k, v in e.items() if k not in ("ts", "level", "event", "logger"))
+            colour = {"error": "red", "warning": "yellow"}.get(e.get("level"), "white")
+            con.print(f"[{colour}]{datetime.fromtimestamp(e['ts'], UTC).strftime('%H:%M:%S')} {e['level']:<7} {e['event']:<18}[/] {extra[:200]}", highlight=False, markup=True)
+
+    show(tail_logs(limit, level, event, path))
+    if follow:
+        import os as _os
+
+        with open(path) as fh:
+            fh.seek(0, _os.SEEK_END)
+            while True:
+                line = fh.readline()
+                if not line:
+                    time.sleep(0.5)
+                    continue
+                try:
+                    e = json.loads(line)
+                except ValueError:
+                    continue
+                if (level and e.get("level") != level) or (event and event not in e.get("event", "")):
+                    continue
+                show([e])
+
+
 if __name__ == "__main__":
     app()

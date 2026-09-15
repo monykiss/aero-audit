@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .. import observability as obs
 from ..audit.engine import AuditEngine
 from ..audit.findings import Severity
 from ..config import Region, get_region, parse_regions
@@ -20,6 +21,12 @@ from ..ingest.replay import iter_recording, recording_stem
 from ..models import Batch
 from ..stream import JsonlRecorder, stream_batches
 from .state import LiveState
+
+
+def _err(state: LiveState, kind: str, msg: str) -> None:
+    state.errors.append(msg)
+    obs.METRICS.inc("aero_source_errors_total", kind=kind)
+    obs.log_event("source.error", "warning", kind=kind, error=msg[:200])
 
 SETTINGS_FILE = Path("data/app/settings.json")
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -141,7 +148,7 @@ class SourceManager:
                 with state.lock:
                     state.faa_status = st
             except Exception as e:  # noqa: BLE001
-                state.errors.append(f"faa status: {type(e).__name__}: {e}")
+                _err(state, "faa", f"faa status: {type(e).__name__}: {e}")
             state.stop.wait(every_s)
 
     # ---- loops -----------------------------------------------------------------------------
@@ -177,7 +184,7 @@ class SourceManager:
                         break
                     state.ingest(b, latency_ms=max(0.0, (time.time() - b.ts) * 1000.0))
             except Exception as e:  # noqa: BLE001
-                state.errors.append(f"live source stopped: {type(e).__name__}: {e}")
+                _err(state, "live", f"live source stopped: {type(e).__name__}: {e}")
             finally:
                 await p.aclose()
                 if recorder:
@@ -202,7 +209,7 @@ class SourceManager:
                                      "wind": f"{m.get('wdir', '?')}/{m.get('wspd', '?')}", "visib": m.get("visib"),
                                      "cover": m.get("cover"), "temp": m.get("temp")} for m in ms]
             except Exception as e:  # noqa: BLE001
-                state.errors.append(f"metar: {type(e).__name__}: {e}")
+                _err(state, "metar", f"metar: {type(e).__name__}: {e}")
             state.stop.wait(every_s)
 
     # ---- status ----------------------------------------------------------------------------

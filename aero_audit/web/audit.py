@@ -145,6 +145,9 @@ class AuditLog:
                 entry["hash"] = digest(entry)  # a read-only disk must not break the app; the in-memory chain still advances
             self._recent.append(entry)
             self._head, self._seq = entry["hash"], entry["seq"]
+        from .. import observability as obs
+
+        obs.METRICS.inc("aero_audit_entries_total", action=action)
         return entry
 
     def verify(self) -> dict[str, Any]:

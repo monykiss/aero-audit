@@ -1,0 +1,26 @@
+groups:
+  - name: aero-audit
+    rules:
+      - alert: AeroSourceErrors
+        expr: rate(aero_source_errors_total[5m]) > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "A source loop keeps failing ({{ $labels.kind }})"}
+      - alert: AeroPictureStale
+        expr: (time() - max(aero_source_last_ingest_timestamp_seconds)) > 300
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "No batch ingested for more than 5 minutes"}
+      - alert: AeroEngineSlow
+        expr: histogram_quantile(0.95, sum(rate(aero_engine_batch_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "Rule engine p95 above 2 s per batch"}
+      - alert: AeroGuardDenials
+        expr: increase(aero_http_denied_total[10m]) > 20
+        labels: {severity: warning}
+        annotations: {summary: "Many requests refused by the guard: something is probing the app"}
+      - alert: AeroCriticalFinding
+        expr: increase(aero_findings_total{severity="critical"}[5m]) > 0
+        labels: {severity: critical}
+        annotations: {summary: "Critical finding raised ({{ $labels.rule }})"}
