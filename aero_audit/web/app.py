@@ -765,6 +765,13 @@ def r_governance(app: App, req: Any) -> Any:
     return posture(st.engine.summary() if st else None)
 
 
+@router.route("GET", "/api/v1/openapi.json")
+def r_openapi(app: App, req: Any) -> Any:
+    from .openapi import build_spec
+
+    return build_spec(router)
+
+
 @router.route("GET", "/api/v1/observability")
 def r_observability(app: App, req: Any) -> Any:
     return app.observability()
@@ -858,6 +865,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Request-Id", getattr(self, "_rid", "") or "-")
+            for k, v in getattr(self, "_extra_headers", ()):
+                self.send_header(k, v)
             for k, v in app.guard.response_headers(report=urlparse(self.path).path.startswith("/reports/")):
                 self.send_header(k, v)
             self.end_headers()
@@ -894,13 +903,15 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             path = u.path
             query = {k: v[0] for k, v in parse_qs(u.query).items()}
             try:
-                app.guard.check(method, path, self.headers)
+                app.guard.check(method, path, self.headers, self.client_address[0] if self.client_address else "")
             except Denied as d:
                 obs.METRICS.inc("aero_http_denied_total", status=str(d.status))
                 obs.log_event("http.denied", "warning", status=d.status, path=path[:120], reason=d.message,
                               host=self.headers.get("Host", "")[:80])
                 if d.status == 401:
                     app.audit.record("request.denied", actor="system", status=d.status, path=path[:120], reason=d.message)
+                if d.status == 429:
+                    self._extra_headers = [("Retry-After", "2")]
                 self._send(d.status, json.dumps({"error": d.message}).encode(), "application/json")
                 return
             try:
@@ -963,6 +974,20 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+def shutdown(app: App, httpd: ThreadingHTTPServer, reason: str = "signal") -> None:
+    """Orderly stop: sources and tour first, then the audit entry and log line, then the listener."""
+    app.tour.stop()
+    app.sources.stop()
+    app.audit.record("app.stop", actor="system", reason=reason)
+    obs.log_event("app.stop", reason=reason)
+
+    def _close() -> None:
+        httpd.shutdown()
+        httpd.server_close()  # release the listening socket, not just the serve loop
+
+    threading.Thread(target=_close, daemon=True).start()
+
+
 def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True, block: bool = True,
             preset: dict[str, Any] | None = None, token: str | None = None, allow_unauthenticated: bool = False,
             allowed_hosts: tuple[str, ...] = (), tour: bool = False) -> tuple[App, ThreadingHTTPServer]:
@@ -984,10 +1009,24 @@ def run_app(port: int = 8787, host: str = "127.0.0.1", open_browser: bool = True
     if open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     if block:
+        import signal
+
+        stop = threading.Event()
+        reason = {"why": "keyboard interrupt"}
+
+        def _on_signal(signum: int, _frame: Any) -> None:
+            reason["why"] = signal.Signals(signum).name
+            stop.set()
+
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                signal.signal(sig, _on_signal)
+            except (ValueError, OSError):  # not the main thread
+                pass
         try:
-            while True:
-                time.sleep(1)
+            while not stop.wait(1.0):
+                pass
         except KeyboardInterrupt:
-            app.sources.stop()
-            httpd.shutdown()
+            pass
+        shutdown(app, httpd, reason["why"])
     return app, httpd

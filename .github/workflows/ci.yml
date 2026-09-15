@@ -33,6 +33,12 @@ jobs:
         run: .venv/bin/aero doctor --no-net
       - name: Dependency vulnerability audit
         run: uvx pip-audit -r requirements.lock.txt --strict --desc on
+      - name: Software bill of materials (CycloneDX)
+        run: uvx pip-audit -r requirements.lock.txt -f cyclonedx-json -o sbom.cdx.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom.cdx.json
 
   secrets:
     name: secret scan (full history)

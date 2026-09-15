@@ -14,7 +14,7 @@ Implementation index: **74%** over 35 controls; 24 of 33 standards have at least
 | C-06 | Airspace and operations conformance | implemented | air-operations, air-surveillance | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | rule:OPS-001; rule:OPS-002; rule:OPS-003; rule:OPS-004; rule:OPS-005; rule:SAF-003; rule:SAF-004 |
 | C-07 | Apron capacity from imagery | partial | air-operations | ICAO-A14 | rule:OPS-VIS-001; rule:OPS-VIS-002; module:aero_audit/vision/apron.py |
 | C-08 | Launch telemetry plausibility | partial | space-launch | CCSDS-133, CFR14-450 | rule:SPC-001; rule:SPC-002; rule:SPC-003; rule:SPC-004; rule:SPC-005; test:tests/test_space.py; command:aero space telemetry-audit |
-| C-09 | Conjunction screening | partial | space-orbital | CCSDS-508, CCSDS-502 | module:aero_audit/space/orbital.py; rule:ORB-001; rule:ORB-002; rule:ORB-003; test:tests/test_orbital.py; command:aero space conjunctions; study:ST-06 |
+| C-09 | Conjunction screening | partial | space-orbital | CCSDS-508, CCSDS-502 | module:aero_audit/space/orbital.py; module:aero_audit/space/cdm.py; rule:ORB-001; rule:ORB-002; rule:ORB-003; rule:ORB-004; rule:ORB-005; test:tests/test_orbital.py; test:tests/test_cdm.py; command:aero space conjunctions; command:aero space cdm; study:ST-06; study:ST-12 |
 | C-10 | Debris mitigation compliance | planned | space-orbital | NASA-STD-8719.14, ISO-24113 | - |
 | C-11 | UAS well-clear and DAA alerting metrics | planned | uas-utm | ASTM-F3442, RTCA-DO365 | study:ST-07 |
 | C-12 | UTM API conformance | planned | uas-utm | ASTM-F3411 | study:ST-09 |

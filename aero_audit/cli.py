@@ -879,6 +879,37 @@ def log_show(path: Path = typer.Option(Path("data/app/audit.jsonl")), limit: int
     con.print(t)
 
 
+@log_app.command("bundle")
+def log_bundle(out: Path | None = typer.Option(None, help="Zip path (default reports/evidence_<stamp>.zip)"),
+               since_days: float | None = typer.Option(None, help="Only reports newer than this many days"),
+               extra: list[Path] | None = typer.Option(None, help="Additional files to include")) -> None:
+    """Evidence bundle: audit chain with verification, reports and manifests, model card and evaluation, thresholds,
+    generated docs, redacted settings, and BUNDLE.json with the SHA-256 of every member."""
+    from .evidence import build_bundle, verify_bundle
+
+    p = build_bundle(out, since_days, [str(e) for e in (extra or [])])
+    r = verify_bundle(p)
+    con.print(f"[bold]{p}[/]: {r['checked']} files, chain {'ok' if (r.get('audit_chain') or {}).get('ok') else 'absent/broken'}, self-check {'ok' if r['ok'] else 'FAILED'}")
+
+
+@log_app.command("verify-bundle")
+def log_verify_bundle(bundle: Path = typer.Argument(...)) -> None:
+    """Re-hash every member of an evidence bundle against BUNDLE.json; exit 1 on any mismatch."""
+    from .evidence import verify_bundle
+
+    r = verify_bundle(bundle)
+    con.print(f"{bundle}: {r['checked']} checked, {len(r['bad'])} bad, {len(r['missing'])} missing, {len(r['extra'])} extra; created {r.get('created_at')} by {r.get('version')}")
+    for b in r["bad"]:
+        con.print(f"  [red]modified[/] {b}")
+    for m in r["missing"]:
+        con.print(f"  [red]missing[/] {m}")
+    for e in r["extra"]:
+        con.print(f"  [yellow]unlisted[/] {e}")
+    if not r["ok"]:
+        raise typer.Exit(1)
+    con.print("[green]bundle intact")
+
+
 @log_app.command("verify-report")
 def log_verify_report(manifest: Path = typer.Argument(..., help="reports/<name>.manifest.json")) -> None:
     """Re-hash the files a report manifest names and compare; exit 1 on any mismatch."""
@@ -1043,6 +1074,32 @@ def space_conjunctions(
     con.print(f"Report: {jp}  ({res['covariance']})")
 
 
+@space_app.command("cdm")
+def space_cdm(
+    path: Path = typer.Argument(..., help="CCSDS Conjunction Data Message (KVN)"),
+    hbr_m: float = typer.Option(20.0, help="Combined hard-body radius in metres"),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Assess a CDM: probability of collision from states and covariances (2D short-encounter), ORB-004/005 findings."""
+    from .space.cdm import assess, parse_cdm
+
+    cdm = parse_cdm(path.read_text())
+    res, fs = assess(cdm, hbr_m)
+    if "pc" in res:
+        pc = res["pc"]
+        con.print(f"{cdm.message_id or path.name}: {' vs '.join(o.name or o.designator for o in cdm.objects)}  TCA {cdm.tca}")
+        con.print(f"Pc = [bold]{pc['pc']:.3e}[/]  miss {pc['miss_m']:.1f} m (stated {pc['stated_miss_m']})  rel speed {pc['relative_speed_ms']:.0f} m/s  "
+                  f"in-plane sigmas {pc['sigma_plane_m'][0]:.0f}/{pc['sigma_plane_m'][1]:.0f} m  HBR {hbr_m:g} m")
+    else:
+        con.print(f"[red]{res.get('error')}")
+    for f in fs:
+        con.print(f"  [{f.severity.value}] {f.rule_id} {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"cdm_{(cdm.message_id or path.stem).replace('/', '_')}_{_stamp()}.json"
+    jp.write_text(json.dumps({"assessment": res, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}")
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
@@ -1164,6 +1221,7 @@ def gov_run_study(
     catalog: Path | None = typer.Option(None),
     geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
     tle: Path | None = typer.Option(None, help="TLE file for ST-06"),
+    cdm_path: Path | None = typer.Option(None, "--cdm", help="CDM file for ST-12"),
     out: Path = typer.Option(Path("reports/studies")),
 ) -> None:
     """Run a study with provenance; results in reports/studies/."""
@@ -1180,6 +1238,8 @@ def gov_run_study(
         params["geojson"] = geojson
     if tle:
         params["tle"] = tle
+    if cdm_path:
+        params["cdm"] = cdm_path
     try:
         rec = run_study(study_id.upper(), out, **params)
     except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:
@@ -1307,6 +1367,51 @@ def obs_logs(limit: int = typer.Option(50), level: str | None = typer.Option(Non
                 if (level and e.get("level") != level) or (event and event not in e.get("event", "")):
                     continue
                 show([e])
+
+
+@app.command()
+def bench(
+    recording: Path | None = typer.Option(None, help="Recording (default: the largest bundled sample)"),
+    rounds: int = typer.Option(3),
+    model: Path | None = typer.Option(None, help="Model to include (verified against the registry)"),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Throughput of the rules engine on a recording: batches/s, state vectors/s, per-batch p50/p95. Writes reports/bench_*.json."""
+    import statistics
+
+    from .provenance import build as build_prov
+
+    rec = recording or _demo_recording()
+    if rec is None:
+        raise typer.BadParameter("no recording; pass --recording")
+    batches = list(iter_recording(rec))
+    states = sum(len(b.states) for b in batches)
+    results = []
+    for r in range(rounds):
+        eng = _build_engine(model, None, None, None, "high")
+        per = []
+        t0 = time.perf_counter()
+        for b in batches:
+            tb = time.perf_counter()
+            eng.process_batch(b)
+            per.append(time.perf_counter() - tb)
+        wall = time.perf_counter() - t0
+        per.sort()
+        results.append({"round": r + 1, "wall_s": round(wall, 3), "batches_per_s": round(len(batches) / wall, 1), "states_per_s": round(states / wall),
+                        "batch_p50_ms": round(per[len(per) // 2] * 1000, 2), "batch_p95_ms": round(per[int(0.95 * (len(per) - 1))] * 1000, 2),
+                        "batch_max_ms": round(per[-1] * 1000, 2), "findings": len(eng.findings)})
+    best = max(results, key=lambda x: x["states_per_s"])
+    t = Table("round", "wall s", "batches/s", "states/s", "p50 ms", "p95 ms", "max ms", "findings")
+    for x in results:
+        t.add_row(*(str(x[k]) for k in ("round", "wall_s", "batches_per_s", "states_per_s", "batch_p50_ms", "batch_p95_ms", "batch_max_ms", "findings")))
+    con.print(t)
+    con.print(f"{rec.name}: {len(batches)} batches, {states} state vectors; best {best['states_per_s']} states/s; "
+              f"median batches/s {statistics.median(x['batches_per_s'] for x in results)}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"bench_{_stamp()}.json"
+    jp.write_text(json.dumps({"recording": str(rec), "batches": len(batches), "state_vectors": states, "model": str(model) if model else None,
+                              "rounds": results, "provenance": build_prov(eng)}, indent=1, default=str))
+    con.print(f"Wrote {jp}")
 
 
 if __name__ == "__main__":

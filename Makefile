@@ -3,7 +3,7 @@ VENV ?= .venv
 PY   := $(VENV)/bin/python
 AERO := $(VENV)/bin/aero
 
-.PHONY: help setup demo app doctor test lint audit lock docs docker docker-run clean
+.PHONY: help setup demo app doctor test lint audit sbom bench bundle lock docs docker docker-run observe clean
 
 help:
 	@echo "make setup       create .venv and install hash-pinned dependencies (no demo)"
@@ -13,6 +13,10 @@ help:
 	@echo "make test        pytest (offline)"
 	@echo "make lint        ruff"
 	@echo "make audit       pip-audit against the lock file"
+	@echo "make sbom        CycloneDX SBOM from the lock file (dist/sbom.cdx.json)"
+	@echo "make bench       engine throughput on the bundled sample"
+	@echo "make bundle      evidence bundle zip (audit chain, reports, manifests, docs)"
+	@echo "make observe     app + Prometheus + Grafana via compose"
 	@echo "make lock        regenerate requirements.lock.txt with hashes (needs network)"
 	@echo "make docs        regenerate docs/generated from code"
 	@echo "make docker      build the container image"
@@ -38,6 +42,18 @@ lint:
 
 audit:
 	uvx pip-audit -r requirements.lock.txt --strict --desc on
+
+sbom:
+	mkdir -p dist && uvx pip-audit -r requirements.lock.txt -f cyclonedx-json -o dist/sbom.cdx.json
+
+bench:
+	$(AERO) bench
+
+bundle:
+	$(AERO) log bundle
+
+observe:
+	docker compose -f compose.yaml -f compose.observability.yaml up --build
 
 lock:
 	uv pip compile --universal --generate-hashes --extra dev --python-version 3.12 -o requirements.lock.txt pyproject.toml

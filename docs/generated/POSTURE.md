@@ -1,6 +1,6 @@
 # Governance posture (baseline, generated)
 
-Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90%, studies runnable 64%). Basis: baseline (no session evidence).
+Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90%, studies runnable 67%). Basis: baseline (no session evidence).
 
 ## Domains
 
@@ -10,7 +10,7 @@ Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90
 | Air: operations, airports and ecosystem | active | 11 | 11 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
 | Space: open assets with provenance | active | 0 | 3 / 1 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov; api.nasa.gov Mars Rover Photos (planned) |
 | Space: launch and ascent | scaffold | 5 | 4 / 3 / 2 | telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
-| Space: orbital operations and conjunction | scaffold | 3 | 2 / 2 / 3 | CelesTrak GP elements (keyless); space-track.org (credentials, planned); CCSDS ODM (502.0-B, planned); CCSDS CDM (508.0-B, planned) |
+| Space: orbital operations and conjunction | scaffold | 5 | 2 / 2 / 3 | CelesTrak GP elements (keyless); space-track.org (credentials, planned); CCSDS ODM (502.0-B, planned); CCSDS CDM (508.0-B, planned) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |
 | Air: UAS integration, detect-and-avoid, UTM | planned | 0 | 1 / 1 / 3 | UTM operator/USS APIs (OpenAPI); ADS-B / Remote ID tracks; encounter models |
 
@@ -64,4 +64,5 @@ By residual rating: {'critical': 1, 'high': 1, 'medium': 11, 'low': 7}
 | ST-08 | Airborne collision risk classes | uas-utm | planned |
 | ST-09 | UTM API conformance | uas-utm | planned |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable |
+| ST-12 | Conjunction data message assessment | space-orbital | runnable |
 | ST-10 | Cross-feed corroboration baseline | air-surveillance | needs-network |

@@ -12,6 +12,7 @@
 | ST-08 | Airborne collision risk classes | uas-utm | planned | surveillance recording | risk class distribution | mit-ll/air-risk-class, mit-ll/em-core |
 | ST-09 | UTM API conformance | uas-utm | planned | captured exchanges, OpenAPI documents | conformance failures by endpoint | nasa/utm-apis |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable | GeoJSON extent | airports inside, airports near, major hubs affected | nasa/CrisisMappingToolkit |
+| ST-12 | Conjunction data message assessment | space-orbital | runnable | CDM file (KVN) | Pc, miss distance, consistency | open-space-collective/ccsds-data-messages, nasa/GMAT |
 | ST-10 | Cross-feed corroboration baseline | air-surveillance | needs-network | two live feeds | median separation, p95, disagreements | - |
 
 Run one: `aero gov run-study ST-01 --recording data/samples/<file>.jsonl.gz`; results land in `reports/studies/` with provenance.

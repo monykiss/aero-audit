@@ -167,7 +167,17 @@ def _conjunction_screen(tle: str | Path, hours: float = 24.0, threshold_km: floa
             "covariance": res["covariance"]}
 
 
+def _cdm_assessment(cdm: str | Path, hbr_m: float = 20.0, **_: Any) -> dict[str, Any]:
+    from ..space.cdm import assess, parse_cdm
+
+    c = parse_cdm(Path(cdm).read_text())
+    res, fs = assess(c, float(hbr_m))
+    return {"cdm": str(cdm), "message_id": c.message_id, "tca": c.tca, "pc": (res.get("pc") or {}).get("pc"), "miss_m": (res.get("pc") or {}).get("miss_m"),
+            "error": res.get("error"), "findings": [{"rule": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
+
+
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "cdm_assessment": _cdm_assessment,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
@@ -204,6 +214,9 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-11", "Airports inside a crisis extent", "Which airports and hubs sit inside or near a flood, fire or disaster extent?",
           "earth-crisis", "Point-in-polygon of the airport table against GeoJSON extents (Crisis Mapping Toolkit exports), plus a distance buffer.",
           ("GeoJSON extent",), ("airports inside", "airports near", "major hubs affected"), "runnable", "airports_in_extent", ("nasa/CrisisMappingToolkit",)),
+    Study("ST-12", "Conjunction data message assessment", "Given a CDM with states and covariances, what is the probability of collision and is the message self-consistent?",
+          "space-orbital", "Parse CCSDS 508.0-B KVN; rotate RTN covariances to inertial; 2D short-encounter Pc by numerical integration; miss-distance consistency check.",
+          ("CDM file (KVN)",), ("Pc", "miss distance", "consistency"), "runnable", "cdm_assessment", ("open-space-collective/ccsds-data-messages", "nasa/GMAT")),
     Study("ST-10", "Cross-feed corroboration baseline", "How far apart do two independent feeds place the same aircraft, and how often do they disagree?",
           "air-surveillance", "Dead-reckoned comparison of adsb.lol and OpenSky over the same region.", ("two live feeds",), ("median separation", "p95", "disagreements"), "needs-network", None),
 )}

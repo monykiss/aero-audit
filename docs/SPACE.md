@@ -65,6 +65,23 @@ ORB-003 SGP4 error codes. TLEs carry no covariance, so no probability of collisi
 the screen tells you which CDMs to ask for. The lock file does not yet include `sgp4` (regenerate
 with `make lock` when the network allows).
 
+## Conjunction data messages (phase 3, second cut)
+
+```bash
+aero space cdm data/samples/synthetic_conjunction.cdm --hbr-m 20      # Pc from states + covariances, ORB-004/005
+aero gov run-study ST-12 --cdm data/samples/synthetic_conjunction.cdm
+```
+
+`space/cdm.py` parses CCSDS 508.0-B KVN messages (header, relative metadata, two objects with
+state vectors and RTN position covariances), rotates each covariance into the inertial frame
+using that object's state, adds them, projects onto the encounter plane and integrates the 2D
+Gaussian over the combined hard-body disc. The bundled `synthetic_conjunction.cdm` (labelled
+synthetic: head-on LEO geometry, 50 m miss, 100 m sigmas) gives Pc about 1e-2, which the tests
+check against the closed-form small-disc approximation. ORB-004 fires above 1e-4 (HIGH) or 1e-7
+(MEDIUM); ORB-005 flags a stated miss distance that disagrees with the state vectors by more than
+5 %, or a covariance that is not positive definite. Missing still: automated CDM intake and the
+3D/long-encounter methods.
+
 ## Honest limits
 
 - The COCO detector has no "rocket" class. Frame detection is a placeholder until a detector is

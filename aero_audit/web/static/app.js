@@ -349,7 +349,7 @@ ${act ? `<div>traffic</div><div>${act.nearby} within 40 nm · ${act.ground} grou
   }
   const cmd = document.getElementById('cmd');
   cmd.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Return' || e.keyCode === 13) { e.preventDefault(); runCommand(cmd.value); cmd.value = ''; } });
-  document.addEventListener('keydown', e => { const fk = {F1: 'HELP', F2: 'LIVE', F3: 'FLT', F4: 'AIRP', F5: 'OPS', F6: 'FIND', F7: 'RISK', F8: 'LOG'}[e.key]; if (fk) { e.preventDefault(); runCommand(fk); } if (e.key === '/' && document.activeElement !== cmd && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); cmd.focus(); } });
+  document.addEventListener('keydown', e => { const fk = {F1: 'HELP', F2: 'LIVE', F3: 'FLT', F4: 'AIRP', F5: 'OPS', F6: 'FIND', F7: 'RISK', F8: 'LOG', F9: 'OBS'}[e.key]; if (fk) { e.preventDefault(); runCommand(fk); } if (e.key === '/' && document.activeElement !== cmd && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); cmd.focus(); } });
   document.getElementById('fkeys').addEventListener('click', e => { const t = e.target.closest('span'); if (t && /^F\d/.test(t.textContent)) runCommand(t.textContent.split(' ')[1]); });
   setInterval(() => { document.getElementById('clock').textContent = new Date().toISOString().replace('T', ' ').substr(0, 19) + 'Z'; }, 1000);
   function ticker(s) { const t = document.getElementById('tickerTrack'); if (!s || !s.events || !s.events.length) { t.innerHTML = '<span class="ti note">no findings yet</span>'; return; }

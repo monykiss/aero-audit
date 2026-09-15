@@ -25,7 +25,10 @@ from __future__ import annotations
 
 import hmac
 import ipaddress
+import os
 import secrets
+import threading
+import time
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -52,6 +55,31 @@ SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
     ("Permissions-Policy", "geolocation=(), camera=(), microphone=(), payment=(), usb=()"),
     ("Cache-Control", "no-store"),
 )
+
+
+class RateLimiter:
+    """Token bucket per client address for state-changing requests: defence in depth against a page
+    or script hammering the API. GETs are not limited (the UI polls). Defaults: 60 POSTs, refilled
+    one per second; ``AERO_POST_RATE_LIMIT`` overrides the burst size."""
+
+    def __init__(self, capacity: int | None = None, refill_per_s: float = 1.0) -> None:
+        self.capacity = capacity or int(os.getenv("AERO_POST_RATE_LIMIT", "60"))
+        self.refill = refill_per_s
+        self._buckets: dict[str, tuple[float, float]] = {}
+        self._lock = threading.Lock()
+
+    def allow(self, client: str) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            tokens, last = self._buckets.get(client, (float(self.capacity), now))
+            tokens = min(float(self.capacity), tokens + (now - last) * self.refill)
+            if tokens < 1.0:
+                self._buckets[client] = (tokens, now)
+                return False
+            self._buckets[client] = (tokens - 1.0, now)
+            if len(self._buckets) > 10_000:  # never grow without bound
+                self._buckets = dict(list(self._buckets.items())[-5000:])
+            return True
 
 
 class Denied(Exception):
@@ -95,6 +123,7 @@ class Guard:
             )
         self.token = token or ""
         self.csrf = secrets.token_urlsafe(24)
+        self.rate = RateLimiter()
         if not loopback_bind and bind_host not in ("0.0.0.0", "::"):
             self.allowed_hosts.add(bind_host.lower())
 
@@ -108,7 +137,7 @@ class Guard:
     def expected_token(self) -> str:
         return self.token if self.mode == "token" else self.csrf
 
-    def check(self, method: str, path: str, headers: Any) -> None:
+    def check(self, method: str, path: str, headers: Any, client: str = "") -> None:
         """Raise Denied for a request that must not reach a handler."""
         host = headers.get("Host", "")
         if not self.host_ok(host):
@@ -131,6 +160,8 @@ class Guard:
                 raise Denied(403, "cross-site request refused")
             if not hmac.compare_digest(presented, self.expected_token()):
                 raise Denied(403, f"missing or wrong {TOKEN_HEADER}")
+            if client and not self.rate.allow(client):
+                raise Denied(429, "too many requests from this client; try again in a moment")
         try:
             n = int(headers.get("Content-Length") or 0)
         except ValueError as e:
@@ -202,4 +233,4 @@ def safe_url(value: Any) -> str:
     return s
 
 
-__all__ = ["APP_CSP", "MAX_BODY_BYTES", "TOKEN_HEADER", "Denied", "Guard", "host_of", "safe_path", "safe_url"]
+__all__ = ["APP_CSP", "MAX_BODY_BYTES", "TOKEN_HEADER", "Denied", "Guard", "RateLimiter", "host_of", "safe_path", "safe_url"]
