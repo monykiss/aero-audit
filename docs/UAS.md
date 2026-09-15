@@ -54,6 +54,23 @@ horizon is shorter than the update interval, which a DAA case must address with 
 surveillance, not with a lower threshold. The UAS page in the app shows the bands, the pairs and
 the ratio with buttons that run both analyses on any recording.
 
+## Encounter model (Monte Carlo)
+
+```bash
+aero uas encounter-model <recording> --n 5000 --horizon-s 25
+aero gov run-study ST-19 --recording <recording>
+```
+
+`uas/encounter_model.py` follows the MIT-LL encounter-model idea at small scale: it resamples the
+empirical initial conditions of a recording's encounters (range, vertical offset, closure rate,
+converging share), draws straight-line encounters with a uniform horizontal miss distance,
+propagates them through the well-clear definitions and counts NMACs with nobody manoeuvring and
+with an alerting horizon (a manoeuvre is assumed to succeed when the violation was projected at
+least the horizon before the NMAC). The two probabilities, their ratio and the per-flight-hour
+rates sit next to the observed bound from `aero uas risk`; both are stated with their basis in the
+report. It is not a certified encounter model: distributions are empirical marginals from one
+recording, trajectories are straight, and the manoeuvre model is a horizon, not a dynamics model.
+
 ## UTM contract checks
 
 ```bash

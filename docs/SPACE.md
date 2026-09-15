@@ -141,6 +141,24 @@ audited job (network jobs are skipped under `AERO_OFFLINE=1`), and `web/space_jo
 registry the app, the scheduler and `aero space watch` share. The SPACE page in the app shows all
 of it with buttons that submit the same jobs.
 
+## Renders, element history (depth items)
+
+```bash
+aero space render <model.obj> --label iss --n-yaw 12 --manifest data/space/dataset/manifest.json   # 36 silhouette views into the dataset
+aero space maneuvers                                  # every cached element file: ORB-006 manoeuvre-scale change, ORB-007 decay imminent
+aero gov run-study ST-20 --tle a.tle --tle b.tle      # element history study
+```
+
+`space/render.py` is a numpy z-buffer rasteriser for Wavefront OBJ (polygons fanned, two-sided
+Lambert, orthographic): many viewpoints of one spacecraft with a manifest carrying the model hash
+and view parameters, appended to the dataset as `nasa3d-render` items. It gives shape and
+silhouette, not texture; the 3DS and LWO models in NASA-3D-Resources need a converter first.
+`space/maneuvers.py` compares mean elements of the same object across cached snapshots: a
+semi-major-axis rise, or a fall beyond what drag explains per day, or an inclination step is a
+manoeuvre (ORB-006, so approaches computed from the older set are void); a perigee under 200 km
+or a mean-motion derivative implying re-entry within 30 days is ORB-007. Thresholds are stated in
+every report; TIP messages from the tracking authority remain the reentry reference.
+
 ## Honest limits
 
 - The COCO detector has no "rocket" class. Frame detection stays a placeholder until the ultralytics

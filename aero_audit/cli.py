@@ -1334,6 +1334,38 @@ def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,la
         con.print("stopped")
 
 
+@space_app.command("render")
+def space_render(model: Path = typer.Argument(..., help="Wavefront OBJ model"), label: str | None = typer.Option(None, help="Class label (default: file stem)"),
+                 n_yaw: int = typer.Option(12), size: int = typer.Option(256), dest: Path = typer.Option(Path("data/space/renders")),
+                 manifest: Path | None = typer.Option(None, help="Append the renders as items to this dataset manifest")) -> None:
+    """Multi-view silhouette renders of an OBJ model (numpy z-buffer) for training data, with a manifest and optional dataset append."""
+    from .space import render
+    from .space.dataset import load_manifest, write_manifest
+
+    m = render.render_views(model, dest, label, size, n_yaw)
+    con.print(f"{len(m['views'])} views of {m['label']} ({m['vertices']} vertices, {m['triangles']} triangles) under {Path(m['views'][0]['file']).parent}")
+    if manifest:
+        items = render.dataset_items(m)
+        old = load_manifest(manifest)["items"] if manifest.is_file() else []
+        mp = write_manifest(old + items, manifest.parent)
+        con.print(f"Manifest: {mp} (+{len(items)} items)")
+
+
+@space_app.command("maneuvers")
+def space_maneuvers(files: list[Path] | None = typer.Argument(None, help="Element files (default: every cached .tle)"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Element history per object: manoeuvre-scale changes (ORB-006) and imminent decay (ORB-007) from cached element sets."""
+    from .space import maneuvers
+
+    summary, fs = maneuvers.analyse(files or None)
+    con.print(f"{summary['objects']} objects from {len(summary['files'])} file(s), {summary['with_history']} with history: {len(summary['changes'])} changes, {len(summary['decaying'])} decaying")
+    for f in fs[:30]:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"maneuvers_{_stamp()}.json"
+    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}")
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
@@ -1454,7 +1486,7 @@ def gov_run_study(
     csv_path: Path | None = typer.Option(None, "--csv"),
     catalog: Path | None = typer.Option(None),
     geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
-    tle: Path | None = typer.Option(None, help="TLE file for ST-06"),
+    tle: list[Path] | None = typer.Option(None, help="TLE file for ST-06; repeat for ST-20 element history"),
     cdm_path: Path | None = typer.Option(None, "--cdm", help="CDM file for ST-12"),
     mission: Path | None = typer.Option(None, help="Mission JSON for ST-13"),
     scales: Path | None = typer.Option(None, help="SWPC product file for ST-17 (default: the bundled sample)"),
@@ -1474,7 +1506,9 @@ def gov_run_study(
     if geojson:
         params["geojson"] = geojson
     if tle:
-        params["tle"] = tle
+        params["tle"] = tle[0]
+        if len(tle) > 1:
+            params["files"] = tle
     if cdm_path:
         params["cdm"] = cdm_path
     if mission:
@@ -1490,6 +1524,20 @@ def gov_run_study(
     res = rec["result"]
     con.print(json.dumps({k: v for k, v in res.items() if k not in ("operators", "findings_detail", "top_subjects", "by_airport")}, indent=1, default=str)[:2500])
     con.print(f"Result: [bold]{rec['files']['md']}[/] ({rec['duration_s']} s)")
+
+
+@gov_app.command("traceability")
+def gov_traceability(out: Path | None = typer.Option(None, help="Write the Markdown here"), gaps_only: bool = typer.Option(False)) -> None:
+    """Bidirectional traceability: controls to standards, rules, modules, tests and studies, and back; gaps first."""
+    from .governance import traceability as tr
+
+    cov = tr.coverage()
+    con.print("coverage: " + " · ".join(f"{k} {v:.0%}" for k, v in cov.items()))
+    for k, v in tr.gaps().items():
+        con.print(f"  {k}: {', '.join(v) if v else '[green]none'}")
+    if out and not gaps_only:
+        out.write_text(tr.render_markdown())
+        con.print(f"Wrote {out}")
 
 
 @gov_app.command("assurance")
@@ -1594,6 +1642,24 @@ def uas_risk_cmd(recording: Path = typer.Argument(..., help="Recording (.jsonl /
     out.mkdir(parents=True, exist_ok=True)
     jp = out / f"uas_risk_{recording.stem.split('.')[0]}_{_stamp()}.json"
     jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("encounter-model")
+def uas_encounter_model(recording: Path = typer.Argument(...), n: int = typer.Option(2000, help="Simulated encounters"), horizon_s: float = typer.Option(25.0),
+                        seed: int = typer.Option(0), max_batches: int | None = typer.Option(None), out: Path = typer.Option(Path("reports"))) -> None:
+    """Fit an encounter model from the recording's encounters and estimate NMAC probability with and without an alerting horizon (Monte Carlo)."""
+    from .uas import encounter_model as em
+
+    res = em.fit_and_simulate(recording, n, horizon_s, seed, max_batches)
+    m, sm = res["model"], res["simulation"]
+    con.print(f"fitted from {m['n']} pairs over {m['flight_hours']} fh (range p10/50/90 {m['range_ft_q']} ft); simulated {sm['n']}: "
+              f"P(NMAC) {sm['p_nmac_unmitigated']} unmitigated, {sm['p_nmac_mitigated']} with a {horizon_s:g} s horizon; model risk ratio {sm['risk_ratio']}")
+    if sm["rates"]:
+        con.print(f"per flight hour: encounters {sm['rates']['encounters_per_fh']}, NMAC {sm['rates']['nmac_per_fh_unmitigated']} -> {sm['rates']['nmac_per_fh_mitigated']}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = out / f"encounter_model_{recording.stem.split('.')[0]}_{_stamp()}.json"
+    jp.write_text(json.dumps({"summary": res, "findings": []}, indent=1, default=str))
     con.print(f"Report: {jp}")
 
 

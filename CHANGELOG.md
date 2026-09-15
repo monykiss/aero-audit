@@ -21,6 +21,9 @@ All notable changes to aero-audit. Dates are UTC.
 - App: SPACE and UAS pages with job buttons; `/api/v1/space`, `/api/v1/uas`, `/api/v1/integrations`, `/api/v1/schedule`;
   scheduled intake (`AERO_SCHEDULE`, `AERO_OFFLINE`) sharing one job registry with `aero space watch`; `aero accounts`
   and docs/ACCOUNTS.md; report kinds for every space and UAS report.
+- Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
+  ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
+  docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
 
 ## 0.6.0 - 2026-09-15 - contract, evidence, release engineering
 

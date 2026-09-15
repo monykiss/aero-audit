@@ -242,6 +242,21 @@ def _launch_join(recording: str | Path, launches: str | Path = "data/samples/ll2
     return {"launches": summary["launches"], "overlapping": summary["overlapping"], "rows": summary["rows"], "findings": [f.rule_id for f in fs]}
 
 
+def _encounter_model(recording: str | Path, n: int = 2000, horizon_s: float = 25.0, seed: int = 0, max_batches: int | None = None, **_: Any) -> dict[str, Any]:
+    from ..uas import encounter_model as em
+
+    return em.fit_and_simulate(recording, int(n), float(horizon_s), int(seed), max_batches)
+
+
+def _element_history(files: list[str | Path] | None = None, tle: str | Path | None = None, **_: Any) -> dict[str, Any]:
+    from ..space import maneuvers
+
+    fl = [Path(f) for f in (files or [])] or ([Path(tle)] if tle else None)
+    summary, fs = maneuvers.analyse(fl)
+    return {"objects": summary["objects"], "with_history": summary["with_history"], "changes": len(summary["changes"]), "decaying": len(summary["decaying"]),
+            "changes_detail": summary["changes"][:50], "decaying_detail": summary["decaying"][:50], "findings": [f.rule_id for f in fs]}
+
+
 def _catalog_reconcile(**_: Any) -> dict[str, Any]:
     from .catalog import build_catalog, load_catalog, reconcile, save_catalog
 
@@ -256,6 +271,7 @@ RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
     "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
     "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
     "cdm_assessment": _cdm_assessment, "risk_classes": _risk_classes, "space_weather": _space_weather, "launch_join": _launch_join,
+    "encounter_model": _encounter_model, "element_history": _element_history,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
@@ -306,6 +322,12 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-18", "Traffic near launch pads during windows", "Did aircraft stay out of the hazard radius during each launch window that overlaps the recording?",
           "space-launch", "Launch windows and pad coordinates joined to recorded positions; aircraft inside the radius during the window versus outside it.",
           ("launch file (sample bundled)", "recording"), ("aircraft inside during window", "baseline outside window"), "runnable", "launch_join", ("TheSpaceDevs/Launch Library 2",)),
+    Study("ST-19", "Encounter model Monte Carlo", "From the encounters a recording shows, what NMAC probability follows with nobody manoeuvring, and with an alerting horizon?",
+          "uas-utm", "Empirical initial conditions resampled into straight-line encounters, propagated through the well-clear definitions; NMAC counted with and without a horizon (em-core lineage, small scale).",
+          ("recording",), ("P(NMAC) unmitigated / mitigated", "model risk ratio", "NMAC per flight hour"), "runnable", "encounter_model", ("mit-ll/em-core", "ASTM F3442")),
+    Study("ST-20", "Element history: manoeuvres and decay", "Which catalogued objects changed orbit between snapshots, and which are about to re-enter?",
+          "space-orbital", "Mean elements per object across cached snapshots; semi-major-axis and inclination steps beyond drag, perigee and mean-motion decay rate.",
+          ("two or more element files",), ("manoeuvre-scale changes", "objects decaying within 30 days"), "runnable", "element_history", ("CelesTrak", "CCSDS 502.0-B")),
     Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
           "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
           ("nasa/Common-Metadata-Repository", "nasa/cumulus")),

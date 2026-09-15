@@ -57,6 +57,11 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
     p.write_text(render_assurance("."))
     written.append(p)
 
+    from .governance.traceability import render_markdown as render_traceability
+
+    p = out / "TRACEABILITY.md"
+    p.write_text(render_traceability())
+    written.append(p)
     p = out / "API.md"
     p.write_text(render_api(build_spec(api_router)))
     written.append(p)

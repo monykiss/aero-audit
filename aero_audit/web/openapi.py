@@ -46,7 +46,7 @@ SUMMARIES: dict[tuple[str, str], tuple[str, str, str]] = {
     ("GET", "/api/v1/reports"): ("Reports on disk", "Report groups with links to JSON, Markdown, HTML and manifest.", "reports"),
     ("GET", "/api/v1/reports/{name}/manifest"): ("Verify a report manifest", "Re-hash the report files named by the manifest.", "reports"),
     ("GET", "/api/v1/jobs"): ("Jobs", "Recent background jobs with status and results.", "jobs"),
-    ("POST", "/api/v1/jobs"): ("Submit a job", "Body {\"type\": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build, \"params\": {...}}.", "jobs"),
+    ("POST", "/api/v1/jobs"): ("Submit a job", "Body {\"type\": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build|maneuvers|encounter_model, \"params\": {...}}.", "jobs"),
     ("GET", "/api/v1/jobs/{id}"): ("Job detail", "Status, progress, log and result of one job.", "jobs"),
     ("POST", "/api/v1/jobs/{id}/cancel"): ("Cancel a job", "Request cancellation of a running job.", "jobs"),
     ("GET", "/api/v1/settings"): ("Settings", "App settings, model integrity and every tunable threshold with its override state.", "settings"),

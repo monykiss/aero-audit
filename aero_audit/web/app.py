@@ -413,7 +413,7 @@ class App:
             g["mtime"] = max(g["mtime"], f.stat().st_mtime)
         kinds = {"evaluation": "evaluation", "risk_assessment": "risk", "corroborate": "corroboration", "session": "session audit", "conjunctions": "space: conjunctions",
                  "cdm": "space: CDM", "debris": "space: debris", "space_weather": "space: weather", "launches": "space: launches", "wellclear": "uas: well-clear",
-                 "uas_risk": "uas: risk classes", "utm_check": "uas: UTM contract", "bench": "bench"}
+                 "uas_risk": "uas: risk classes", "utm_check": "uas: UTM contract", "bench": "bench", "maneuvers": "space: element history", "encounter_model": "uas: encounter model"}
         for g in groups.values():
             g["kind"] = next((v for k, v in kinds.items() if g["name"].startswith(k)), "audit")
         return sorted(groups.values(), key=lambda g: g["mtime"], reverse=True)

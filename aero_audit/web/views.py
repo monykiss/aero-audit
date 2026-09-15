@@ -53,6 +53,7 @@ def space_summary() -> dict[str, Any]:
     conj_path, conj = _latest_report("conjunctions")
     cdm_path, cdm = _latest_report("cdm")
     debris_path, debris = _latest_report("debris")
+    mv_path, mv = _latest_report("maneuvers")
     # CDM ledger and events
     ledger_rows = 0
     events: list[dict[str, Any]] = []
@@ -93,13 +94,15 @@ def space_summary() -> dict[str, Any]:
         "cdm": {"report": cdm_path.name if cdm_path else None, "assessment": (cdm or {}).get("assessment") or (cdm or {}).get("summary"), "findings": _findings_of(cdm),
                 "ledger_rows": ledger_rows, "events": events},
         "debris": {"report": debris_path.name if debris_path else None, "summary": (debris or {}).get("summary"), "findings": _findings_of(debris)},
+        "maneuvers": {"report": mv_path.name if mv_path else None, "changes": (mv or {}).get("summary", {}).get("changes", [])[:20], "decaying": (mv or {}).get("summary", {}).get("decaying", [])[:20],
+                      "findings": _findings_of(mv)},
         "space_weather": swx,
         "launches": lch,
         "assets": {"nasa3d_files": len(cat.get("files", [])) if isinstance(cat.get("files"), list) else cat.get("count"), "nasa3d_subjects": cat.get("subjects") if not isinstance(cat.get("subjects"), list) else len(cat["subjects"]),
                    "media_items": len(media) if isinstance(media, list) else (len(media.get("items", [])) if isinstance(media, dict) else 0),
                    "dataset_items": len(dataset.get("items", [])), "dataset_classes": dataset.get("counts"),
                    "classifier": None if not clf else {k: clf.get(k) for k in ("trained_at", "sha256", "rows")} | {"accuracy": (clf.get("evaluation") or {}).get("accuracy")}},
-        "reports": {k: _report_rows(k) for k in ("conjunctions", "cdm", "debris", "space_weather", "launches")},
+        "reports": {k: _report_rows(k) for k in ("conjunctions", "cdm", "debris", "space_weather", "launches", "maneuvers")},
     }
 
 
@@ -107,6 +110,7 @@ def uas_summary() -> dict[str, Any]:
     wc_path, wc = _latest_report("wellclear")
     risk_path, risk = _latest_report("uas_risk")
     utm_path, utm = _latest_report("utm_check")
+    em_path, em = _latest_report("encounter_model")
     s = (wc or {}).get("summary", {})
     return {
         "generated_at": time.time(),
@@ -115,9 +119,10 @@ def uas_summary() -> dict[str, Any]:
                       "pairs": (s.get("pairs") or [])[:30], "findings": _findings_of(wc)},
         "risk": {"report": risk_path.name if risk_path else None, "summary": (risk or {}).get("summary"), "findings": _findings_of(risk)},
         "utm": {"report": utm_path.name if utm_path else None, "summary": (utm or {}).get("summary"), "findings": _findings_of(utm)},
+        "encounter_model": {"report": em_path.name if em_path else None, "model": ((em or {}).get("summary") or {}).get("model"), "simulation": ((em or {}).get("summary") or {}).get("simulation")},
         "definitions": {"well_clear": "DO-365 Phase 1: DTHR 4000 ft, ZTHR 450 ft, TTHR 35 s", "nmac": "500 ft horizontal / 100 ft vertical",
                         "alert_levels": "preventive (700 ft, 55 s) · corrective (450 ft, 55 s) · warning (450 ft, 25 s)", "risk_ratio": "observed bound; programme limit 0.2"},
-        "reports": {k: _report_rows(k) for k in ("wellclear", "uas_risk", "utm_check")},
+        "reports": {k: _report_rows(k) for k in ("wellclear", "uas_risk", "utm_check", "encounter_model")},
     }
 
 

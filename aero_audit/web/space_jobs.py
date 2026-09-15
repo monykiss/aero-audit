@@ -123,6 +123,24 @@ def uas_risk(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     return _write_report(f"uas_risk_{rec.stem.split('.')[0]}", summary, fs) | {"risk_ratio": summary["risk_ratio"]["risk_ratio"]}
 
 
+def maneuvers(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from ..space import maneuvers as mv
+
+    files = [Path(f) for f in p.get("files") or []] or None
+    summary, fs = mv.analyse(files)
+    job.say(f"{summary['objects']} objects, {len(summary['changes'])} changes, {len(summary['decaying'])} decaying")
+    return _write_report("maneuvers", summary, fs) | {"changes": len(summary["changes"]), "decaying": len(summary["decaying"])}
+
+
+def encounter_model(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from ..uas import encounter_model as em
+
+    rec = _recording_path(p["recording"])
+    res = em.fit_and_simulate(rec, int(p.get("n") or 2000), float(p.get("horizon_s") or em.HORIZON_S), int(p.get("seed") or 0), p.get("max_batches"))
+    job.say(f"risk ratio {res['simulation']['risk_ratio']} from {res['simulation']['n']} encounters")
+    return _write_report(f"encounter_model_{rec.stem.split('.')[0]}", res, []) | {"risk_ratio": res["simulation"]["risk_ratio"], "p_nmac_unmitigated": res["simulation"]["p_nmac_unmitigated"]}
+
+
 def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     from ..governance import catalog
 
@@ -135,6 +153,6 @@ def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
 
 REGISTRY = {"cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
-            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build}
+            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model}
 
 __all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "space_weather", "spacetrack_pull", "uas_risk", "wellclear"]
