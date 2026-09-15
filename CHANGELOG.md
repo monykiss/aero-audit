@@ -2,6 +2,22 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 0.6.0 - 2026-09-15 - contract, evidence, release engineering
+
+- API contract: OpenAPI 3.1 generated from the router at `/api/v1/openapi.json` and rendered to
+  `docs/generated/API.md`; the test suite fails on any undocumented route.
+- Evidence bundles: `aero log bundle` zips the audit chain with its verification, reports and
+  manifests, model card / registry / evaluation, thresholds, generated docs and redacted settings
+  with `BUNDLE.json` hashes; `aero log verify-bundle` re-checks them.
+- POST rate limiting per client (token bucket, `AERO_POST_RATE_LIMIT`, 429 with Retry-After).
+- Orderly shutdown on SIGTERM/SIGINT: sources and tour stopped, `app.stop` audit entry and log line,
+  listener closed (containers stop cleanly).
+- `aero bench`: engine throughput and per-batch percentiles with provenance; capacity numbers in docs.
+- Release engineering: `release.yml` builds sdist and wheel, a CycloneDX SBOM and checksums and
+  attaches them to the GitHub release; CI publishes the SBOM as an artifact; OpenSSF Scorecard
+  workflow and badge; CODEOWNERS, issue and pull-request templates, pre-commit config.
+- F9 jumps to Observability.
+
 ## 0.5.0 - 2026-09-15 - observable
 
 - `aero_audit/observability.py`: dependency-free metrics registry (counters, gauges, histograms with

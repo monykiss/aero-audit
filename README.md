@@ -4,7 +4,8 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 0.5.0](https://img.shields.io/badge/version-0.5.0-orange.svg)](CHANGELOG.md)
+[![version 0.6.0](https://img.shields.io/badge/version-0.6.0-orange.svg)](CHANGELOG.md)
+[![scorecard](https://api.securityscorecards.dev/projects/github.com/monykiss/aero-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/monykiss/aero-audit)
 
 **Aviation surveillance auditing, end to end.** aero-audit follows real aircraft from public
 ADS-B feeds, checks every position report against physics, integrity and safety rules plus an
@@ -36,6 +37,7 @@ narrates each one and says what should fire. Press **F2** for the map, **F6** fo
 |---|---|
 | ![Home](docs/img/home.png) | ![Flights](docs/img/flights.png) |
 | ![Airports with FAA programmes](docs/img/airports.png) | ![Findings with evidence and playbook](docs/img/findings.png) |
+| ![Observability: readiness, request and ingest metrics, log tail](docs/img/observability.png) | ![Audit log with the verified hash chain](docs/img/auditlog.png) |
 
 ## What it does
 
@@ -86,6 +88,13 @@ policy: [SECURITY.md](SECURITY.md).
 `/metrics` is Prometheus text, `/healthz` and `/readyz` are probes, every response carries an
 `X-Request-Id` that also stamps the JSON log, and `compose.observability.yaml` brings up Prometheus
 with alert rules and a provisioned Grafana dashboard. Details: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
+
+**Contract and evidence.** The API is described by an OpenAPI 3.1 document generated from the
+router (`/api/v1/openapi.json`, [docs/generated/API.md](docs/generated/API.md)); a route without a
+description fails the tests. `aero log bundle` produces an evidence zip for an auditor: the hash
+chain with its verification, every report and manifest, model card and evaluation, thresholds,
+generated docs, settings with credentials redacted, and a `BUNDLE.json` of SHA-256 hashes that
+`aero log verify-bundle` re-checks. Releases ship an SBOM and checksums built in CI.
 
 ## How it fits together
 
@@ -200,7 +209,8 @@ aero corroborate --region nyc --radius 150 --seconds 100       # two feeds, SEC-
 aero security threats | playbook SEC-010 | rules | watchlist-example
 aero risk register | risk assess data/recordings/*.jsonl
 aero impact data/recordings/*.jsonl
-aero log verify | log show | log verify-report reports/<name>.manifest.json
+aero log verify | log show | log verify-report reports/<name>.manifest.json | log bundle | log verify-bundle <zip>
+aero bench                                                     # engine throughput on the bundled sample
 aero config init && aero config show rules                     # aero.toml threshold overrides
 aero data inventory | data prune --days 30
 aero vision detect data/samples/apron_hohn.jpg --tile 320 --conf 0.10     # needs the [vision] extra

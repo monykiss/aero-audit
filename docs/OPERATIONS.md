@@ -108,3 +108,22 @@ rest of the process; force it up front with `AERO_HTTP_BACKEND=curl`, or force p
 Recordings contain public broadcast data only, but they enable tracking. Keep retention short
 (suggest 30 days), restrict report access for `protect` watchlist entries, and never publish
 tracks of protected aircraft.
+
+## Capacity (measured)
+
+`aero bench` on the bundled 15-hub sample (56 batches, 11,528 state vectors, rules only, Apple
+silicon laptop, 2026-09-15): about 100,000 state vectors per second, 487 batches per second,
+per-batch p50 1.7 ms and p95 4.8 ms. A national OpenSky picture of ~5,000 aircraft therefore costs
+roughly 50 ms of engine time per poll against a 60 s poll interval; the ML model adds feature
+extraction per aircraft and is the first thing to profile if p95 climbs. Watch
+`aero_engine_batch_seconds` in Prometheus; the shipped alert rule fires at a p95 above 2 s.
+
+## Runbook: stopping, bundling, restoring
+
+- `docker stop` or Ctrl+C sends SIGTERM/SIGINT: sources and the tour stop, an `app.stop` entry
+  lands in the audit chain, the listener closes. Nothing needs cleaning up.
+- Before handing evidence to a reviewer: `aero log verify`, then `aero log bundle --since-days 30`;
+  the zip verifies with `aero log verify-bundle`.
+- Restoring on another machine: copy `data/recordings`, `reports`, `models` and `data/app`; run
+  `aero doctor`; the audit chain verifies across machines because it is content-hashed, not
+  host-bound.

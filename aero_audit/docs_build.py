@@ -33,6 +33,14 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
     p.write_text(render_register(assess(None), "Risk register (baseline, generated)"))
     written.append(p)
 
+    from .web.app import router as api_router
+    from .web.openapi import build_spec
+    from .web.openapi import render_markdown as render_api
+
+    p = out / "API.md"
+    p.write_text(render_api(build_spec(api_router)))
+    written.append(p)
+
     p = out / "RULES.md"
     lines = ["# Rule ids (generated)", "", "| Rule | Category | Description |", "|---|---|---|"]
     lines += [f"| {rid} | {cat} | {desc} |" for rid, (cat, desc) in RULE_CATALOG.items()]

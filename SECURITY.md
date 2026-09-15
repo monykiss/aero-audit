@@ -32,8 +32,8 @@ reachable by every web page you have open, so it defends itself
 | Exposure beyond the machine | binding to anything but loopback requires `--token` / `AERO_APP_TOKEN` (then every API call is authenticated) or an explicit `--allow-unauthenticated`, meant for a container whose port the host publishes on 127.0.0.1 |
 | Tampering with the record of what was done | the audit log is hash-chained (`aero log verify`); reports ship with a manifest of SHA-256 hashes and full provenance (`aero log verify-report`) |
 
-What it does **not** do: there is no user login, no TLS, and no rate limiting. It is a single-user
-desk tool. Putting it on a network for several people needs a reverse proxy with authentication
+What it does **not** do: there is no user login and no TLS. POSTs are rate-limited per client (60 burst,
+one per second refill) as defence in depth, nothing more. It is a single-user desk tool. Putting it on a network for several people needs a reverse proxy with authentication
 and TLS in front of it; the token mode is the minimum, not the design.
 
 ## Supply chain
@@ -48,6 +48,9 @@ and TLS in front of it; the token mode is the minimum, not the design.
 - Vision weights (`yolov8n.pt`) are fetched from the ultralytics GitHub release on first use of
   the optional `[vision]` extra; verify the checksum against the release page or vendor the file.
 - The front end has no build step and one vendored library (Leaflet 1.9.4).
+- Every tagged release carries a CycloneDX SBOM and SHA-256 checksums built in CI from the lock file;
+  the OpenSSF Scorecard workflow publishes the repository's supply-chain score.
+- The API is described by an OpenAPI document generated from the router; undocumented routes fail CI.
 
 ## Data handling
 
