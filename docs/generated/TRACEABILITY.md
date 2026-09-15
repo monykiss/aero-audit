@@ -14,7 +14,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 - **controls without tests**: none
 - **implemented without module or command**: none
 - **rules without control**: none
-- **modules without control**: none
+- **modules without control**: aero_audit/audit/generic_report.py, aero_audit/space/demo.py
 - **studies without control**: none
 - **standards without control**: none
 - **test files missing**: none

@@ -159,6 +159,18 @@ manoeuvre (ORB-006, so approaches computed from the older set are void); a perig
 or a mean-motion derivative implying re-entry within 30 days is ORB-007. Thresholds are stated in
 every report; TIP messages from the tracking authority remain the reentry reference.
 
+## Demo and evidence
+
+```bash
+aero space demo            # debris, CDM, space weather, launches, well-clear, risk classes, encounter model on the samples
+aero doctor                # adds space rows: sgp4, OpenCV, cached elements, CDM ledger, samples
+aero log bundle            # the evidence zip carries every report, its Markdown and its manifest
+```
+
+Every report on this branch is three files: the JSON the pages read, a Markdown rendering, and a
+manifest with SHA-256 of both plus provenance (tool version, commit, Python, platform, input files
+and their hashes). `aero log verify-report <manifest>` re-hashes them; the Reports page links all three.
+
 ## Honest limits
 
 - The COCO detector has no "rocket" class. Frame detection stays a placeholder until the ultralytics

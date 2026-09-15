@@ -15,6 +15,7 @@ from rich.table import Table
 from . import __version__
 from .audit import AuditEngine, write_reports
 from .audit.findings import SEVERITY_ORDER
+from .audit.generic_report import write_generic
 from .config import REGIONS, Region, bbox_region, get_region, parse_regions, settings
 from .ingest import PROVIDERS, iter_recording, make_provider
 from .ingest.metar import fetch_metars, summarize_metar
@@ -852,6 +853,18 @@ def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the publ
     from .integrations import INTEGRATIONS, missing
 
     miss = missing()
+    for mod, why in (("sgp4", "orbital screening and element history"), ("cv2", "frames, renders, scene classifier (optional)")):
+        try:
+            importlib.import_module(mod)
+            ok(f"space: {mod}", why)
+        except ImportError:
+            (warn if mod == "cv2" else fail)(f"space: {mod}", f"missing; needed for {why}")
+    els = sorted(Path("data/space/elements").glob("*.tle")) if Path("data/space/elements").is_dir() else []
+    ok("space: elements", f"{len(els)} cached set file(s), newest {((time.time() - els[-1].stat().st_mtime) / 3600):.1f} h old" if els else "none cached; `aero space conjunctions` fetches CelesTrak keyless")
+    ledger = Path("data/space/cdm/ledger.jsonl")
+    ok("space: cdm ledger", f"{sum(1 for _ in ledger.open())} row(s)" if ledger.is_file() else "empty; drop CDMs in data/space/cdm/inbox or pull Space-Track")
+    samples = [Path("data/samples") / n for n in ("swpc_scales_sample.json", "ll2_launches_sample.json", "synthetic_mission.json", "synthetic_conjunction.cdm")]
+    (ok if all(x.is_file() for x in samples) else fail)("space: samples", "space weather, launches, mission, CDM samples present" if all(x.is_file() for x in samples) else "missing: " + ", ".join(x.name for x in samples if not x.is_file()))
     (warn if miss else ok)("integrations", f"{len(INTEGRATIONS) - len(miss)}/{len(INTEGRATIONS)} configured or keyless; missing: {', '.join(miss)} (see `aero accounts`)" if miss else "every integration configured or keyless")
     for d in ("data/recordings", "data/app", "reports", "logs", "models"):
         try:
@@ -1119,8 +1132,7 @@ def space_conjunctions(
         t.add_row(f.rule_id, f.severity.value, (f.callsign or "")[:24], f.title[:70])
     con.print(t)
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"conjunctions_{(group or Path(path).stem)}_{_stamp()}.json"
-    jp.write_text(json.dumps({"screen": res, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, f"conjunctions_{(group or Path(path).stem)}", "screen", res, fs, inputs={"elements": path})["json"]
     con.print(f"Report: {jp}  ({res['covariance']})")
 
 
@@ -1145,8 +1157,7 @@ def space_cdm(
     for f in fs:
         con.print(f"  [{f.severity.value}] {f.rule_id} {f.title}")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"cdm_{(cdm.message_id or path.stem).replace('/', '_')}_{_stamp()}.json"
-    jp.write_text(json.dumps({"assessment": res, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, f"cdm_{(cdm.message_id or path.stem).replace('/', '_')}", "assessment", res, fs, inputs={"cdm": path})["json"]
     con.print(f"Report: {jp}")
 
 
@@ -1164,8 +1175,7 @@ def space_debris(mission: Path = typer.Argument(..., help="Mission description J
     con.print(f"{summary['mission']} ({summary['regime']}): {summary['passed']} pass, {summary['failed']} fail, {summary['unknown']} unknown; "
               f"estimated lifetime {summary['estimated_lifetime_years']} y")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"debris_{m.name}_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, f"debris_{m.name}", "summary", summary, fs, inputs={"mission": mission})["json"]
     con.print(f"Report: {jp}")
 
 
@@ -1273,8 +1283,7 @@ def space_weather_cmd(file: Path | None = typer.Option(None, help="Cached or sam
     for f in fs:
         con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"space_weather_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, "space_weather", "summary", summary, fs, inputs={"product": path, "recording": recording})["json"]
     con.print(f"Report: {jp}")
 
 
@@ -1299,8 +1308,7 @@ def space_launches_cmd(mode: str = typer.Option("upcoming", help="upcoming | pre
         for f in fs:
             con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
         out.mkdir(parents=True, exist_ok=True)
-        jp = out / f"launches_{_stamp()}.json"
-        jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+        jp = write_generic(out, "launches", "summary", summary, fs, inputs={"launches": path, "recording": recording})["json"]
         con.print(f"Report: {jp}")
 
 
@@ -1361,9 +1369,29 @@ def space_maneuvers(files: list[Path] | None = typer.Argument(None, help="Elemen
     for f in fs[:30]:
         con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"maneuvers_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, "maneuvers", "summary", summary, fs, inputs={f"elements{i}": f for i, f in enumerate(files or [])})["json"]
     con.print(f"Report: {jp}")
+
+
+@space_app.command("demo")
+def space_demo(out: Path = typer.Option(Path("reports")), recording: Path | None = typer.Option(None), max_batches: int | None = typer.Option(None),
+               docs: bool = typer.Option(True, help="Also rebuild docs/generated and the data catalogue")) -> None:
+    """Every space and UAS analysis on the bundled samples, offline, each with a report and manifest; then the SPACE and UAS pages have data."""
+    from .space.demo import run
+
+    rows = run(out, recording, max_batches)
+    t = Table("step", "findings", "rules", "report")
+    for r in rows:
+        t.add_row(r["step"], str(r["findings"]), ", ".join(r["rules"])[:40], r["report"])
+    con.print(t)
+    if docs:
+        from .docs_build import build
+        from .governance import catalog
+
+        build()
+        catalog.save_catalog(catalog.build_catalog("."))
+        con.print("docs/generated rebuilt; data catalogue saved")
+    con.print("Open the pages: aero app  (SPACE, UAS, GOV)")
 
 
 @space_app.command("telemetry-audit")
@@ -1619,8 +1647,7 @@ def uas_wellclear(recording: Path = typer.Argument(..., help="Recording (.jsonl 
                   "[red]yes" if r["violation"] else "no", str(r["lead_time_s"]))
     con.print(t)
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"wellclear_{recording.stem.split('.')[0]}_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, f"wellclear_{recording.stem.split('.')[0]}", "summary", summary, fs, inputs={"recording": recording})["json"]
     con.print(f"Report: {jp}")
 
 
@@ -1640,8 +1667,7 @@ def uas_risk_cmd(recording: Path = typer.Argument(..., help="Recording (.jsonl /
     for f in fs:
         con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"uas_risk_{recording.stem.split('.')[0]}_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": summary, "findings": [f.model_dump() for f in fs]}, indent=1, default=str))
+    jp = write_generic(out, f"uas_risk_{recording.stem.split('.')[0]}", "summary", summary, fs, inputs={"recording": recording})["json"]
     con.print(f"Report: {jp}")
 
 
@@ -1658,8 +1684,7 @@ def uas_encounter_model(recording: Path = typer.Argument(...), n: int = typer.Op
     if sm["rates"]:
         con.print(f"per flight hour: encounters {sm['rates']['encounters_per_fh']}, NMAC {sm['rates']['nmac_per_fh_unmitigated']} -> {sm['rates']['nmac_per_fh_mitigated']}")
     out.mkdir(parents=True, exist_ok=True)
-    jp = out / f"encounter_model_{recording.stem.split('.')[0]}_{_stamp()}.json"
-    jp.write_text(json.dumps({"summary": res, "findings": []}, indent=1, default=str))
+    jp = write_generic(out, f"encounter_model_{recording.stem.split('.')[0]}", "summary", res, [], inputs={"recording": recording})["json"]
     con.print(f"Report: {jp}")
 
 

@@ -24,6 +24,9 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Evidence: every space and UAS report now ships JSON + Markdown + manifest with provenance and input hashes
+  (audit/generic_report.py), from the CLI and from jobs alike; `aero space demo` runs every analysis offline on the
+  bundled samples; `aero doctor` checks sgp4, OpenCV, cached elements, the CDM ledger and the space samples.
 - Performance: vectorised well-clear projection (CONUS scoring ~60 s -> 11 s), rasteriser (1.1 s -> 0.04 s at 40k triangles),
   conjunction screen (SatrecArray + broadcasted distances), catalogue hash cache, memoised page summaries; scalar references
   kept and proven equivalent in tests/test_perf_equivalence.py; `aero bench --suite space`; docs/PERFORMANCE.md.
