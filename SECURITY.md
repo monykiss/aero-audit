@@ -48,8 +48,10 @@ and TLS in front of it; the token mode is the minimum, not the design.
 - Vision weights (`yolov8n.pt`) are fetched from the ultralytics GitHub release on first use of
   the optional `[vision]` extra; verify the checksum against the release page or vendor the file.
 - The front end has no build step and one vendored library (Leaflet 1.9.4).
-- Every tagged release carries a CycloneDX SBOM and SHA-256 checksums built in CI from the lock file;
-  the OpenSSF Scorecard workflow publishes the repository's supply-chain score.
+- Every tagged release carries a CycloneDX SBOM and SHA-256 checksums built in CI from the lock file, and
+  every artifact is signed keylessly with Sigstore under the workflow's OIDC identity (verify with
+  `sigstore verify github --cert-identity-regexp 'monykiss/aero-audit' <file>`); the OpenSSF Scorecard
+  workflow publishes the repository's supply-chain score.
 - The API is described by an OpenAPI document generated from the router; undocumented routes fail CI.
 
 ## Data handling
