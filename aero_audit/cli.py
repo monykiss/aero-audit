@@ -1764,13 +1764,29 @@ def bench(
     recording: Path | None = typer.Option(None, help="Recording (default: the largest bundled sample)"),
     rounds: int = typer.Option(3),
     model: Path | None = typer.Option(None, help="Model to include (verified against the registry)"),
+    suite: str = typer.Option("engine", help="engine | space | all: the rules engine, or the space/UAS hot paths (encounters, projection, rasteriser, screen, catalogue)"),
     out: Path = typer.Option(Path("reports")),
 ) -> None:
-    """Throughput of the rules engine on a recording: batches/s, state vectors/s, per-batch p50/p95. Writes reports/bench_*.json."""
+    """Throughput of the rules engine on a recording (batches/s, state vectors/s, per-batch p50/p95) and, with --suite space, the
+    space and UAS hot paths. Writes reports/bench_*.json."""
     import statistics
 
     from .provenance import build as build_prov
 
+    if suite in ("space", "all"):
+        from .bench_space import run_suite
+
+        rows = run_suite(recording or _demo_recording(), rounds)
+        t = Table("case", "input", "best s", "median s", "rate")
+        for r in rows:
+            t.add_row(r["case"], r["input"], f"{r['best_s']:.3f}", f"{r['median_s']:.3f}", r["rate"])
+        con.print(t)
+        out.mkdir(parents=True, exist_ok=True)
+        jp = out / f"bench_space_{_stamp()}.json"
+        jp.write_text(json.dumps({"suite": "space", "rounds": rounds, "cases": rows}, indent=1, default=str))
+        con.print(f"Wrote {jp}")
+        if suite == "space":
+            return
     rec = recording or _demo_recording()
     if rec is None:
         raise typer.BadParameter("no recording; pass --recording")

@@ -17,6 +17,7 @@ import hashlib
 import json
 import math
 import time
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -75,9 +76,81 @@ def viewpoints(n_yaw: int = 12, pitches: tuple[float, ...] = (-30.0, 0.0, 30.0))
     return [(360.0 * i / n_yaw, p) for p in pitches for i in range(n_yaw)]
 
 
+def _project(v: np.ndarray, f: np.ndarray, size: int, yaw: float, pitch: float, roll: float, scale: float, light: tuple[float, float, float]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    pts = normalise(v) @ rotation(yaw, pitch, roll).T
+    xy = (pts[:, :2] * scale + 0.5) * (size - 1)
+    z = pts[:, 2]
+    lt = np.asarray(light, dtype=np.float64)
+    lt /= np.linalg.norm(lt)
+    tri = pts[f]
+    n = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    norms = np.linalg.norm(n, axis=1)
+    keep = norms > 1e-12
+    shade = 0.15 + 0.85 * np.abs((n[keep] / norms[keep, None]) @ lt)  # two-sided Lambert
+    return xy, z, f[keep], shade.astype(np.float32)
+
+
 def rasterise(v: np.ndarray, f: np.ndarray, size: int = DEFAULT_SIZE, yaw: float = 0.0, pitch: float = 0.0, roll: float = 0.0, scale: float = 0.8,
+              light: tuple[float, float, float] = (0.3, 0.5, 1.0), background: float = 0.05, chunk_px: int = 4_000_000) -> np.ndarray:
+    """Orthographic z-buffer rasteriser; returns a float image in [0, 1] of shape (size, size).
+
+    Vectorised over triangles: every (triangle, bounding-box pixel) pair is generated with a repeat/cumsum trick,
+    barycentrics and depth are computed in one shot, and ``np.maximum.at`` resolves the z-buffer. Chunks bound
+    memory to about ``chunk_px`` candidate pixels. Equivalent to ``_rasterise_reference`` (tested)."""
+    xy, z, f, shade = _project(v, f, size, yaw, pitch, roll, scale, light)
+    img = np.full(size * size, background, dtype=np.float32)
+    zbuf = np.full(size * size, -np.inf, dtype=np.float32)
+    if len(f) == 0:
+        return img.reshape(size, size)[::-1]
+    p0, p1, p2 = xy[f[:, 0]], xy[f[:, 1]], xy[f[:, 2]]
+    z0, z1, z2 = z[f[:, 0]], z[f[:, 1]], z[f[:, 2]]
+    det = (p1[:, 0] - p0[:, 0]) * (p2[:, 1] - p0[:, 1]) - (p2[:, 0] - p0[:, 0]) * (p1[:, 1] - p0[:, 1])
+    x0 = np.maximum(0, np.floor(np.minimum.reduce([p0[:, 0], p1[:, 0], p2[:, 0]]))).astype(np.int64)
+    x1 = np.minimum(size - 1, np.ceil(np.maximum.reduce([p0[:, 0], p1[:, 0], p2[:, 0]]))).astype(np.int64)
+    y0 = np.maximum(0, np.floor(np.minimum.reduce([p0[:, 1], p1[:, 1], p2[:, 1]]))).astype(np.int64)
+    y1 = np.minimum(size - 1, np.ceil(np.maximum.reduce([p0[:, 1], p1[:, 1], p2[:, 1]]))).astype(np.int64)
+    w = x1 - x0 + 1
+    h = y1 - y0 + 1
+    ok = (w > 0) & (h > 0) & (np.abs(det) >= 1e-12)
+    area = np.where(ok, w * h, 0)
+    order = np.flatnonzero(ok)
+    cum = np.cumsum(area[order])
+    bounds = [0]
+    while bounds[-1] < len(order):
+        nxt = int(np.searchsorted(cum, cum[bounds[-1] - 1] + chunk_px if bounds[-1] else chunk_px, side="right"))
+        bounds.append(max(nxt, bounds[-1] + 1))
+    for lo, hi in pairwise(bounds):
+        c = order[lo:hi]
+        counts = area[c]
+        total = int(counts.sum())
+        if total == 0:
+            continue
+        tri = np.repeat(np.arange(len(c)), counts)
+        starts = np.repeat(np.cumsum(counts) - counts, counts)
+        k = np.arange(total) - starts
+        wc = w[c][tri]
+        px = x0[c][tri] + k % wc
+        py = y0[c][tri] + k // wc
+        a0, a1, a2 = p0[c][tri], p1[c][tri], p2[c][tri]
+        dt = det[c][tri]
+        w1 = ((px - a0[:, 0]) * (a2[:, 1] - a0[:, 1]) - (a2[:, 0] - a0[:, 0]) * (py - a0[:, 1])) / dt
+        w2 = ((a1[:, 0] - a0[:, 0]) * (py - a0[:, 1]) - (px - a0[:, 0]) * (a1[:, 1] - a0[:, 1])) / dt
+        w0 = 1.0 - w1 - w2
+        inside = (w0 >= -1e-9) & (w1 >= -1e-9) & (w2 >= -1e-9)
+        if not inside.any():
+            continue
+        depth = (w0 * z0[c][tri] + w1 * z1[c][tri] + w2 * z2[c][tri])[inside].astype(np.float32)
+        pix = (py * size + px)[inside]
+        sh = shade[c][tri][inside]
+        np.maximum.at(zbuf, pix, depth)
+        win = depth >= zbuf[pix]
+        img[pix[win]] = sh[win]
+    return img.reshape(size, size)[::-1]  # image rows grow downwards
+
+
+def _rasterise_reference(v: np.ndarray, f: np.ndarray, size: int = DEFAULT_SIZE, yaw: float = 0.0, pitch: float = 0.0, roll: float = 0.0, scale: float = 0.8,
               light: tuple[float, float, float] = (0.3, 0.5, 1.0), background: float = 0.05) -> np.ndarray:
-    """Orthographic z-buffer rasteriser; returns a float image in [0, 1] of shape (size, size)."""
+    """Reference per-triangle loop kept for the equivalence test; ``rasterise`` is the vectorised version."""
     pts = normalise(v) @ rotation(yaw, pitch, roll).T
     xy = (pts[:, :2] * scale + 0.5) * (size - 1)
     z = pts[:, 2]

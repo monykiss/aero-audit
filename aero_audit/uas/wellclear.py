@@ -88,9 +88,9 @@ def violates(s: tuple[float, float], v: tuple[float, float], dz_ft: float, vz_ft
     return horizontal_violation(s, v, p) and vertical_violation(dz_ft, vz_ftps, p)
 
 
-def time_to_violation(s: tuple[float, float], v: tuple[float, float], dz_ft: float, vz_ftps: float, p: WellClearParams,
-                      horizon_s: float, step_s: float = 1.0) -> float | None:
-    """First time in [0, horizon] at which the linear projection violates ``p``; None if never."""
+def _time_to_violation_scalar(s: tuple[float, float], v: tuple[float, float], dz_ft: float, vz_ftps: float, p: WellClearParams,
+                              horizon_s: float, step_s: float = 1.0) -> float | None:
+    """Reference implementation (one ``violates`` call per step); the vectorised version below must agree with it."""
     t = 0.0
     while t <= horizon_s + 1e-9:
         st = (s[0] + v[0] * t, s[1] + v[1] * t)
@@ -98,6 +98,40 @@ def time_to_violation(s: tuple[float, float], v: tuple[float, float], dz_ft: flo
             return t
         t += step_s
     return None
+
+
+def time_to_violation(s: tuple[float, float], v: tuple[float, float], dz_ft: float, vz_ftps: float, p: WellClearParams,
+                      horizon_s: float, step_s: float = 1.0) -> float | None:
+    """First time in [0, horizon] at which the linear projection violates ``p``; None if never.
+
+    The whole time grid is evaluated at once with numpy (same definitions as ``violates``), which is what makes
+    encounter extraction over a national recording take seconds rather than minutes."""
+    import numpy as np
+
+    n = math.floor(horizon_s / step_s + 1e-9) + 1
+    t = np.arange(n, dtype=np.float64) * step_s
+    sx, sy = s[0] + v[0] * t, s[1] + v[1] * t
+    r2 = sx * sx + sy * sy
+    sv = sx * v[0] + sy * v[1]
+    vv = v[0] * v[0] + v[1] * v[1]
+    d2 = p.dthr_ft * p.dthr_ft
+    inside = r2 <= d2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        tau = np.where(sv < 0, (d2 - r2) / sv, np.inf)
+    tau = np.where(inside, 0.0, tau)
+    if vv > 0:
+        tc = np.maximum(0.0, -sv / vv)
+        hmd = np.hypot(sx + v[0] * tc, sy + v[1] * tc)
+    else:
+        hmd = np.sqrt(r2)
+    horiz = inside | ((tau >= 0.0) & (tau <= p.tthr_s) & (hmd <= p.dthr_ft))
+    dz = dz_ft + vz_ftps * t
+    vert = np.abs(dz) <= p.zthr_ft
+    if vz_ftps != 0.0:
+        tcoa = -dz / vz_ftps
+        vert |= (dz * vz_ftps < 0) & (tcoa >= 0.0) & (tcoa <= p.tcoa_s)
+    idx = np.flatnonzero(horiz & vert)
+    return float(t[idx[0]]) if len(idx) else None
 
 
 def alert_level(s: tuple[float, float], v: tuple[float, float], dz_ft: float, vz_ftps: float,

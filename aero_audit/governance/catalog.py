@@ -56,8 +56,31 @@ def _recording_bounds(p: Path) -> dict[str, Any]:
         return {}
 
 
-def build_catalog(root: str | Path = ".") -> dict[str, Any]:
+HASH_CACHE = Path("data/app/catalog_hashes.json")
+
+
+def _load_hash_cache(path: Path) -> dict[str, list[Any]]:
+    try:
+        d = json.loads(path.read_text())
+        return d if isinstance(d, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _sha_cached(p: Path, rel: str, st: Any, cache: dict[str, list[Any]]) -> str | None:
+    """Re-hash only when size or mtime changed: a catalogue rebuild over gigabytes of recordings then costs a stat per file."""
+    hit = cache.get(rel)
+    if hit and len(hit) == 3 and hit[0] == st.st_size and hit[1] == st.st_mtime:
+        return hit[2]
+    sha = _sha(p)
+    cache[rel] = [st.st_size, st.st_mtime, sha]
+    return sha
+
+
+def build_catalog(root: str | Path = ".", hash_cache: str | Path | None = HASH_CACHE) -> dict[str, Any]:
     root = Path(root)
+    cache_path = (root / hash_cache) if hash_cache and not Path(hash_cache).is_absolute() else (Path(hash_cache) if hash_cache else None)
+    cache = _load_hash_cache(cache_path) if cache_path else {}
     cat: dict[str, Any] = {"format": "aero-audit-catalog/1", "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "collections": {}}
     for name, patterns in COLLECTIONS.items():
         granules = []
@@ -71,7 +94,7 @@ def build_catalog(root: str | Path = ".") -> dict[str, Any]:
                     continue
                 seen.add(rel)
                 st = p.stat()
-                g: dict[str, Any] = {"id": rel, "collection": name, "bytes": st.st_size, "mtime": st.st_mtime, "sha256": _sha(p)}
+                g: dict[str, Any] = {"id": rel, "collection": name, "bytes": st.st_size, "mtime": st.st_mtime, "sha256": _sha_cached(p, rel, st, cache)}
                 prov = p.with_name(p.name + ".provenance.json")
                 if prov.is_file():
                     g["provenance"] = prov.relative_to(root).as_posix()
@@ -83,6 +106,12 @@ def build_catalog(root: str | Path = ".") -> dict[str, Any]:
         cat["collections"][name] = {"count": len(granules), "bytes": sum(g["bytes"] for g in granules), "granules": granules}
     cat["granules_total"] = sum(c["count"] for c in cat["collections"].values())
     cat["bytes_total"] = sum(c["bytes"] for c in cat["collections"].values())
+    if cache_path:
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(cache))
+        except OSError:
+            pass  # the cache is an accelerator, never a requirement
     return cat
 
 

@@ -10,6 +10,19 @@ from pathlib import Path
 from typing import Any
 
 REPORTS = Path("reports")
+CACHE_TTL_S = 5.0
+_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _memo(name: str, fn: Any) -> dict[str, Any]:
+    """The pages poll; a summary rescans reports and reassesses cached products, so results are held for a few seconds."""
+    now = time.time()
+    hit = _cache.get(name)
+    if hit and now - hit[0] < CACHE_TTL_S:
+        return hit[1]
+    val = fn()
+    _cache[name] = (now, val)
+    return val
 
 
 def _load(p: Path) -> dict[str, Any] | None:
@@ -41,6 +54,10 @@ def _findings_of(d: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def space_summary() -> dict[str, Any]:
+    return _memo("space", _space_summary)
+
+
+def _space_summary() -> dict[str, Any]:
     from ..space import cdm_inbox, launches, orbital, spaceweather
 
     now = time.time()
@@ -107,6 +124,10 @@ def space_summary() -> dict[str, Any]:
 
 
 def uas_summary() -> dict[str, Any]:
+    return _memo("uas", _uas_summary)
+
+
+def _uas_summary() -> dict[str, Any]:
     wc_path, wc = _latest_report("wellclear")
     risk_path, risk = _latest_report("uas_risk")
     utm_path, utm = _latest_report("utm_check")

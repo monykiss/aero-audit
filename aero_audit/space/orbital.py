@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import numpy as np
 
 from ..audit.findings import Category, Finding, Severity
 from ..config import settings
@@ -185,7 +186,74 @@ class Approach:
                 "min_km": round(self.min_km, 3), "rel_speed_kms": round(self.rel_speed_kms, 3)}
 
 
+def positions_array(sets: list[ElementSet], start: datetime, hours: float, step_s: float) -> tuple[np.ndarray, np.ndarray, list[int]]:
+    """Positions (km, TEME) as an (n, samples, 3) array with NaN where SGP4 reported an error, via SatrecArray."""
+    from sgp4.api import SatrecArray
+
+    recs = _satrecs(sets)
+    n = int(hours * 3600 / step_s) + 1
+    times = np.arange(n, dtype=np.float64) * step_s
+    jd0, fr0 = _jd(start)
+    jd = np.full(n, jd0)
+    fr = fr0 + times / 86400.0
+    e, r, _ = SatrecArray(recs).sgp4(jd, fr)
+    r = np.asarray(r, dtype=np.float64)
+    bad = np.asarray(e) != 0
+    r[bad] = np.nan
+    errors = [int(row[row != 0][0]) if (row != 0).any() else 0 for row in np.asarray(e)]
+    return times, r, errors
+
+
 def screen(sets: list[ElementSet], start: datetime | None = None, hours: float = 24.0, threshold_km: float = THRESHOLD_KM,
+           coarse_step_s: float = COARSE_STEP_S, fine_step_s: float = FINE_STEP_S, max_sets: int = 200,
+           min_rel_speed_kms: float = MIN_REL_SPEED_KMS) -> dict[str, Any]:
+    """Pairwise minimum separation inside the window: coarse grid, then a fine pass around each coarse minimum
+    under 5x the threshold. The coarse pass is one broadcasted distance computation per object (SatrecArray
+    propagation, numpy nanmin over the window), so a 150-object group screens in seconds; the fine pass runs only
+    for candidate pairs. Same results as ``_screen_reference`` (tested)."""
+    start = start or datetime.now(UTC)
+    sets = sets[:max_sets]
+    times, grid, errors = positions_array(sets, start, hours, coarse_step_s)
+    n = len(sets)
+    approaches: list[Approach] = []
+    recs = _satrecs(sets)
+    jd0, fr0 = _jd(start)
+    for i in range(n - 1):
+        d = np.linalg.norm(grid[i + 1:] - grid[i][None, :, :], axis=2)  # (n-i-1, samples), NaN where either failed
+        if np.isnan(d).all():
+            continue
+        with np.errstate(all="ignore"):
+            best_k = np.nanargmin(np.where(np.isnan(d), np.inf, d), axis=1)
+        best_d = d[np.arange(len(d)), best_k]
+        for off in np.flatnonzero(np.isfinite(best_d) & (best_d <= 5 * threshold_km)):
+            j = i + 1 + int(off)
+            bt = float(times[best_k[off]])
+            lo, hi = max(0.0, bt - coarse_step_s), min(hours * 3600, bt + coarse_step_s)
+            ft = np.arange(lo, hi + 1e-9, fine_step_s)
+            ea, ra, va = recs[i].sgp4_array(np.full(len(ft), jd0), fr0 + ft / 86400.0)
+            eb, rb, vb = recs[j].sgp4_array(np.full(len(ft), jd0), fr0 + ft / 86400.0)
+            good = (np.asarray(ea) == 0) & (np.asarray(eb) == 0)
+            fine_best_t, fine_best_d, vel = bt, float(best_d[off]), 0.0
+            if good.any():
+                dd = np.linalg.norm(np.asarray(ra) - np.asarray(rb), axis=1)
+                dd = np.where(good, dd, np.inf)
+                m = int(np.argmin(dd))
+                if dd[m] < fine_best_d:
+                    fine_best_t, fine_best_d = float(ft[m]), float(dd[m])
+                    vel = float(np.linalg.norm(np.asarray(va)[m] - np.asarray(vb)[m]))
+            if fine_best_d <= threshold_km:
+                approaches.append(Approach(sets[i], sets[j], fine_best_t, fine_best_d, vel))
+    approaches.sort(key=lambda x: x.min_km)
+    co_moving = [x for x in approaches if x.rel_speed_kms < min_rel_speed_kms]
+    approaches = [x for x in approaches if x.rel_speed_kms >= min_rel_speed_kms]
+    return {"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "hours": hours, "threshold_km": threshold_km, "sets": len(sets),
+            "pairs": len(sets) * (len(sets) - 1) // 2, "approaches": [x.to_dict() for x in approaches],
+            "co_moving": [x.to_dict() for x in co_moving], "min_rel_speed_kms": min_rel_speed_kms,
+            "propagation_errors": [{"name": s.name, "norad": s.norad_id, "code": e} for s, e in zip(sets, errors, strict=True) if e],
+            "element_age_days": {s.name: round(s.age_days(start), 2) for s in sets}, "covariance": "none in TLEs: Pc not computable; request CDMs"}
+
+
+def _screen_reference(sets: list[ElementSet], start: datetime | None = None, hours: float = 24.0, threshold_km: float = THRESHOLD_KM,
            coarse_step_s: float = COARSE_STEP_S, fine_step_s: float = FINE_STEP_S, max_sets: int = 200,
            min_rel_speed_kms: float = MIN_REL_SPEED_KMS) -> dict[str, Any]:
     """Pairwise minimum separation inside the window: coarse grid, then a fine pass around each coarse minimum
