@@ -40,12 +40,12 @@ def test_pc_limits_and_inconsistency_rules():
     assert cdmmod.pc_2d(tight, hbr_m=20.0)["pc"] > 0.99  # sigmas of 1 m, zero miss, 20 m disc
     res, fs = cdmmod.assess(cdmmod.parse_cdm(text))
     assert {f.rule_id for f in fs} == {"ORB-004"} and fs[0].severity.value == "high" and res["miss_consistency"] < 0.01
-    res2, fs2 = cdmmod.assess(cdmmod.parse_cdm(text.replace("MISS_DISTANCE = 50.0 [m]", "MISS_DISTANCE = 500.0 [m]")))
+    _res2, fs2 = cdmmod.assess(cdmmod.parse_cdm(text.replace("MISS_DISTANCE = 50.0 [m]", "MISS_DISTANCE = 500.0 [m]")))
     assert any(f.rule_id == "ORB-005" for f in fs2) and any(f.rule_id == "ORB-004" for f in fs2)
     bad = cdmmod.parse_cdm(text.replace("CR_R = 10000.0 [m**2]", "CR_R = -1.0 [m**2]", 1))
     res3, fs3 = cdmmod.assess(bad)
     assert "error" in res3 and fs3[0].rule_id == "ORB-005" and "positive definite" in fs3[0].title
-    res4, fs4 = cdmmod.assess(cdmmod.parse_cdm(text.replace("Z = 0.05 [km]", "Z = 0.6 [km]").replace("MISS_DISTANCE = 50.0 [m]", "MISS_DISTANCE = 600.0 [m]")))
+    _res4, fs4 = cdmmod.assess(cdmmod.parse_cdm(text.replace("Z = 0.05 [km]", "Z = 0.6 [km]").replace("MISS_DISTANCE = 50.0 [m]", "MISS_DISTANCE = 600.0 [m]")))
     assert fs4 == [] or all(f.rule_id != "ORB-004" or f.severity.value == "medium" for f in fs4)
 
 

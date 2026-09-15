@@ -2,6 +2,20 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## Unreleased (space-intake, private branch)
+
+- Space: NASA-3D-Resources catalogue with blob-verified fetch; NASA image and video library client; footage frames
+  and caption milestones; SPC launch telemetry rules; keyless CelesTrak elements with SGP4 screening (ORB-001..003);
+  CCSDS CDM assessment with covariance-based Pc (ORB-004/005), KVN and XML inbox with event trends, Space-Track
+  client; debris-mitigation checklist DEB-001..008 with a lifetime model; dataset pipeline with provenance and a
+  registry-gated scene classifier; ultralytics fine-tune scaffold.
+- UAS: DO-365 / DAIDALUS well-clear and alert levels, encounter extraction with NMAC-proximate rates and lead time
+  (DAA-001/002), schema-lite OpenAPI contract validator.
+- Governance: domains, standards, controls with typed evidence, unified register, study registry (15 studies, 13
+  runnable), posture index, NPR 7150.2 assurance classification with a SLIM checklist, CMR-style data catalogue with
+  reconciliation; `aero gov`, `aero uas`, `aero space`, `aero data catalog`; GOV page; docs/HOLISTIC_PLAN.md.
+- Upstream package for nasa/NASA-3D-Resources (standalone script and PR text).
+
 ## 0.6.0 - 2026-09-15 - contract, evidence, release engineering
 
 - API contract: OpenAPI 3.1 generated from the router at `/api/v1/openapi.json` and rendered to

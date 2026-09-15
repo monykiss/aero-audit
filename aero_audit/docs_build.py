@@ -48,9 +48,14 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
     p.write_text(render_posture(build_posture(static=True), "Governance posture (baseline, generated)"))
     written.append(p)
 
+    from .governance.assurance import render_markdown as render_assurance
     from .web.app import router as api_router
     from .web.openapi import build_spec
     from .web.openapi import render_markdown as render_api
+
+    p = out / "ASSURANCE.md"
+    p.write_text(render_assurance("."))
+    written.append(p)
 
     p = out / "API.md"
     p.write_text(render_api(build_spec(api_router)))

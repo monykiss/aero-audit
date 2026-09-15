@@ -20,7 +20,8 @@ from .standards import STANDARDS
 PILLARS = ("compliance", "risk", "study", "governance")
 STATUSES = ("implemented", "partial", "planned")
 STATUS_EFFECTIVENESS = {"implemented": 0.6, "partial": 0.35, "planned": 0.0}  # same scale as threat coverage
-SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005", "ORB-001", "ORB-002", "ORB-003", "ORB-004", "ORB-005")
+SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005", "ORB-001", "ORB-002", "ORB-003", "ORB-004", "ORB-005",
+               "DEB-001", "DEB-002", "DEB-003", "DEB-004", "DEB-005", "DEB-006", "DEB-007", "DEB-008", "DAA-001", "DAA-002")
 
 
 @dataclass(frozen=True)
@@ -88,14 +89,18 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             "compliance", ("space-orbital",), ("CCSDS-508", "CCSDS-502"), "partial",
             ("module:aero_audit/space/orbital.py", "module:aero_audit/space/cdm.py", "rule:ORB-001", "rule:ORB-002", "rule:ORB-003", "rule:ORB-004", "rule:ORB-005",
              "test:tests/test_orbital.py", "test:tests/test_cdm.py", "command:aero space conjunctions", "command:aero space cdm", "study:ST-06", "study:ST-12"),
-            notes="Distance screen on CelesTrak elements via python-sgp4; Pc from CCSDS CDMs with covariance (2D short-encounter); GMAT as the validation reference. Missing: automated CDM intake from a screening centre."),
-    Control("C-10", "Debris mitigation compliance", "Check mission parameters against disposal, passivation and lifetime rules.",
-            "compliance", ("space-orbital",), ("NASA-STD-8719.14", "ISO-24113"), "planned", ()),
-    Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations and alert lead time from DAIDALUS/WellClear definitions.",
-            "compliance", ("uas-utm",), ("ASTM-F3442", "RTCA-DO365"), "planned", ("study:ST-07",),
-            notes="Use NASA DAIDALUS as the reference implementation; do not re-derive the maths."),
-    Control("C-12", "UTM API conformance", "Validate USS/operator exchanges against the NASA UTM OpenAPI documents.",
-            "compliance", ("uas-utm",), ("ASTM-F3411",), "planned", ("study:ST-09",)),
+            notes="Distance screen on CelesTrak elements via python-sgp4; Pc from CCSDS CDMs (KVN and XML) with covariance; inbox ledger with event trends; Space-Track cdm_public summaries; GMAT as the validation reference."),
+    Control("C-10", "Debris mitigation compliance", "Check mission parameters against disposal, passivation, lifetime, casualty-risk and trackability rules.",
+            "compliance", ("space-orbital",), ("NASA-STD-8719.14", "ISO-24113"), "partial",
+            ("module:aero_audit/space/debris.py", "rule:DEB-001", "rule:DEB-002", "rule:DEB-003", "rule:DEB-004", "rule:DEB-005", "rule:DEB-006", "rule:DEB-007", "rule:DEB-008",
+             "test:tests/test_space_ops.py", "command:aero space debris", "study:ST-13"),
+            notes="Checklist with a simple decay-model lifetime estimate; not a certified orbital-lifetime analysis."),
+    Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations, NMAC-proximate encounters and alert lead time from the DO-365 / DAIDALUS definitions on recorded tracks.",
+            "compliance", ("uas-utm", "air-surveillance"), ("ASTM-F3442", "RTCA-DO365"), "partial",
+            ("module:aero_audit/uas/wellclear.py", "module:aero_audit/uas/encounters.py", "rule:DAA-001", "rule:DAA-002", "test:tests/test_uas.py", "command:aero uas wellclear", "study:ST-07"),
+            notes="Definitions re-implemented from DAIDALUS/DO-365 for offline metrics at surveillance update rates; not a DAA system."),
+    Control("C-12", "UTM API conformance", "Validate captured exchanges against OpenAPI contracts (NASA utm-apis, and this app's own document).",
+            "compliance", ("uas-utm",), ("ASTM-F3411",), "partial", ("module:aero_audit/uas/utm.py", "test:tests/test_uas.py", "command:aero uas utm-check", "study:ST-09")),
     Control("C-33", "External asset integrity and provenance", "NASA-3D assets verified against git blob ids; library downloads hashed; sidecars and manifests.",
             "compliance", ("space-assets",), ("NASA-NOSA-1.3", "NASA-MEDIA"), "implemented",
             ("module:aero_audit/space/nasa3d.py", "module:aero_audit/space/nasa_images.py", "test:tests/test_space.py", "command:aero space fetch")),
@@ -120,8 +125,8 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             "study", ("air-surveillance",), ("NIST-AI-RMF",), "implemented", ("artefact:models/kinematic_iforest.md", "module:aero_audit/ml/train.py", "test:tests/test_ml.py")),
     Control("C-20", "Study registry with provenance", "Reproducible analyses with inputs, method, metrics and hashed outputs.",
             "study", ("air-surveillance", "air-operations", "space-assets", "space-launch"), ("NASA-SLIM",), "partial", ("module:aero_audit/governance/studies.py", "command:aero gov run-study")),
-    Control("C-21", "Encounter and collision-risk modelling", "Airborne collision risk classes from encounter models (MIT LL lineage).",
-            "study", ("uas-utm", "air-surveillance"), ("ASTM-F3442",), "planned", ("study:ST-08",)),
+    Control("C-21", "Encounter and collision-risk modelling", "Encounter and NMAC-proximate rates per flight hour from recordings; risk classes (MIT LL lineage) still to come.",
+            "study", ("uas-utm", "air-surveillance"), ("ASTM-F3442",), "partial", ("module:aero_audit/uas/encounters.py", "study:ST-08")),
     # ---- governance ----------------------------------------------------------------------
     Control("C-22", "Provenance and manifests on every report", "Code commit, input hash, model hash, evaluation hash, threshold overrides; SHA-256 per file.",
             "governance", ("air-surveillance", "air-operations", "space-launch"), ("NIST-SP800-53", "ISO-27001"), "implemented",
@@ -151,11 +156,20 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-35", "Continuous monitoring of the platform itself", "Metrics with Prometheus exposition, liveness and readiness probes, structured logs with request correlation, alert rules.",
             "governance", ("air-surveillance", "air-operations", "space-launch", "space-orbital"), ("NIST-CSF-2", "NIST-SP800-53", "ISO-27001"), "implemented",
             ("module:aero_audit/observability.py", "test:tests/test_observability.py", "command:aero obs health", "doc:docs/OBSERVABILITY.md", "artefact:ops/aero-rules.yml")),
-    Control("C-31", "Software assurance classification", "Classify components per NPR 7150.2 and apply the matching assurance activities and SLIM templates.",
-            "governance", ("space-launch", "space-orbital"), ("NASA-NPR-7150.2", "NASA-STD-8739.8", "NASA-SLIM"), "planned", ()),
-    Control("C-32", "Space data link security expectations", "State SDLS expectations for any spacecraft telemetry ingested; verify authenticated links where offered.",
-            "governance", ("space-orbital", "space-launch"), ("CCSDS-355",), "planned", (),
+    Control("C-31", "Software assurance classification", "Components classified per NPR 7150.2 with the activities each class implies; SLIM repository checklist evaluated on the tree.",
+            "governance", ("space-launch", "space-orbital", "air-surveillance"), ("NASA-NPR-7150.2", "NASA-STD-8739.8", "NASA-SLIM"), "partial",
+            ("module:aero_audit/governance/assurance.py", "test:tests/test_assurance_catalog.py", "command:aero gov assurance", "artefact:docs/generated/ASSURANCE.md"),
+            notes="Classification and checklist exist; the class-C style peer reviews and traceability are not yet practised."),
+    Control("C-32", "Space data link security expectations", "SDLS expectations stated for any spacecraft telemetry ingested; authentication status to be recorded per packet.",
+            "governance", ("space-orbital", "space-launch"), ("CCSDS-355",), "partial", ("module:aero_audit/governance/assurance.py", "artefact:docs/generated/ASSURANCE.md"),
             notes="NASA CryptoLib is the reference implementation; the toolkit only consumes what such links deliver."),
+    Control("C-36", "Data catalogue and reconciliation", "Every recording, report, study, asset, element set, CDM and model registered with hash, time bounds and provenance; drift reported.",
+            "governance", ("air-surveillance", "air-operations", "space-assets", "space-launch", "space-orbital"), ("NASA-SLIM", "ISO-27001"), "implemented",
+            ("module:aero_audit/governance/catalog.py", "test:tests/test_assurance_catalog.py", "command:aero data catalog", "study:ST-15")),
+    Control("C-37", "Training-data provenance and scene classifier", "Datasets assembled with per-item hash, attribution and deterministic splits; scene classifier with card, registry entry and validation metrics.",
+            "study", ("space-assets", "space-launch"), ("NIST-AI-RMF", "NASA-MEDIA"), "partial",
+            ("module:aero_audit/space/dataset.py", "module:aero_audit/space/classifier.py", "test:tests/test_dataset_classifier.py", "command:aero space classify-train", "study:ST-14"),
+            notes="Colour and gradient features with logistic regression; object detection needs the ultralytics fine-tune in scripts/train_detector.py."),
 )}
 
 

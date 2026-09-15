@@ -82,11 +82,50 @@ check against the closed-form small-disc approximation. ORB-004 fires above 1e-4
 5 %, or a covariance that is not positive definite. Missing still: automated CDM intake and the
 3D/long-encounter methods.
 
+## Debris-mitigation checklist, CDM intake, Space-Track (phase 3, complete for supplied inputs)
+
+```bash
+aero space debris data/samples/synthetic_mission.json        # DEB-001..008 with a decay-model lifetime estimate
+aero space cdm-inbox --inbox data/space/cdm/inbox            # KVN or XML messages -> ledger -> events with Pc trend
+SPACETRACK_USER=... SPACETRACK_PASS=... aero space spacetrack --days 7   # public conjunction summaries into the ledger
+aero gov run-study ST-13 --mission data/samples/synthetic_mission.json
+```
+
+`space/debris.py` checks a mission description against NASA-STD-8719.14 / ISO 24113 (and the
+FCC five-year rule for US-licensed LEO): post-mission lifetime from a piecewise exponential
+atmosphere decay integration (stated factor-of-two uncertainty), passivation, collision-avoidance
+capability in populated shells, reentry casualty risk, GEO graveyard raise, trackability, planned
+releases, large-constellation disposal reliability. `space/cdm_inbox.py` parses KVN and CCSDS XML
+messages, assesses each (Pc, ORB-004/005), keeps an append-only ledger keyed by message id and
+content hash, and groups messages into events per pair and TCA with the trend of Pc.
+`space/spacetrack.py` pulls `cdm_public` summaries and GP elements behind a free account, cached
+with provenance; summaries carry the stated Pc and are never recomputed (no covariance).
+
+## Training data and the scene classifier (phase 1, honest baseline)
+
+```bash
+aero space dataset --per-class 30 --nasa3d-catalog data/space/nasa3d_catalog.json   # NASA library + 3D previews, hashed, split
+aero space classify-train data/space/dataset/manifest.json                            # card + registry entry
+aero space classify data/space/frames/<video>/frames.manifest.json                    # scene per frame
+scripts/train_detector.py data/space/dataset/manifest.json                            # ultralytics fine-tune when installed
+```
+
+`space/dataset.py` builds labelled datasets from NASA library searches (items with a copyright
+field are excluded) and from NASA-3D model previews labelled by subject family, with per-item
+SHA-256, attribution, and a deterministic train/validation split by content hash.
+`space/classifier.py` is a colour-histogram plus gradient-orientation logistic regression, trained
+and evaluated on the manifest splits, saved with a model card and a registry entry behind the same
+checksum gate as the anomaly model. It labels scenes (launch, orbit, station, surface); it is not
+a detector. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
+when that extra is installed.
+
 ## Honest limits
 
-- The COCO detector has no "rocket" class. Frame detection is a placeholder until a detector is
-  fine-tuned; the NASA 3D models (rendered from many angles) plus library imagery are the intended
-  training set. That is the next ML task on this branch.
+- The COCO detector has no "rocket" class. Frame detection stays a placeholder until the ultralytics
+  fine-tune in `scripts/train_detector.py` is run on the dataset; the scene classifier covers
+  segmentation, not detection.
+- Debris lifetimes are estimates from a simple decay model, not certified analyses; Space-Track
+  summaries carry the originator's Pc only.
 - Telemetry must be supplied as CSV. Reading the numbers off a webcast overlay (OCR) is not
   implemented; when it is, it stays optional (tesseract) and its output is audited by the same rules.
 - The GitHub tree API is rate-limited to 60 calls an hour anonymously; set `GITHUB_TOKEN` for more.

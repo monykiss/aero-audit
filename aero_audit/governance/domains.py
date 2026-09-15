@@ -65,8 +65,8 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
         ("github.com/nasa/NASA-3D-Resources (tree API + raw)", "images-api.nasa.gov / images-assets.nasa.gov", "api.nasa.gov Mars Rover Photos (planned)"),
         (),
         ("NASA-NOSA-1.3", "NASA-MEDIA", "ODbL-1.0"),
-        ("aero_audit/space/nasa3d.py", "aero_audit/space/nasa_images.py"),
-        ("assets catalogued", "assets fetched with verified integrity", "manifest verification pass rate"),
+        ("aero_audit/space/nasa3d.py", "aero_audit/space/nasa_images.py", "aero_audit/space/dataset.py", "aero_audit/space/classifier.py"),
+        ("assets catalogued", "assets fetched with verified integrity", "manifest verification pass rate", "scene classifier validation accuracy"),
         ("nasa/NASA-3D-Resources", "NASA-AMMOS/3DTilesRendererJS", "NASA-AMMOS/MMGIS"),
     ),
     Domain(
@@ -83,13 +83,13 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
     ),
     Domain(
         "space-orbital", "Space: orbital operations and conjunction",
-        "Keyless CelesTrak elements, SGP4 propagation, distance-based conjunction screening with stale-element checks "
-        "(ORB rules); CCSDS orbit and conjunction messages with covariance and Pc are the next slice; debris checks planned.",
-        "scaffold",
-        ("CelesTrak GP elements (keyless)", "space-track.org (credentials, planned)", "CCSDS ODM (502.0-B, planned)", "CCSDS CDM (508.0-B, planned)"),
-        ("ORB",),
+        "Keyless CelesTrak elements, SGP4 screening with stale-element checks, CCSDS conjunction messages (KVN, XML) with covariance-based Pc, "
+        "an inbox ledger with event trends, Space-Track public summaries, and the debris-mitigation checklist.",
+        "active",
+        ("CelesTrak GP elements (keyless)", "CCSDS CDM 508.0-B files (KVN / XML)", "space-track.org cdm_public (free account)", "mission descriptions (JSON)"),
+        ("ORB", "DEB"),
         ("CCSDS-502", "CCSDS-508", "NASA-STD-8719.14", "ISO-24113", "CCSDS-355"),
-        ("aero_audit/space/orbital.py",),
+        ("aero_audit/space/orbital.py", "aero_audit/space/cdm.py", "aero_audit/space/cdm_inbox.py", "aero_audit/space/spacetrack.py", "aero_audit/space/debris.py"),
         ("conjunctions screened per day", "Pc above threshold", "manoeuvre decisions with evidence", "debris rule compliance"),
         ("brandon-rhodes/python-sgp4", "skyfielders/python-skyfield", "nasa/GMAT", "open-space-collective/ccsds-data-messages", "nasa/CryptoLib"),
     ),
@@ -107,13 +107,13 @@ DOMAINS: dict[str, Domain] = {d.key: d for d in (
     ),
     Domain(
         "uas-utm", "Air: UAS integration, detect-and-avoid, UTM",
-        "Well-clear violation metrics and alerting levels from NASA's DAIDALUS/WellClear definitions, encounter-model "
-        "based collision risk classes, UTM API conformance checks.",
-        "planned",
-        ("UTM operator/USS APIs (OpenAPI)", "ADS-B / Remote ID tracks", "encounter models"),
+        "Well-clear violations, alert levels and NMAC-proximate rates from the DAIDALUS / DO-365 definitions on recorded tracks; "
+        "OpenAPI contract checks for UTM exchanges. Encounter-model risk classes are next.",
+        "scaffold",
+        ("surveillance recordings (ADS-B)", "UTM operator/USS APIs (OpenAPI)", "encounter models (planned)"),
         ("DAA",),
         ("ASTM-F3442", "RTCA-DO365", "ASTM-F3411", "ICAO-A2"),
-        (),
+        ("aero_audit/uas/wellclear.py", "aero_audit/uas/encounters.py", "aero_audit/uas/utm.py"),
         ("well-clear violation rate per flight hour", "alert lead time", "API conformance failures"),
         ("nasa/daidalus", "nasa/WellClear", "nasa/icarous", "nasa/utm-apis", "mit-ll/em-core", "mit-ll/air-risk-class"),
     ),

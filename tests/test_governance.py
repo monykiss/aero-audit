@@ -40,8 +40,10 @@ def test_coverage_and_index():
     assert sum(sum(v.values()) for v in cov["by_pillar"].values()) == len(CONTROLS)
     idx = implementation_index()
     assert 0.5 < idx < 1.0
-    planned_only = {k: v for k, v in CONTROLS.items() if v.status == "planned"}
-    assert implementation_index(planned_only) == 0.0
+    from aero_audit.governance.controls import Control
+
+    planned_only = {"X": Control("X", "t", "o", "risk", (), (), "planned", ())}
+    assert implementation_index(planned_only) == 0.0 and implementation_index({}) == implementation_index()
 
 
 def test_unified_register_spans_domains():
@@ -53,7 +55,10 @@ def test_unified_register_spans_domains():
     s05 = next(r for r in rows if r["id"] == "S05")
     assert s05["score"] == 15 and s05["residual"] == 10 and s05["control_effectiveness"] == 0.35  # C-09 partial: distance screen only
     s06 = next(r for r in rows if r["id"] == "S06")
-    assert s06["residual"] == s06["score"]  # planned control: no reduction
+    assert s06["residual"] < s06["score"] and s06["control_effectiveness"] == 0.35  # C-10 partial: debris checklist on supplied missions
+    from aero_audit.governance.controls import CONTROLS
+
+    assert not [k for k, v in CONTROLS.items() if v.status == "planned"]  # every control now has at least a partial implementation
     s03 = next(r for r in rows if r["id"] == "S03")
     assert s03["residual"] < s03["score"] and s03["control_effectiveness"] == 0.6
     assert rows[0]["residual_rating"] in ("critical", "high")
@@ -99,11 +104,11 @@ def test_runnable_studies_on_synthetic_inputs(tmp_path, monkeypatch):
     r2 = run_study("ST-02", tmp_path / "studies")
     assert r2["result"]["scenarios"][0]["recall"] == 0.96
     try:
-        run_study("ST-07", tmp_path / "studies")
+        run_study("ST-10", tmp_path / "studies")
     except RuntimeError as e:
-        assert "planned" in str(e)
+        assert "needs-network" in str(e)
     else:
-        raise AssertionError("planned study must not run")
+        raise AssertionError("a needs-network study must not run offline")
     assert len(STUDIES) >= 10
 
 

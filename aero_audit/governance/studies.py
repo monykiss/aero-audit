@@ -176,7 +176,53 @@ def _cdm_assessment(cdm: str | Path, hbr_m: float = 20.0, **_: Any) -> dict[str,
             "error": res.get("error"), "findings": [{"rule": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
 
 
+def _wellclear(recording: str | Path, max_batches: int | None = None, **_: Any) -> dict[str, Any]:
+    from ..uas import extract_encounters, summarize_encounters
+
+    summary, fs = summarize_encounters(extract_encounters(recording, max_batches=int(max_batches) if max_batches else None))
+    return {**{k: v for k, v in summary.items() if k != "pairs"}, "top_pairs": summary["pairs"][:20], "findings": len(fs)}
+
+
+def _encounter_rates(recording: str | Path, **kw: Any) -> dict[str, Any]:
+    r = _wellclear(recording, **kw)
+    return {k: r[k] for k in ("recording", "flight_hours", "aircraft_airborne", "encounter_pairs", "nmac_proximate", "nmac_per_flight_hour", "violations_per_flight_hour")}
+
+
+def _utm_conformance(spec: str | Path, sample: str | Path, schema: str | None = None, path: str | None = None, **_: Any) -> dict[str, Any]:
+    from ..uas.utm import check_samples, load_document
+
+    doc = load_document(spec)
+    inst = json.loads(Path(sample).read_text())
+    return check_samples(doc, [(Path(sample).name, inst)], schema, path)
+
+
+def _debris(mission: str | Path, **_: Any) -> dict[str, Any]:
+    from ..space.debris import Mission, checklist
+
+    summary, fs = checklist(Mission.from_json(mission))
+    return {**summary, "findings": [{"rule": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
+
+
+def _classifier_eval(manifest: str | Path = "data/space/dataset/manifest.json", **_: Any) -> dict[str, Any]:
+    from ..space.classifier import train
+
+    stats = train(manifest, Path("models") / "scene_classifier_study.joblib")
+    return {k: stats[k] for k in ("manifest", "classes", "counts", "n_train", "n_val", "accuracy", "per_class", "sha256")}
+
+
+def _catalog_reconcile(**_: Any) -> dict[str, Any]:
+    from .catalog import build_catalog, load_catalog, reconcile, save_catalog
+
+    old = load_catalog()
+    new = build_catalog(".")
+    r = reconcile(old, new)
+    save_catalog(new)
+    return {**r, "granules": new["granules_total"], "bytes": new["bytes_total"], "collections": {k: v["count"] for k, v in new["collections"].items()}}
+
+
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
+    "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
+    "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
     "cdm_assessment": _cdm_assessment,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
@@ -204,13 +250,23 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
           ("TLE file (aero space conjunctions --group ...)",), ("approaches under threshold", "median element age", "propagation errors"), "runnable", "conjunction_screen",
           ("brandon-rhodes/python-sgp4", "skyfielders/python-skyfield", "open-space-collective/ccsds-data-messages")),
     Study("ST-07", "Well-clear violation rates", "How often do observed encounters violate well-clear, and with what alert lead time?",
-          "uas-utm", "Pairwise encounters from surveillance tracks scored with DAIDALUS well-clear definitions.",
-          ("surveillance recording", "DAIDALUS parameters"), ("violations per flight hour", "alert lead time"), "planned", None, ("nasa/daidalus", "nasa/WellClear")),
-    Study("ST-08", "Airborne collision risk classes", "What is the unmitigated collision risk of observed encounters by airspace class?",
-          "uas-utm", "Encounter-model based risk classes (ASTM F3442 lineage) over recorded tracks.",
-          ("surveillance recording",), ("risk class distribution",), "planned", None, ("mit-ll/air-risk-class", "mit-ll/em-core")),
+          "uas-utm", "Pairwise encounters from surveillance tracks scored with the DO-365 / DAIDALUS well-clear definitions and alert levels.",
+          ("recording",), ("violations per flight hour", "NMAC-proximate pairs", "median alert lead time"), "runnable", "wellclear", ("nasa/daidalus", "nasa/WellClear")),
+    Study("ST-08", "Encounter and NMAC-proximate rates", "How many encounters, and how many within NMAC distances, per flight hour?",
+          "uas-utm", "Encounter extraction on recorded tracks; NMAC-proximate = 500 ft / 100 ft. Risk classes (ASTM F3442 lineage) are the next step.",
+          ("recording",), ("encounters per flight hour", "NMAC-proximate per flight hour"), "runnable", "encounter_rates", ("mit-ll/air-risk-class", "mit-ll/em-core")),
     Study("ST-09", "UTM API conformance", "Do exchanges match the NASA UTM OpenAPI contracts?",
-          "uas-utm", "Schema validation of captured exchanges against nasa/utm-apis documents.", ("captured exchanges", "OpenAPI documents"), ("conformance failures by endpoint",), "planned", None, ("nasa/utm-apis",)),
+          "uas-utm", "Schema validation of captured exchanges against an OpenAPI document (nasa/utm-apis, or this app's own).", ("OpenAPI document", "captured exchange"),
+          ("conformance failures",), "runnable", "utm_conformance", ("nasa/utm-apis",)),
+    Study("ST-13", "Debris-mitigation checklist", "Does a mission description meet the disposal, passivation, collision-avoidance, casualty and trackability rules?",
+          "space-orbital", "DEB-001..008 with a decay-model lifetime estimate.", ("mission JSON",), ("checks passed / failed", "estimated lifetime"), "runnable", "debris",
+          ("nasa/GMAT",)),
+    Study("ST-14", "Scene classifier evaluation", "How well does the scene classifier separate launch, orbit, station and surface imagery on held-out data?",
+          "space-assets", "Train on the manifest's train split, evaluate on the validation split; per-class precision and recall.", ("dataset manifest",),
+          ("accuracy", "per-class precision/recall"), "runnable", "classifier_eval"),
+    Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
+          "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
+          ("nasa/Common-Metadata-Repository", "nasa/cumulus")),
     Study("ST-11", "Airports inside a crisis extent", "Which airports and hubs sit inside or near a flood, fire or disaster extent?",
           "earth-crisis", "Point-in-polygon of the airport table against GeoJSON extents (Crisis Mapping Toolkit exports), plus a distance buffer.",
           ("GeoJSON extent",), ("airports inside", "airports near", "major hubs affected"), "runnable", "airports_in_extent", ("nasa/CrisisMappingToolkit",)),
