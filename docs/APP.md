@@ -21,6 +21,7 @@ Nothing leaves your machine except requests to the public feeds you choose and m
 | Airports | 132 North American airports with live activity: aircraft within 40 nm, on ground, departing, arriving (and on final), terminal, overhead, holds, emergencies, findings, FAA ground stops / delay programmes / closures (public FAA NAS status feed, refreshed every 5 min in live mode), METAR. Click for the airport's flights and weather. |
 | Operators | Airlines, regionals, cargo, business, GA, military: fleet in the picture, airborne / ground, mean altitude, top types, phase mix, integrity compliance, findings, worst severity; aircraft-type table alongside. |
 | Audit log | Append-only record of every source change, injection, settings edit and job (user or system), filterable and exportable. |
+| Observability | Readiness checks, request / ingest / engine / feed / job metrics with percentiles, guard denials, and a filterable tail of the structured log. |
 | Live picture | Canvas-rendered map that stays smooth with 10,000 aircraft; colour by findings, altitude, speed, or trust (legend switch); hover for a tooltip, click for the drawer; rings mark emergencies, injections, and the selection; a **?** button explains the picture. KPI strip, Findings / Safety / Security / Operations panels, demo buttons, search box. |
 | Findings | Every finding this session, filterable by severity, rule, and text; click for evidence and the full playbook; export CSV. |
 | Risk | Register re-scored from this session's evidence, threat coverage with measured recall, holding cost. |
@@ -56,6 +57,13 @@ threat table: [SECURITY.md](../SECURITY.md); tests: `tests/test_app_security.py`
   findings sound, never the backlog.
 - **Demo tour**: `TOUR` runs the eight scripted injections with narration in the banner; every
   injection is logged with actor `tour`.
+
+## Observability
+
+`/healthz`, `/readyz`, `/metrics` (Prometheus text), `/api/v1/observability` (KPIs and a JSON
+snapshot), `/api/v1/logs` (tail of `logs/app.jsonl`), the **OBS** page, and `aero obs`. Every
+response carries `X-Request-Id`; an incoming id or `traceparent` is honoured. See
+[OBSERVABILITY.md](OBSERVABILITY.md).
 
 ## Terminal chrome
 

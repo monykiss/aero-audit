@@ -6,11 +6,11 @@ Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90
 
 | Domain | Status | Rules | Controls implemented / partial / planned | Data sources |
 |---|---|---|---|---|
-| Air: surveillance integrity (ADS-B / Mode S) | active | 17 | 20 / 2 / 1 | adsb.lol /v2 (readsb JSON, NIC/NACp/SIL); OpenSky Network states/all; cross-feed corroboration |
-| Air: operations, airports and ecosystem | active | 11 | 10 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
+| Air: surveillance integrity (ADS-B / Mode S) | active | 17 | 21 / 2 / 1 | adsb.lol /v2 (readsb JSON, NIC/NACp/SIL); OpenSky Network states/all; cross-feed corroboration |
+| Air: operations, airports and ecosystem | active | 11 | 11 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
 | Space: open assets with provenance | active | 0 | 3 / 1 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov; api.nasa.gov Mars Rover Photos (planned) |
-| Space: launch and ascent | scaffold | 5 | 3 / 3 / 2 | telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
-| Space: orbital operations and conjunction | scaffold | 3 | 1 / 2 / 3 | CelesTrak GP elements (keyless); space-track.org (credentials, planned); CCSDS ODM (502.0-B, planned); CCSDS CDM (508.0-B, planned) |
+| Space: launch and ascent | scaffold | 5 | 4 / 3 / 2 | telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
+| Space: orbital operations and conjunction | scaffold | 3 | 2 / 2 / 3 | CelesTrak GP elements (keyless); space-track.org (credentials, planned); CCSDS ODM (502.0-B, planned); CCSDS CDM (508.0-B, planned) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |
 | Air: UAS integration, detect-and-avoid, UTM | planned | 0 | 1 / 1 / 3 | UTM operator/USS APIs (OpenAPI); ADS-B / Remote ID tracks; encounter models |
 
@@ -21,7 +21,7 @@ Governance index: **76%** (controls 74%, standards 73%, risk share low/medium 90
 | compliance | 7 | 4 | 3 |
 | risk | 4 | 1 | 0 |
 | study | 2 | 1 | 1 |
-| governance | 9 | 0 | 2 |
+| governance | 10 | 0 | 2 |
 
 ## Risk (residual, all domains)
 

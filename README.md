@@ -4,7 +4,7 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 0.4.0](https://img.shields.io/badge/version-0.4.0-orange.svg)](CHANGELOG.md)
+[![version 0.5.0](https://img.shields.io/badge/version-0.5.0-orange.svg)](CHANGELOG.md)
 
 **Aviation surveillance auditing, end to end.** aero-audit follows real aircraft from public
 ADS-B feeds, checks every position report against physics, integrity and safety rules plus an
@@ -82,6 +82,11 @@ lock; CI runs ruff, pytest, docs-drift, `pip-audit`, gitleaks over the full hist
 container smoke test, with every action pinned to a commit SHA. Threat table and the reporting
 policy: [SECURITY.md](SECURITY.md).
 
+**Observable.** Every request, batch, finding, feed call, job and alert is counted and timed;
+`/metrics` is Prometheus text, `/healthz` and `/readyz` are probes, every response carries an
+`X-Request-Id` that also stamps the JSON log, and `compose.observability.yaml` brings up Prometheus
+with alert rules and a provisioned Grafana dashboard. Details: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
+
 ## How it fits together
 
 ```
@@ -110,6 +115,7 @@ aero_audit/
   risk/            5x5 register with evidence-adjusted assessment
   vision/          YOLO detection (tiled), apron zone occupancy
   web/             app (API v1), router, sources, state, jobs, security (guard), audit (hash chain), tour, static UI
+  observability.py metrics registry (Prometheus), structured logs with request ids, health and readiness
   alerts.py · impact.py · tuning.py · synthetic.py · docs_build.py · cli.py
 ```
 
@@ -208,6 +214,7 @@ scripts/run_pipeline.sh                                        # train → evalu
 |---|---|
 | [docs/DEMO.md](docs/DEMO.md) | The sixty-second demo, the tour timeline, what each panel means |
 | [docs/APP.md](docs/APP.md) | Pages, terminal chrome, security, auditability, API, how to extend |
+| [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) | Metrics, probes, structured logs, request ids, Prometheus and Grafana, alert rules |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, data-flow guarantees, extension points |
 | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | Feeds, fields, rate limits, ADS-B integrity semantics, recording format |
 | [docs/RULES.md](docs/RULES.md) | Every rule: trigger, thresholds, false-positive modes, controls, tuning |

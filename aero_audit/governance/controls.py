@@ -147,6 +147,9 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-30", "Threshold change control", "Overrides live in aero.toml, are logged in the audit chain and stamped into every report's provenance.",
             "governance", ("air-surveillance", "air-operations"), ("ISO-27001", "NIST-SP800-53"), "implemented",
             ("module:aero_audit/tuning.py", "command:aero config show", "test:tests/test_tuning.py")),
+    Control("C-35", "Continuous monitoring of the platform itself", "Metrics with Prometheus exposition, liveness and readiness probes, structured logs with request correlation, alert rules.",
+            "governance", ("air-surveillance", "air-operations", "space-launch", "space-orbital"), ("NIST-CSF-2", "NIST-SP800-53", "ISO-27001"), "implemented",
+            ("module:aero_audit/observability.py", "test:tests/test_observability.py", "command:aero obs health", "doc:docs/OBSERVABILITY.md", "artefact:ops/aero-rules.yml")),
     Control("C-31", "Software assurance classification", "Classify components per NPR 7150.2 and apply the matching assurance activities and SLIM templates.",
             "governance", ("space-launch", "space-orbital"), ("NASA-NPR-7150.2", "NASA-STD-8739.8", "NASA-SLIM"), "planned", ()),
     Control("C-32", "Space data link security expectations", "State SDLS expectations for any spacecraft telemetry ingested; verify authenticated links where offered.",
@@ -164,6 +167,7 @@ POLICIES: tuple[Policy, ...] = (
     Policy("P-06", "Change control", "Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code.", "programme lead", ("C-26", "C-30")),
     Policy("P-07", "Incident triage", "Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates.", "operations lead", ("C-16",)),
     Policy("P-08", "Private until upstream", "Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed.", "programme lead", ("C-28", "C-31")),
+    Policy("P-10", "Observability", "Every deployment exposes /metrics, /healthz and /readyz; the Prometheus alert rules in ops/ are the minimum on-call set.", "operations lead", ("C-35",)),
     Policy("P-09", "Secrets", "No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI.", "security lead", ("C-26",)),
 )
 

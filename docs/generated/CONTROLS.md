@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **74%** over 34 controls; 24 of 33 standards have at least one implemented or partial control.
+Implementation index: **74%** over 35 controls; 24 of 33 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -53,6 +53,7 @@ Implementation index: **74%** over 34 controls; 24 of 33 standards have at least
 | C-28 | Licence and attribution tracking | implemented | air-surveillance, space-assets | ODbL-1.0, NASA-NOSA-1.3, NASA-MEDIA | doc:data/samples/ATTRIBUTION.md; module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py |
 | C-29 | Passive-only operating policy | implemented | air-surveillance, air-operations, space-launch, space-orbital, uas-utm | ICAO-A17, CFR14-450 | doc:SECURITY.md; doc:CONTRIBUTING.md |
 | C-30 | Threshold change control | implemented | air-surveillance, air-operations | ISO-27001, NIST-SP800-53 | module:aero_audit/tuning.py; command:aero config show; test:tests/test_tuning.py |
+| C-35 | Continuous monitoring of the platform itself | implemented | air-surveillance, air-operations, space-launch, space-orbital | NIST-CSF-2, NIST-SP800-53, ISO-27001 | module:aero_audit/observability.py; test:tests/test_observability.py; command:aero obs health; doc:docs/OBSERVABILITY.md; artefact:ops/aero-rules.yml |
 | C-31 | Software assurance classification | planned | space-launch, space-orbital | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM | - |
 | C-32 | Space data link security expectations | planned | space-orbital, space-launch | CCSDS-355 | - |
 
@@ -68,6 +69,7 @@ Implementation index: **74%** over 34 controls; 24 of 33 standards have at least
 | P-06 | Change control | Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code. | programme lead | C-26, C-30 |
 | P-07 | Incident triage | Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates. | operations lead | C-16 |
 | P-08 | Private until upstream | Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed. | programme lead | C-28, C-31 |
+| P-10 | Observability | Every deployment exposes /metrics, /healthz and /readyz; the Prometheus alert rules in ops/ are the minimum on-call set. | operations lead | C-35 |
 | P-09 | Secrets | No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI. | security lead | C-26 |
 
 ## Standards
@@ -100,9 +102,9 @@ Implementation index: **74%** over 34 controls; 24 of 33 standards have at least
 | NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 0 / 0 / 1 |
 | NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 0 / 1 |
 | NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 1 / 1 / 1 |
-| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 2 / 1 / 0 |
-| NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 7 / 0 / 0 |
-| ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 5 / 0 / 0 |
+| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 3 / 1 / 0 |
+| NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 8 / 0 / 0 |
+| ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 6 / 0 / 0 |
 | NIST-AI-RMF | NIST AI Risk Management Framework 1.0 | NIST | cyber | 3 / 0 / 0 |
 | ODbL-1.0 | Open Database License 1.0 | ODC | data | 1 / 0 / 0 |
 | NASA-NOSA-1.3 | NASA Open Source Agreement 1.3 | NASA | data | 2 / 0 / 0 |

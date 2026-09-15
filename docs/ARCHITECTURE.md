@@ -71,6 +71,7 @@ findings with response playbooks and a risk posture.
 | `web/sources.py` | Replay and live source threads, engine construction (verified model), METAR and FAA loops | `SourceManager` |
 | `web/state.py` | Thread-safe live state: engine, latest batch, trails, events, enrichment, demo injections, JSON snapshots | `LiveState` |
 | `web/tour.py` | Scripted demo: injections on a timeline with narration | `DemoTour` |
+| `observability.py` | Metrics registry with Prometheus exposition, structured JSON logs with request correlation, health and readiness | `METRICS`, `log_event`, `readiness` |
 | `web/jobs.py`, `web/router.py` | Background jobs with logs and persistence; tiny pattern router | `JobManager`, `Router` |
 | `web/static/` | Terminal-style front end (vanilla JS, vendored Leaflet, canvas aircraft layer, audible alerts) | |
 | `cli.py` | `aero` command groups: demo, doctor, app, serve, stream, audit, train, evaluate, corroborate, impact, security, risk, config, data, log, vision, docs-build | |

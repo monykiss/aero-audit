@@ -88,6 +88,10 @@ class DemoTour:
                     self.last = {"kind": step.kind, "skipped": str(e), "ts": time.time()}
                     continue
                 self.last = {"kind": inj.kind, "icao24": inj.icao24, "label": inj.label, "narration": step.narration, "ts": time.time()}
+                from .. import observability as obs
+
+                obs.METRICS.inc("aero_tour_injections_total", kind=inj.kind)
+                obs.log_event("tour.inject", kind=inj.kind, icao24=inj.icao24, step=i + 1)
                 if self.on_inject:
                     self.on_inject(inj.kind, inj.icao24, inj.remaining, step.narration)
             self.loops += 1

@@ -10,6 +10,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
+from .. import observability as obs
 from ..audit.engine import AuditEngine
 from ..audit.findings import SEVERITY_ORDER, Finding
 from ..ecosystem import Enriched, enrich, summarize
@@ -72,9 +73,21 @@ class LiveState:
     def ingest(self, batch: Batch, latency_ms: float | None = None) -> list[Finding]:
         with self.lock:
             batch = self._apply_injections(batch)
+            t0 = time.perf_counter()
             new = self.engine.process_batch(batch)
+            engine_s = time.perf_counter() - t0
             self.last_batch = batch
             self.last_ingest_wall = time.time()
+            obs.METRICS.inc("aero_ingest_batches_total", mode=self.mode, provider=self.provider, region=batch.region)
+            obs.METRICS.inc("aero_ingest_states_total", len(batch.states), mode=self.mode)
+            obs.METRICS.observe("aero_engine_batch_seconds", engine_s, mode=self.mode)
+            obs.METRICS.set("aero_source_last_ingest_timestamp_seconds", self.last_ingest_wall, mode=self.mode)
+            if latency_ms is not None:
+                obs.METRICS.observe("aero_ingest_feed_latency_seconds", latency_ms / 1000.0, provider=self.provider)
+            for f in new:
+                obs.METRICS.inc("aero_findings_total", rule=f.rule_id, severity=f.severity.value)
+            obs.log_event("ingest.batch", mode=self.mode, provider=self.provider, region=batch.region, states=len(batch.states),
+                          findings=len(new), engine_ms=round(engine_s * 1000, 2), latency_ms=None if latency_ms is None else round(latency_ms))
             self.batches += 1
             self.feed_latency_ms = latency_ms
             self.counts.append((batch.ts, batch.region, len(batch)))
