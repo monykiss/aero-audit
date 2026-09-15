@@ -68,7 +68,9 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
 
     p = out / "RULES.md"
     lines = ["# Rule ids (generated)", "", "| Rule | Category | Description |", "|---|---|---|"]
-    lines += [f"| {rid} | {cat} | {desc} |" for rid, (cat, desc) in RULE_CATALOG.items()]
+    from .domain_rules import SPACE_RULE_CATALOG
+
+    lines += [f"| {rid} | {cat} | {desc} |" for rid, (cat, desc) in {**RULE_CATALOG, **SPACE_RULE_CATALOG}.items()]
     p.write_text("\n".join(lines) + "\n")
     written.append(p)
     return written

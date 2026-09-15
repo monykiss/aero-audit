@@ -318,3 +318,106 @@ Escalate: Weekly review with apron management.
 
 Contain:
 - None.
+
+## ORB-004: Conjunction probability of collision above threshold
+
+SLA to triage: 60 min
+
+Triage:
+1. Confirm the message is the newest for the pair (ledger event trend) and that both states carry covariance.
+1. Recompute Pc with the object's hard-body radius; note whether the number is the originator's or ours.
+1. Check ORB-005: an inconsistent message is a data problem before it is a safety one.
+
+Verify:
+- Compare with the originator's Pc and miss distance; agreement within an order of magnitude is expected.
+- Rescreen with fresh elements (ORB-006 would void the older set).
+
+Escalate: Operator's flight dynamics team and the conjunction assessment provider; never manoeuvre on this tool's number alone.
+
+Contain:
+- Record the assessment and the decision in the audit log.
+- Schedule the next CDM check before TCA minus the manoeuvre lead time.
+
+## ORB-007: Decay imminent
+
+SLA to triage: 240 min
+
+Triage:
+1. Confirm the object and its perigee from the newest element set.
+1. Check whether a TIP message exists from the tracking authority.
+
+Verify:
+- Compare the decay estimate with the tracking authority's; ours is a bound, not a prediction.
+
+Escalate: Tracking authority reentry desk; airspace authorities issue closures, not this tool.
+
+Contain:
+- Shorten the screening window for the object.
+- Refresh elements daily until reentry.
+
+## DEB-001: Post-mission lifetime beyond the limit
+
+SLA to triage: 1440 min
+
+Triage:
+1. Confirm the mission parameters (perigee, apogee, mass, area) and which rule applies (FCC 5-year, NASA 25-year).
+1. Run the lifetime estimate at both drag-coefficient bounds.
+
+Verify:
+- Compare with the operator's certified analysis if one exists.
+
+Escalate: Mission designer and the licensing authority's debris review.
+
+Contain:
+- Record the shortfall and the design option considered (lower disposal orbit, drag device, propulsive deorbit).
+
+## DAA-001: Well-clear violation observed
+
+SLA to triage: 120 min
+
+Triage:
+1. Pull both tracks around the violation; confirm the geometry is not a surveillance artefact (MLAT jump, position source).
+1. Check NMAC proximity and the alert lead time.
+
+Verify:
+- Replay the encounter with the well-clear definitions and compare with the recorded alert level.
+- If one aircraft is a UAS, check the operator's DAA log.
+
+Escalate: Safety office; a pattern of violations in one area becomes an airspace study (ST-07, ST-16).
+
+Contain:
+- Record the encounter in the study register.
+- Add the cell to the density watch if it is dense at low altitude (DAA-004).
+
+## SWX-001: Geomagnetic advisory conditions
+
+SLA to triage: 60 min
+
+Triage:
+1. Confirm the NOAA product time and Kp; check that the product is not stale (SWX-004).
+1. List the high-latitude traffic exposed (SWX-005).
+
+Verify:
+- Look for ADS-B integrity drops (NACp / NIC) in the same window: weather, not spoofing, explains them.
+- Rescreen conjunctions with fresh elements: drag increases element ageing.
+
+Escalate: Operators with polar routes and the space weather centre's advisory; the tool only correlates.
+
+Contain:
+- Annotate the audit log with the advisory conditions for the window.
+
+## LCH-001: Aircraft inside a launch hazard radius during the window
+
+SLA to triage: 60 min
+
+Triage:
+1. Retrieve the published TFR / NOTAM geometry and time for the launch; our radius is a default.
+1. List the closest aircraft with time, altitude and distance.
+
+Verify:
+- Only aircraft inside the real hazard area during the effective time are a coordination failure; the rest are outside the NOTAM.
+
+Escalate: Range safety and the ATC facility; after the fact, the launch operator's airspace coordination review.
+
+Contain:
+- Record the count inside the real area and the displacement baseline.

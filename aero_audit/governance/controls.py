@@ -14,15 +14,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..domain_rules import SPACE_RULE_CATALOG
 from .domains import DOMAINS
 from .standards import STANDARDS
 
 PILLARS = ("compliance", "risk", "study", "governance")
 STATUSES = ("implemented", "partial", "planned")
 STATUS_EFFECTIVENESS = {"implemented": 0.6, "partial": 0.35, "planned": 0.0}  # same scale as threat coverage
-SPACE_RULES = ("SPC-001", "SPC-002", "SPC-003", "SPC-004", "SPC-005", "ORB-001", "ORB-002", "ORB-003", "ORB-004", "ORB-005",
-               "DEB-001", "DEB-002", "DEB-003", "DEB-004", "DEB-005", "DEB-006", "DEB-007", "DEB-008", "DAA-001", "DAA-002", "DAA-003", "DAA-004",
-               "SWX-001", "SWX-002", "SWX-003", "SWX-004", "SWX-005", "LCH-001", "LCH-002", "LCH-003", "ORB-006", "ORB-007")
+SPACE_RULES = tuple(SPACE_RULE_CATALOG)  # every space / UAS rule id, with description and category, lives in domain_rules
 
 
 @dataclass(frozen=True)

@@ -116,10 +116,12 @@ def test_space_and_uas_summaries_and_routes(tmp_path, monkeypatch):
     from aero_audit.web.jobs import Job
 
     (tmp_path / "data/samples").mkdir(parents=True)
-    (tmp_path / "data/samples" / SAMPLE.name).write_bytes((Path(__file__).parent.parent / SAMPLE).read_bytes())
+    root = Path(__file__).parent.parent
+    for src in (SAMPLE, SWPC, LL2):
+        (tmp_path / "data/samples" / src.name).write_bytes((root / src).read_bytes())
     rec = f"data/samples/{SAMPLE.name}"
-    space_jobs.space_weather(Job("j1", "space_weather", {}), {"file": str(Path(__file__).parent.parent / SWPC), "recording": rec, "lat_min": 40.0})
-    space_jobs.launches(Job("j2", "launches", {}), {"file": str(Path(__file__).parent.parent / LL2), "recording": rec, "hazard_nm": 250.0})
+    space_jobs.space_weather(Job("j1", "space_weather", {}), {"file": f"data/samples/{SWPC.name}", "recording": rec, "lat_min": 40.0})
+    space_jobs.launches(Job("j2", "launches", {}), {"file": f"data/samples/{LL2.name}", "recording": rec, "hazard_nm": 250.0})
     r = space_jobs.uas_risk(Job("j3", "uas_risk", {}), {"recording": rec, "max_batches": 4})
     assert Path(r["report"]).is_file() and "risk_ratio" in r  # None when no NMAC-proximate pair exists in the first batches
     (tmp_path / "data/space/spaceweather").mkdir(parents=True)

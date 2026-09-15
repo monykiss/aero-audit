@@ -26,3 +26,35 @@
 | ML-001 | ml | IsolationForest kinematic anomaly |
 | OPS-VIS-001 | operations | Apron zone over planned capacity |
 | OPS-VIS-002 | operations | Apron zone unoccupied |
+| SPC-001 | security | Implausible acceleration between telemetry samples |
+| SPC-002 | security | Altitude change faster than the reported total speed allows |
+| SPC-003 | data-quality | Telemetry dropout in an otherwise dense stream |
+| SPC-004 | security | Telemetry time regression or duplicate sample (splice / replay) |
+| SPC-005 | data-quality | Altitude discontinuity in one telemetry step |
+| ORB-001 | data-quality | Stale element set (older than the screening limit) |
+| ORB-002 | safety | Close approach under the distance threshold (no covariance) |
+| ORB-003 | data-quality | SGP4 propagation error (decayed or malformed set) |
+| ORB-004 | safety | Conjunction probability of collision above the manoeuvre or watch threshold |
+| ORB-005 | data-quality | Conjunction data message internally inconsistent |
+| ORB-006 | data-quality | Manoeuvre-scale change between consecutive element sets |
+| ORB-007 | safety | Decay imminent: low perigee or re-entry within the watch window |
+| DEB-001 | safety | Post-mission orbital lifetime beyond the disposal limit |
+| DEB-002 | safety | No passivation of stored energy at end of mission |
+| DEB-003 | safety | No collision-avoidance capability in a populated shell |
+| DEB-004 | safety | Reentry casualty risk above the limit |
+| DEB-005 | safety | GEO disposal raise below the graveyard minimum |
+| DEB-006 | data-quality | Object not trackable by the surveillance network |
+| DEB-007 | safety | Planned release of mission-related objects |
+| DEB-008 | safety | Large constellation without stated disposal reliability |
+| DAA-001 | safety | Well-clear violation observed between airborne aircraft |
+| DAA-002 | safety | Alert lead time below the warning time |
+| DAA-003 | safety | Observed DAA risk ratio above the programme limit |
+| DAA-004 | safety | Dense low-altitude airspace where small UAS operate |
+| SWX-001 | operations | Geomagnetic conditions at ICAO advisory level (GNSS, drag) |
+| SWX-002 | operations | Radio blackout conditions at ICAO advisory level (HF) |
+| SWX-003 | operations | Solar radiation storm at ICAO advisory level (flight-level radiation) |
+| SWX-004 | data-quality | Space weather product stale |
+| SWX-005 | operations | Aircraft observed at high latitude during advisory conditions |
+| LCH-001 | safety | Aircraft inside the hazard radius of a pad during its launch window |
+| LCH-002 | data-quality | Launch record stale while its window is open |
+| LCH-003 | data-quality | Launch window overlaps the recording but the pad is outside the recorded region |

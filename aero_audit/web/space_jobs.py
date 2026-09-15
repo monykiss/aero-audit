@@ -14,6 +14,18 @@ from .. import observability as obs
 from .jobs import Job
 
 REPORTS = Path("reports")
+SPACE_ROOTS = ("data/space", "data/samples")
+JSON_SUFFIXES = (".json",)
+ELEMENT_SUFFIXES = (".tle", ".txt")
+CDM_SUFFIXES = (".cdm", ".kvn", ".xml", ".json")
+
+
+def _confine(value: Any, suffixes: tuple[str, ...], must_exist: bool = True) -> Path:
+    """Every path a job accepts from a request body must live under data/space or data/samples: jobs are token-gated,
+    but a path is still user input and the catalogue of what a job may read or write is part of the contract."""
+    from .security import safe_path
+
+    return safe_path(value, SPACE_ROOTS, suffixes, must_exist=must_exist)
 
 
 def _stamp() -> str:
@@ -38,10 +50,15 @@ def _write_report(prefix: str, summary: dict[str, Any], findings: list[Any]) -> 
 def cdm_inbox(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     from ..space import cdm_inbox as inbox
 
-    res = inbox.process_inbox(p.get("inbox") or inbox.INBOX, p.get("ledger") or inbox.LEDGER, float(p.get("hbr_m") or 20.0))
-    ev = inbox.events(p.get("ledger") or inbox.LEDGER)
-    job.say(f"{res.get('processed', 0)} new message(s), {len(ev)} event(s)")
-    return {"processed": res.get("processed"), "skipped": res.get("skipped_duplicates"), "events": len(ev), "escalating": sum(1 for e in ev if e.get("trend") == "escalating")}
+    inbox_dir = _confine(p["inbox"], (), must_exist=False) if p.get("inbox") else inbox.INBOX
+    ledger = _confine(p["ledger"], (".jsonl",), must_exist=False) if p.get("ledger") else inbox.LEDGER
+    res = inbox.process_inbox(inbox_dir, ledger, float(p.get("hbr_m") or 20.0))
+    ev = inbox.events(ledger)
+    escalating = sum(1 for e in ev if e.get("trend") == "escalating")
+    obs.METRICS.set("aero_cdm_events", float(len(ev)), trend="all")
+    obs.METRICS.set("aero_cdm_events", float(escalating), trend="escalating")
+    job.say(f"{res.get('processed', 0)} new message(s), {len(ev)} event(s), {escalating} escalating")
+    return {"processed": res.get("processed"), "skipped": res.get("skipped_duplicates"), "events": len(ev), "escalating": escalating}
 
 
 def spacetrack_pull(job: Job, p: dict[str, Any]) -> dict[str, Any]:
@@ -50,7 +67,7 @@ def spacetrack_pull(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     st = SpaceTrack()
     rows = st.cdm_public(int(p.get("days") or 7), float(p.get("min_pc") or 1e-7))
-    n = inbox.record_summary(rows, p.get("ledger") or inbox.LEDGER)
+    n = inbox.record_summary(rows, _confine(p["ledger"], (".jsonl",), must_exist=False) if p.get("ledger") else inbox.LEDGER)
     job.say(f"{len(rows)} summaries, {n} new in the ledger")
     return {"summaries": len(rows), "recorded": n}
 
@@ -60,7 +77,7 @@ def conjunctions(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space.orbital import fetch_group, findings, parse_tle, screen
 
-    path = p.get("tle") or asyncio.run(fetch_group(p.get("group") or "stations"))
+    path = _confine(p["tle"], ELEMENT_SUFFIXES) if p.get("tle") else asyncio.run(fetch_group(p.get("group") or "stations"))
     sets = parse_tle(Path(path).read_text())
     max_sets = int(p.get("max_sets") or 150)
     res = screen(sets, None, float(p.get("hours") or 24.0), float(p.get("threshold_km") or 10.0), max_sets=max_sets)
@@ -79,7 +96,7 @@ def space_weather(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space import spaceweather
 
-    path = Path(p["file"]) if p.get("file") else asyncio.run(spaceweather.fetch())
+    path = _confine(p["file"], JSON_SUFFIXES) if p.get("file") else asyncio.run(spaceweather.fetch())
     payload = json.loads(Path(path).read_text())
     summary, fs = spaceweather.assess(payload)
     if p.get("recording"):
@@ -95,7 +112,7 @@ def launches(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space import launches as ll
 
-    path = Path(p["file"]) if p.get("file") else asyncio.run(ll.fetch(p.get("mode") or "upcoming", int(p.get("limit") or 20)))
+    path = _confine(p["file"], JSON_SUFFIXES) if p.get("file") else asyncio.run(ll.fetch(p.get("mode") or "upcoming", int(p.get("limit") or 20)))
     payload = json.loads(Path(path).read_text())
     out: dict[str, Any] = {"file": str(path), "launches": len(payload.get("launches", []))}
     if p.get("recording"):
@@ -126,7 +143,7 @@ def uas_risk(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 def maneuvers(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     from ..space import maneuvers as mv
 
-    files = [Path(f) for f in p.get("files") or []] or None
+    files = [_confine(f, ELEMENT_SUFFIXES) for f in p.get("files") or []] or None
     summary, fs = mv.analyse(files)
     job.say(f"{summary['objects']} objects, {len(summary['changes'])} changes, {len(summary['decaying'])} decaying")
     return _write_report("maneuvers", summary, fs) | {"changes": len(summary["changes"]), "decaying": len(summary["decaying"])}

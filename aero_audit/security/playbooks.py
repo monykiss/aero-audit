@@ -204,17 +204,26 @@ PLAYBOOKS: dict[str, Playbook] = {
 
 
 def playbook_for(rule_id: str) -> Playbook | None:
-    return PLAYBOOKS.get(rule_id)
+    pb = PLAYBOOKS.get(rule_id)
+    if pb is None:
+        from ..domain_rules import (
+            SPACE_PLAYBOOKS,  # space / UAS rules keep their own catalogue; one lookup serves both
+        )
+
+        pb = SPACE_PLAYBOOKS.get(rule_id)
+    return pb
 
 
 def render_markdown() -> str:
     out: list[str] = []
     seen: set[int] = set()
-    for pb in PLAYBOOKS.values():
+    from ..domain_rules import SPACE_PLAYBOOKS
+
+    for pb in [*PLAYBOOKS.values(), *SPACE_PLAYBOOKS.values()]:
         if id(pb) in seen:
             continue
         seen.add(id(pb))
-        ids = [k for k, v in PLAYBOOKS.items() if v is pb]
+        ids = [k for k, v in {**PLAYBOOKS, **SPACE_PLAYBOOKS}.items() if v is pb]
         out += [f"## {', '.join(ids)}: {pb.title}", "", f"SLA to triage: {pb.sla_minutes} min", "", "Triage:"]
         out += [f"1. {s}" for s in pb.triage]
         out += ["", "Verify:"] + [f"- {s}" for s in pb.verify]

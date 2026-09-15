@@ -616,7 +616,9 @@ def r_model(app: App, req: Any) -> Any:
 
 @router.route("GET", "/api/v1/rules")
 def r_rules(app: App, req: Any) -> Any:
-    return [{"rule": rid, "category": cat, "description": desc, "playbook": bool(playbook_for(rid))} for rid, (cat, desc) in RULE_CATALOG.items()]
+    from ..domain_rules import SPACE_RULE_CATALOG
+
+    return [{"rule": rid, "category": cat, "description": desc, "playbook": bool(playbook_for(rid))} for rid, (cat, desc) in {**RULE_CATALOG, **SPACE_RULE_CATALOG}.items()]
 
 
 @router.route("GET", "/api/v1/playbooks")
