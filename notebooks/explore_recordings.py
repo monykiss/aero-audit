@@ -14,7 +14,7 @@ from aero_audit.features import TrackStore
 from aero_audit.ingest import iter_recording
 from aero_audit.ml import frame_from_features
 
-path = Path(sys.argv[1]) if len(sys.argv) > 1 else sorted(Path("data/recordings").glob("adsblol_*.jsonl"))[-1]
+path = Path(sys.argv[1]) if len(sys.argv) > 1 else max(Path("data/recordings").glob("adsblol_*.jsonl"))
 print("recording:", path)
 
 # %% Flatten every state vector into a DataFrame
