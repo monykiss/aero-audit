@@ -157,7 +157,7 @@ def record_summary(rows: list[dict[str, Any]], ledger: str | Path = LEDGER, sour
 
 def events(ledger: str | Path = LEDGER, now: float | None = None) -> list[dict[str, Any]]:
     """Group ledger rows into conjunction events (same pair, TCA within a window) and describe the Pc trend."""
-    now = now or time.time()
+    now = time.time() if now is None else now
     groups: dict[tuple[str, int], list[dict[str, Any]]] = defaultdict(list)
     for r in _ledger_rows(ledger):
         tca = r.get("tca_ts")

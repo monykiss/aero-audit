@@ -84,3 +84,32 @@ def test_accounts_command_and_env_template():
     assert r.exit_code == 0 and "Not configured" in r.output and "spacetrack" in r.output
     env = Path(".env.example").read_text()
     assert "SPACETRACK_USER=" in env and "NASA_API_KEY=" in env and "AERO_SCHEDULE" in env
+
+
+def test_write_env_creates_from_template_replaces_and_appends(tmp_path, monkeypatch):
+    from aero_audit.integrations import write_env
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env.example").write_text("# header\nSPACETRACK_USER=\nSPACETRACK_PASS=\nAERO_REGION=nyc\n")
+    p = write_env({"SPACETRACK_USER": "me@example.org", "SPACETRACK_PASS": "p'q"}, ".env")
+    text = p.read_text()
+    assert "export SPACETRACK_USER='me@example.org'" in text and "export SPACETRACK_PASS='p'\\''q'" in text and "AERO_REGION=nyc" in text
+    assert oct(p.stat().st_mode & 0o777) == "0o600"
+    write_env({"NASA_API_KEY": "k1", "SPACETRACK_USER": "other@example.org"}, ".env")
+    text = p.read_text()
+    assert text.count("SPACETRACK_USER") == 1 and "other@example.org" in text and text.rstrip().endswith("export NASA_API_KEY='k1'")
+
+
+def test_accounts_setup_prompts_hidden_and_writes_env(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AERO_SETUP_ALLOW_PIPE", "1")
+    (tmp_path / ".env.example").write_text("SPACETRACK_USER=\nSPACETRACK_PASS=\n")
+    r = CliRunner().invoke(cli.app, ["accounts-setup", "spacetrack", "--no-probe"], input="me@example.org\nsecret-value\nsecret-value\n")
+    assert r.exit_code == 0, r.output
+    assert "secret-value" not in r.output and "Wrote SPACETRACK_USER, SPACETRACK_PASS" in r.output
+    assert "export SPACETRACK_PASS='secret-value'" in (tmp_path / ".env").read_text()
+    r = CliRunner().invoke(cli.app, ["accounts-setup", "nowhere"])
+    assert r.exit_code != 0
+    monkeypatch.delenv("AERO_SETUP_ALLOW_PIPE")
+    r = CliRunner().invoke(cli.app, ["accounts-setup", "spacetrack", "--no-probe"], input="a\nb\nb\n")
+    assert r.exit_code != 0 and "interactive terminal" in r.output

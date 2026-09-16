@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 
@@ -126,6 +127,41 @@ def probe(get: Any = None, timeout: float = 30.0) -> list[dict[str, Any]]:
     return rows
 
 
+SETUP_FIELDS: dict[str, tuple[tuple[str, str, bool], ...]] = {  # service -> ((env var, prompt, secret), ...)
+    "spacetrack": (("SPACETRACK_USER", "Space-Track username (the email you registered)", False), ("SPACETRACK_PASS", "Space-Track password", True)),
+    "opensky": (("OPENSKY_CLIENT_ID", "OpenSky API client id", False), ("OPENSKY_CLIENT_SECRET", "OpenSky API client secret", True)),
+    "nasa_api": (("NASA_API_KEY", "api.nasa.gov key", True),),
+    "github": (("GITHUB_TOKEN", "GitHub token (fine-grained, public read)", True),),
+}
+
+
+def write_env(values: dict[str, str], path: str | Path = ".env", template: str | Path = ".env.example") -> Path:
+    """Set or replace ``KEY=value`` lines in a git-ignored .env (created from the template when absent), mode 0600.
+    Values are quoted for the shell and never logged; a variable not in the file is appended."""
+    import os as _os
+    import stat
+
+    p = Path(path)
+    if not p.exists():
+        p.write_text(Path(template).read_text() if Path(template).is_file() else "")
+    lines = p.read_text().splitlines()
+    done: set[str] = set()
+    out = []
+    for ln in lines:
+        key = ln.split("=", 1)[0].removeprefix("export ").strip() if "=" in ln and not ln.lstrip().startswith("#") else None
+        if key in values:
+            out.append(f"export {key}='{values[key].replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'")
+            done.add(key)
+        else:
+            out.append(ln)
+    for k, v in values.items():
+        if k not in done:
+            out.append(f"export {k}='{v.replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'")
+    p.write_text("\n".join(out) + "\n")
+    _os.chmod(p, stat.S_IRUSR | stat.S_IWUSR)
+    return p
+
+
 def status() -> list[dict[str, Any]]:
     return [i.to_dict() for i in INTEGRATIONS.values()]
 
@@ -134,4 +170,4 @@ def missing() -> list[str]:
     return [i.key for i in INTEGRATIONS.values() if i.env and not i.configured()]
 
 
-__all__ = ["INTEGRATIONS", "PROBES", "Integration", "missing", "probe", "status"]
+__all__ = ["INTEGRATIONS", "PROBES", "SETUP_FIELDS", "Integration", "missing", "probe", "status", "write_env"]

@@ -805,6 +805,43 @@ def accounts(probe: bool = typer.Option(False, help="One harmless read per servi
     con.print("Set variables in a git-ignored .env (see docs/ACCOUNTS.md); never on the command line.")
 
 
+@app.command("accounts-setup")
+def accounts_setup(service: str = typer.Argument("spacetrack", help="spacetrack | opensky | nasa_api | github"),
+                   env_file: Path = typer.Option(Path(".env"), help="Git-ignored env file to write (mode 0600)"),
+                   probe: bool = typer.Option(True, "--probe/--no-probe", help="Verify the credentials with one harmless read afterwards")) -> None:
+    """Prompt for a service's credentials in THIS terminal (hidden input, never echoed, never logged) and write them to .env.
+
+    The tool never creates accounts or fills web forms; you type here, the file stays on this machine."""
+    import os
+    import sys
+
+    from .integrations import INTEGRATIONS, SETUP_FIELDS, write_env
+    from .integrations import probe as run_probe
+
+    if service not in SETUP_FIELDS:
+        raise typer.BadParameter(f"unknown service {service}; choose from {', '.join(SETUP_FIELDS)}")
+    if not sys.stdin.isatty() and not os.getenv("AERO_SETUP_ALLOW_PIPE"):
+        raise typer.BadParameter("run this in an interactive terminal: credentials are typed, never passed on a command line or through a pipe")
+    integ = INTEGRATIONS[service]
+    con.print(f"[bold]{integ.name}[/]: {integ.unlocks}\nSign up: {integ.signup}\nValues are hidden and go only to {env_file} (mode 0600, git-ignored).")
+    values: dict[str, str] = {}
+    for var, prompt, secret in SETUP_FIELDS[service]:
+        v = typer.prompt(prompt, hide_input=secret, confirmation_prompt=secret).strip()
+        if not v:
+            raise typer.BadParameter(f"{var} cannot be empty")
+        values[var] = v
+    p = write_env(values, env_file)
+    for k, v in values.items():
+        os.environ[k] = v  # so the probe below sees them; the shell needs `source .env`
+    con.print(f"Wrote {', '.join(values)} to {p}. Run `source {p}` in your shell (or restart `aero app`).")
+    if probe:
+        rows = {r["key"]: r for r in run_probe()}
+        r = rows[service]
+        con.print(("[green]OK[/] " if r["ok"] else "[red]FAIL[/] ") + r["detail"])
+        if not r["ok"]:
+            con.print("Space-Track approves new accounts by hand; if you registered today, try again tomorrow." if service == "spacetrack" else "Check the values and try again.")
+
+
 @app.command()
 def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the public feeds")) -> None:
     """Check this machine: Python, dependencies, samples, model integrity, ports, feeds, audit chain."""
