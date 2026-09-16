@@ -188,6 +188,9 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-42", "Bidirectional traceability", "Controls traced to standards, rules, modules, tests and studies and back; gaps (untested controls, orphan rules, unreferenced studies) listed and kept at zero for rules, studies and standards.",
             "governance", ("air-surveillance", "air-operations", "space-assets", "space-launch", "space-orbital", "uas-utm", "space-environment"), ("NASA-NPR-7150.2", "NASA-SLIM"), "implemented",
             ("module:aero_audit/governance/traceability.py", "artefact:docs/generated/TRACEABILITY.md", "test:tests/test_depth.py", "command:aero gov traceability", "command:aero docs-build")),
+    Control("C-43", "Publication readiness", "Mechanical checks before the private branch goes public: nothing private tracked, no secret-looking strings, every source attributed, generated docs fresh, library and traceability clean, optional deps declared, changelog and README complete; the licence item stays open until upstream answers.",
+            "governance", ("space-assets", "space-launch", "space-orbital", "uas-utm", "space-environment"), ("NASA-NOSA-1.3", "NASA-MEDIA", "ODbL-1.0"), "implemented",
+            ("module:aero_audit/governance/publish.py", "module:aero_audit/governance/status.py", "artefact:docs/generated/STATUS.md", "test:tests/test_publish_status.py", "command:aero gov publish-check", "doc:docs/UPSTREAM.md")),
 )}
 
 
@@ -199,7 +202,7 @@ POLICIES: tuple[Policy, ...] = (
     Policy("P-05", "Model release gate", "A model is used only with a card, a registry entry, a grouped-holdout evaluation and an injected-scenario evaluation.", "ML lead", ("C-18", "C-19", "C-24")),
     Policy("P-06", "Change control", "Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code.", "programme lead", ("C-26", "C-30")),
     Policy("P-07", "Incident triage", "Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates.", "operations lead", ("C-16",)),
-    Policy("P-08", "Private until upstream", "Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed.", "programme lead", ("C-28", "C-31")),
+    Policy("P-08", "Private until upstream", "Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed; `aero gov publish-check` must pass before the branch is pushed.", "programme lead", ("C-28", "C-31", "C-43")),
     Policy("P-10", "Observability", "Every deployment exposes /metrics, /healthz and /readyz; the Prometheus alert rules in ops/ are the minimum on-call set.", "operations lead", ("C-35",)),
     Policy("P-09", "Secrets", "No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI.", "security lead", ("C-26",)),
 )

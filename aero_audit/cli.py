@@ -1625,6 +1625,22 @@ def gov_traceability(out: Path | None = typer.Option(None, help="Write the Markd
         con.print(f"Wrote {out}")
 
 
+@gov_app.command("publish-check")
+def gov_publish_check(strict: bool = typer.Option(False, help="Exit non-zero when anything fails, including the upstream licence item")) -> None:
+    """Publication readiness for the private branch (P-08): private files, secrets, attribution, docs drift, library, traceability, deps, changelog, README."""
+    from .governance.publish import checks, summary
+
+    rows = checks(".")
+    t = Table("check", "ok", "detail")
+    for r in rows:
+        t.add_row(f"{r['id']} {r['title']}", "[green]yes" if r["ok"] else "[red]NO", r["detail"][:90])
+    con.print(t)
+    s = summary(rows)
+    con.print(f"{s['passed']}/{s['total']} pass" + ("; ready" if s["ready"] else ("; only the upstream licence question remains" if s["blocking_on_user"] else "; failing: " + ", ".join(s["failed"]))))
+    if (strict and not s["ready"]) or (not strict and not (s["ready"] or s["blocking_on_user"])):
+        raise typer.Exit(code=1)
+
+
 @gov_app.command("assurance")
 def gov_assurance(out: Path | None = typer.Option(None, help="Write the Markdown to this path")) -> None:
     """NPR 7150.2 classification per component, the SLIM repository checklist evaluated on this tree, SDLS expectations."""

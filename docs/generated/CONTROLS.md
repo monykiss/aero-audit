@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **84%** over 42 controls; 36 of 36 standards have at least one implemented or partial control.
+Implementation index: **85%** over 43 controls; 36 of 36 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -63,6 +63,7 @@ Implementation index: **84%** over 42 controls; 36 of 36 standards have at least
 | C-40 | Scheduled intake | implemented | space-orbital, space-environment, space-launch | NASA-SLIM, NIST-CSF-2 | module:aero_audit/web/schedule.py; module:aero_audit/web/space_jobs.py; test:tests/test_feeds_risk.py; command:aero space watch |
 | C-41 | Integration inventory | implemented | air-surveillance, space-assets, space-orbital, space-environment, space-launch | NIST-SP800-53, ISO-27001 | module:aero_audit/integrations.py; test:tests/test_feeds_risk.py; command:aero accounts; doc:docs/ACCOUNTS.md |
 | C-42 | Bidirectional traceability | implemented | air-surveillance, air-operations, space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NPR-7150.2, NASA-SLIM | module:aero_audit/governance/traceability.py; artefact:docs/generated/TRACEABILITY.md; test:tests/test_depth.py; command:aero gov traceability; command:aero docs-build |
+| C-43 | Publication readiness | implemented | space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NOSA-1.3, NASA-MEDIA, ODbL-1.0 | module:aero_audit/governance/publish.py; module:aero_audit/governance/status.py; artefact:docs/generated/STATUS.md; test:tests/test_publish_status.py; command:aero gov publish-check; doc:docs/UPSTREAM.md |
 
 ## Policies
 
@@ -75,7 +76,7 @@ Implementation index: **84%** over 42 controls; 36 of 36 standards have at least
 | P-05 | Model release gate | A model is used only with a card, a registry entry, a grouped-holdout evaluation and an injected-scenario evaluation. | ML lead | C-18, C-19, C-24 |
 | P-06 | Change control | Main is protected; CI (lint, tests, docs drift, dependency audit, secret scan, container) must pass; generated docs cannot drift from code. | programme lead | C-26, C-30 |
 | P-07 | Incident triage | Findings follow their playbook SLAs; critical within 15 minutes, high within 60; ML alone never escalates. | operations lead | C-16 |
-| P-08 | Private until upstream | Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed. | programme lead | C-28, C-31 |
+| P-08 | Private until upstream | Space and UAS work stays on a local branch until licence questions are settled and an upstream home is agreed; `aero gov publish-check` must pass before the branch is pushed. | programme lead | C-28, C-31, C-43 |
 | P-10 | Observability | Every deployment exposes /metrics, /healthz and /readyz; the Prometheus alert rules in ops/ are the minimum on-call set. | operations lead | C-35 |
 | P-09 | Secrets | No credentials in the tree, recordings, reports or the audit log; .env is ignored and scanned for in CI. | security lead | C-26 |
 
@@ -116,6 +117,6 @@ Implementation index: **84%** over 42 controls; 36 of 36 standards have at least
 | NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 9 / 0 / 0 |
 | ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 8 / 0 / 0 |
 | NIST-AI-RMF | NIST AI Risk Management Framework 1.0 | NIST | cyber | 3 / 1 / 0 |
-| ODbL-1.0 | Open Database License 1.0 | ODC | data | 1 / 0 / 0 |
-| NASA-NOSA-1.3 | NASA Open Source Agreement 1.3 | NASA | data | 2 / 0 / 0 |
-| NASA-MEDIA | NASA media usage guidelines | NASA | data | 2 / 1 / 0 |
+| ODbL-1.0 | Open Database License 1.0 | ODC | data | 2 / 0 / 0 |
+| NASA-NOSA-1.3 | NASA Open Source Agreement 1.3 | NASA | data | 3 / 0 / 0 |
+| NASA-MEDIA | NASA media usage guidelines | NASA | data | 3 / 1 / 0 |

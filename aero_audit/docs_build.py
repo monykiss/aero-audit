@@ -11,7 +11,7 @@ from .risk import render_markdown as render_register
 from .security import playbooks, threats
 
 
-def build(out_dir: str | Path = "docs/generated") -> list[Path]:
+def build(out_dir: str | Path = "docs/generated", status: bool = True) -> list[Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -62,6 +62,12 @@ def build(out_dir: str | Path = "docs/generated") -> list[Path]:
     p = out / "TRACEABILITY.md"
     p.write_text(render_traceability())
     written.append(p)
+    if status:  # the status page runs the readiness checks, whose drift check rebuilds everything else: never itself
+        from .governance.status import render_markdown as render_status
+
+        p = out / "STATUS.md"
+        p.write_text(render_status("."))
+        written.append(p)
     p = out / "API.md"
     p.write_text(render_api(build_spec(api_router)))
     written.append(p)
