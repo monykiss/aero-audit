@@ -67,9 +67,14 @@ class DemoTour:
             self._thread.start()
 
     def stop(self) -> None:
+        """Signal the tour to stop and wait briefly for its thread, so a step already sleeping cannot inject after
+        the caller has moved on (the source may be gone, or a test may be asserting nothing was injected)."""
         with self.lock:
             self._stop.set()
             self.next_at = None
+            t = self._thread
+        if t is not None and t is not threading.current_thread():
+            t.join(timeout=2.0)
 
     def _run(self) -> None:
         while not self._stop.is_set():
