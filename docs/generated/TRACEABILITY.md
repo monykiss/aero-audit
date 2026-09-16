@@ -31,7 +31,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-06 Airspace and operations conformance | implemented | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | OPS-001, OPS-002, OPS-003, OPS-004, OPS-005, SAF-003, SAF-004 | ecosystem.py | test_rules.py, test_ecosystem.py | ST-05 |
 | C-07 Apron capacity from imagery | partial | ICAO-A14 | OPS-VIS-001, OPS-VIS-002 | apron.py, detect.py | test_vision_apron.py |  |
 | C-08 Launch telemetry plausibility | partial | CCSDS-133, CFR14-450 | SPC-001, SPC-002, SPC-003, SPC-004, SPC-005 | telemetry.py, footage.py | test_space.py |  |
-| C-09 Conjunction screening | partial | CCSDS-508, CCSDS-502 | ORB-001, ORB-002, ORB-003, ORB-004, ORB-005, ORB-006, ORB-007 | orbital.py, cdm.py, maneuvers.py, cdm_inbox.py, spacetrack.py | test_space_ops.py, test_depth.py, test_orbital.py, test_cdm.py | ST-20, ST-06, ST-12 |
+| C-09 Conjunction screening | partial | CCSDS-508, CCSDS-502 | ORB-001, ORB-002, ORB-003, ORB-004, ORB-005, ORB-006, ORB-007, ORB-008 | orbital.py, cdm.py, maneuvers.py, satcat.py, cdm_inbox.py, spacetrack.py | test_satcat.py, test_space_ops.py, test_depth.py, test_orbital.py, test_cdm.py | ST-20, ST-06, ST-12 |
 | C-10 Debris mitigation compliance | partial | NASA-STD-8719.14, ISO-24113 | DEB-001, DEB-002, DEB-003, DEB-004, DEB-005, DEB-006, DEB-007, DEB-008 | debris.py | test_space_ops.py | ST-13 |
 | C-11 UAS well-clear and DAA alerting metrics | partial | ASTM-F3442, RTCA-DO365, ICAO-A2 | DAA-001, DAA-002, DAA-003, DAA-004, DAA-005 | wellclear.py, encounters.py, risk.py, trend.py | test_uas.py, test_feeds_risk.py | ST-07, ST-16, ST-21 |
 | C-12 UTM API conformance | partial | ASTM-F3411 |  | utm.py | test_uas.py | ST-09 |
@@ -102,6 +102,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | ORB-005 | C-09 |
 | ORB-006 | C-09 |
 | ORB-007 | C-09 |
+| ORB-008 | C-09 |
 | SAF-003 | C-06 |
 | SAF-004 | C-06 |
 | SEC-001 | C-03 |

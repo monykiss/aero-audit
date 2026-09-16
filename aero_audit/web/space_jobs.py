@@ -94,6 +94,13 @@ def conjunctions(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     max_sets = int(p.get("max_sets") or 150)
     res = screen(sets, None, float(p.get("hours") or 24.0), float(p.get("threshold_km") or 10.0), max_sets=max_sets)
     fs = findings(res, sets[:max_sets], stream=Path(path).stem)
+    from ..space import satcat as sc
+
+    cat = sc.load()
+    if cat:
+        fs += sc.findings_for_elements([s.norad_id for s in sets[:max_sets]], cat, stream=Path(path).stem)
+        ids = {a["a_norad"] for a in res["approaches"]} | {a["b_norad"] for a in res["approaches"]}
+        res["catalogue"] = {str(n): sc.enrich([n], cat)[n] for n in list(ids)[:100]}
     job.say(f"{len(sets)} sets, {len(res['approaches'])} approaches")
     REPORTS.mkdir(parents=True, exist_ok=True)
     from ..audit.generic_report import write_generic
@@ -210,6 +217,24 @@ def encounter_model(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     return _write_report(f"encounter_model_{rec.stem.split('.')[0]}", res, [], {"recording": rec}) | {"risk_ratio": res["simulation"]["risk_ratio"], "p_nmac_unmitigated": res["simulation"]["p_nmac_unmitigated"]}
 
 
+def satcat(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    import asyncio
+
+    from ..space import satcat as sc
+
+    path = _confine(p["file"], (".csv",)) if p.get("file") else None
+    if path is None:
+        cur = sc.latest()
+        path = cur if (cur and (time.time() - cur.stat().st_mtime) < sc.MAX_AGE_S and not p.get("refresh")) else None
+    if path is None:
+        path, _err = _fetch_or_cached(job, lambda: asyncio.run(sc.fetch()), sc.latest, "satcat")
+    cat = sc.load(path)
+    s = sc.summary(cat)
+    rd = sc.recent_decays(float(p.get("decays_days") or 30.0), cat)
+    job.say(f"{s['objects']} objects, {len(rd)} decays in {p.get('decays_days') or 30} d")
+    return _write_report("satcat", {**s, "recent_decays": rd[:200]}, [], {"satcat": path}) | {"objects": s["objects"], "decays": len(rd)}
+
+
 def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     from ..governance import catalog
 
@@ -222,6 +247,6 @@ def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
 
 REGISTRY = {"cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
-            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model}
+            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model, "satcat": satcat}
 
 __all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "space_weather", "spacetrack_pull", "uas_risk", "wellclear"]

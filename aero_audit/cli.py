@@ -1172,6 +1172,12 @@ def space_conjunctions(
     con.print(f"{len(sets)} element sets from {path}")
     res = screen(sets, None, hours, threshold_km, max_sets=max_sets)
     fs = findings(res, sets[:max_sets], stream=Path(path).stem)
+    from .space import satcat as sc
+
+    cat = sc.load()
+    if cat:
+        fs += sc.findings_for_elements([s.norad_id for s in sets[:max_sets]], cat, stream=Path(path).stem)
+        res["catalogue"] = {a["a_norad"]: sc.enrich([a["a_norad"]], cat)[a["a_norad"]] for a in res["approaches"][:50]} | {a["b_norad"]: sc.enrich([a["b_norad"]], cat)[a["b_norad"]] for a in res["approaches"][:50]}
     con.print(f"screened {res['pairs']} pairs over {hours:g} h: {len(res['approaches'])} approaches under {threshold_km:g} km "
               f"({len(res['co_moving'])} co-moving pairs set aside); {sum(1 for f in fs if f.rule_id == 'ORB-001')} stale sets; {len(res['propagation_errors'])} propagation errors")
     t = Table("rule", "sev", "object", "detail")
@@ -1449,6 +1455,33 @@ def space_demo(out: Path = typer.Option(Path("reports")), recording: Path | None
         catalog.save_catalog(catalog.build_catalog("."))
         con.print("docs/generated rebuilt; data catalogue saved")
     con.print("Open the pages: aero app  (SPACE, UAS, GOV)")
+
+
+@space_app.command("satcat")
+def space_satcat(norad: list[int] | None = typer.Option(None, help="NORAD ids to look up"), decays_days: float = typer.Option(30.0, help="List objects decayed within this many days"),
+                 refresh: bool = typer.Option(False, help="Fetch the catalogue even if a fresh one is cached"), out: Path = typer.Option(Path("reports"))) -> None:
+    """CelesTrak SATCAT (keyless): identity, owner, type, orbit and decay dates; the open replacement for Space-Track lookups and decay messages."""
+    from .space import satcat as sc
+
+    p = sc.latest()
+    if refresh or p is None or (time.time() - p.stat().st_mtime) > sc.MAX_AGE_S:
+        p = asyncio.run(sc.fetch())
+    cat = sc.load(p)
+    s = sc.summary(cat)
+    con.print(f"{s['objects']} objects ({s['on_orbit']} on orbit, {s['decayed']} decayed) from {p.name}, {s['age_h']} h old")
+    if norad:
+        t = Table("norad", "name", "type", "owner", "perigee km", "apogee km", "decay date")
+        for n, r in sc.enrich(norad, cat).items():
+            t.add_row(str(n), str(r.get("name")), str(r.get("type")), str(r.get("owner")), str(r.get("perigee_km")), str(r.get("apogee_km")), str(r.get("decay_date")))
+        con.print(t)
+    rd = sc.recent_decays(decays_days, cat)
+    con.print(f"{len(rd)} object(s) decayed in the last {decays_days:g} days")
+    t = Table("norad", "name", "type", "owner", "decay date")
+    for r in rd[:20]:
+        t.add_row(str(r["norad"]), str(r["name"])[:30], str(r["type"]), str(r["owner"]), str(r["decay_date"]))
+    con.print(t)
+    jp = write_generic(out, "satcat", "summary", {**s, "recent_decays": rd[:200], "lookups": sc.enrich(norad or [], cat)}, [], inputs={"satcat": p})["json"]
+    con.print(f"Report: {jp}")
 
 
 @space_app.command("telemetry-audit")

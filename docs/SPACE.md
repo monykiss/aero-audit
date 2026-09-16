@@ -141,6 +141,18 @@ audited job (network jobs are skipped under `AERO_OFFLINE=1`), and `web/space_jo
 registry the app, the scheduler and `aero space watch` share. The SPACE page in the app shows all
 of it with buttons that submit the same jobs.
 
+## Catalogue (keyless) and the Space-Track question
+
+```bash
+aero space satcat --norad 25544 --decays-days 30     # CelesTrak SATCAT: identity, owner, type, orbit, decay dates
+```
+
+`space/satcat.py` caches the daily SATCAT CSV with provenance and serves object identity for the
+conjunction screen (names and types on every approach), recent decays, and ORB-008 when an element set
+is still screened for an object the catalogue records as decayed. Together with the SGP4 screen and the
+cached element history it covers everything the project would otherwise take from Space-Track, so the
+account stays optional (docs/ACCOUNTS.md has the capability matrix).
+
 ## Renders, element history (depth items)
 
 ```bash

@@ -24,6 +24,9 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Space-Track made optional: CelesTrak SATCAT client (keyless, 70k objects) for identity, owner, type, orbit and decay
+  dates; ORB-008; catalogue enrichment on every conjunction screen; `aero space satcat`, satcat job and page section;
+  capability matrix in docs/ACCOUNTS.md; Space-Track rows carry the user-agreement restriction and stay out of bundles.
 - Accounts wired: `aero accounts --probe` (harmless authenticated reads, values never printed), `.env.example` with the space
   variables, Space-Track call-out and pull button on the Space page, `aero space watch` adds the Space-Track pull when
   credentials exist; NASA DONKI notifications with DEMO_KEY fallback cross-checked against the SWPC assessment

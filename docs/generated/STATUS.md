@@ -1,6 +1,6 @@
 # Programme status (generated)
 
-Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air rules and 33 space/UAS rules; 30 controls implemented, 13 partial, 0 planned; 20 of 21 studies runnable; 177 tests.
+Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air rules and 34 space/UAS rules; 30 controls implemented, 13 partial, 0 planned; 20 of 21 studies runnable; 179 tests.
 
 ## Domains
 
@@ -26,12 +26,12 @@ Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air 
 
 ## Publication readiness
 
-10 of 11 checks pass; only the upstream licence question (P-08) remains.
+9 of 11 checks pass; failing: PUB-04, PUB-10
 
 - PUB-01 Nothing private tracked: ok (clean)
 - PUB-02 No secret-looking strings in tracked text: ok (clean)
 - PUB-03 Every external source attributed: ok (all named)
-- PUB-04 Generated docs match the code: ok (fresh)
+- PUB-04 Generated docs match the code: NO (stale: API.md, RULES.md)
 - PUB-05 Control library referentially clean: ok (clean)
 - PUB-06 Traceability: no orphan rules, studies, standards or untested controls: ok (clean)
 - PUB-07 Optional dependencies declared and sgp4 locked: ok (space extra + lock, vision extra)

@@ -47,7 +47,7 @@ Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies mus
 | GET | `/api/v1/audit/verify` | audit | Verify the audit chain | Walk the chain and report the first broken line, if any. |
 | GET | `/api/v1/reports/{name}/manifest` | reports | Verify a report manifest | Re-hash the report files named by the manifest. |
 | GET | `/api/v1/jobs` | jobs | Jobs | Recent background jobs with status and results. |
-| POST | `/api/v1/jobs` | jobs | Submit a job | Body {"type": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build|maneuvers|encounter_model, "params": {...}}. |
+| POST | `/api/v1/jobs` | jobs | Submit a job | Body {"type": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build|maneuvers|encounter_model|satcat, "params": {...}}. |
 | GET | `/api/v1/jobs/{id}` | jobs | Job detail | Status, progress, log and result of one job. |
 | POST | `/api/v1/jobs/{id}/cancel` | jobs | Cancel a job | Request cancellation of a running job. |
 | GET | `/api/v1/settings` | settings | Settings | App settings, model integrity and every tunable threshold with its override state. |

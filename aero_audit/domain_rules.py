@@ -25,6 +25,7 @@ SPACE_RULE_CATALOG: dict[str, tuple[str, str]] = {
     "ORB-005": ("data-quality", "Conjunction data message internally inconsistent"),
     "ORB-006": ("data-quality", "Manoeuvre-scale change between consecutive element sets"),
     "ORB-007": ("safety", "Decay imminent: low perigee or re-entry within the watch window"),
+    "ORB-008": ("data-quality", "Element set in use for an object the catalogue records as decayed"),
     # debris mitigation (space/debris.py)
     "DEB-001": ("safety", "Post-mission orbital lifetime beyond the disposal limit"),
     "DEB-002": ("safety", "No passivation of stored energy at end of mission"),

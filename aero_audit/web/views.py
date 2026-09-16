@@ -109,15 +109,23 @@ def _space_summary() -> dict[str, Any]:
     reg = _load(Path("models/registry.json")) or []
     clf = next((e for e in reversed(reg) if isinstance(e, dict) and "scene_classifier" in str(e.get("model_path", ""))), None) if isinstance(reg, list) else None
     feeds = []
-    for name, folder, pattern in (("celestrak elements", orbital.ELEMENTS_DIR, "*.tle"), ("noaa swpc", spaceweather.CACHE_DIR, "swpc_*.json"),
+    for name, folder, pattern in (("celestrak elements", orbital.ELEMENTS_DIR, "*.tle"), ("celestrak satcat", Path("data/space/satcat"), "satcat_*.csv"), ("noaa swpc", spaceweather.CACHE_DIR, "swpc_*.json"),
                                   ("launch library 2", launches.CACHE_DIR, "ll2_*.json"), ("cdm inbox", cdm_inbox.INBOX, "*")):
         files = [f for f in Path(folder).glob(pattern) if f.is_file() and not f.name.endswith(".provenance.json")] if Path(folder).is_dir() else []
         newest = max((f.stat().st_mtime for f in files), default=None)
         feeds.append({"source": name, "cached": len(files), "newest_age_h": None if newest is None else round((now - newest) / 3600, 1), "folder": str(folder)})
     degraded = [k for k, (pth, rep) in {"space_weather": (swp, _latest_report("space_weather")[1]), "launches": (lp, _latest_report("launches")[1])}.items()
                 if rep and (rep.get("summary") or {}).get("degraded")]
+    from ..space import satcat as sc
+
+    scp = sc.latest()
+    satcat_block = None
+    if scp:
+        cat = sc.load(scp)
+        satcat_block = {**sc.summary(cat), "recent_decays": sc.recent_decays(30.0, cat)[:15]}
     return {
         "generated_at": now,
+        "satcat": satcat_block,
         "feeds": feeds,
         "degraded_last_run": degraded,
         "elements": elements,

@@ -48,6 +48,18 @@ honours that mechanically: every ledger row that came from Space-Track carries a
 PUB-11 fails if Space-Track material is ever tracked in git. Keep Space-Track-derived screenshots and
 numbers out of anything you share, including this project's public repository, unless they approve it.
 
+## Space-Track is optional: the capability matrix
+
+| Capability | Space-Track | Keyless path used by default |
+|---|---|---|
+| Conjunction screening | `cdm_public` summaries (originator's Pc) | CelesTrak GP elements + our SGP4 pairwise screen (`aero space conjunctions`, ORB-001..003); CDMs you receive go in the inbox (ORB-004/005). CelesTrak's SOCRATES service no longer answers (404 on every query form, checked 2026-09-16) |
+| Element history, manoeuvres | GP history queries | cached CelesTrak snapshots compared over time (`aero space maneuvers`, ORB-006/007) |
+| Decay and reentry | TIP messages | CelesTrak SATCAT decay dates (`aero space satcat`, ORB-008) plus our decay estimate (ORB-007); official reentry predictions stay with the tracking authority |
+| Object identity, owner, type | satcat queries | CelesTrak SATCAT (70,000 objects, daily CSV) |
+
+Nothing in the tool requires Space-Track, and with it connected the user agreement's redistribution
+clause applies to every row it contributes; the keyless paths carry no such restriction.
+
 ## Probing what you configured
 
 `aero accounts --probe` makes one harmless read per service (authenticated where credentials

@@ -10,7 +10,7 @@ Governance index: **90%** (controls 85%, standards 100%, risk share low/medium 9
 | Air: operations, airports and ecosystem | active | 11 | 15 / 3 / 0 | adsb.lol / OpenSky; NOAA AWC METAR; FAA NAS status XML; bundled airport / operator / type tables; apron imagery |
 | Space: open assets with provenance | active | 0 | 7 / 2 / 0 | github.com/nasa/NASA-3D-Resources (tree API + raw); images-api.nasa.gov / images-assets.nasa.gov; api.nasa.gov Mars Rover Photos (planned) |
 | Space: launch and ascent | active | 8 | 10 / 6 / 0 | Launch Library 2 upcoming/previous (keyless, 15/h); telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
-| Space: orbital operations and conjunction | active | 15 | 8 / 5 / 0 | CelesTrak GP elements (keyless); CCSDS CDM 508.0-B files (KVN / XML); space-track.org cdm_public (free account); mission descriptions (JSON) |
+| Space: orbital operations and conjunction | active | 16 | 8 / 5 / 0 | CelesTrak GP elements (keyless); CCSDS CDM 508.0-B files (KVN / XML); space-track.org cdm_public (free account); mission descriptions (JSON) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |
 | Air: UAS integration, detect-and-avoid, UTM | active | 5 | 3 / 4 / 0 | surveillance recordings (ADS-B, live or replayed); UTM operator/USS APIs (OpenAPI) |
 | Space: environment and space weather | active | 5 | 5 / 0 / 0 | NOAA SWPC noaa-scales.json and planetary_k_index_1m.json (keyless); surveillance recordings for exposure |
