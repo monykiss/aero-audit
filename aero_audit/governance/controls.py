@@ -98,7 +98,7 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-11", "UAS well-clear and DAA alerting metrics", "Well-clear violations, NMAC-proximate encounters and alert lead time from the DO-365 / DAIDALUS definitions on recorded tracks.",
             "compliance", ("uas-utm", "air-surveillance"), ("ASTM-F3442", "RTCA-DO365", "ICAO-A2"), "partial",
             ("module:aero_audit/uas/wellclear.py", "module:aero_audit/uas/encounters.py", "module:aero_audit/uas/risk.py", "rule:DAA-001", "rule:DAA-002", "rule:DAA-003", "rule:DAA-004",
-             "test:tests/test_uas.py", "test:tests/test_feeds_risk.py", "command:aero uas wellclear", "command:aero uas risk", "study:ST-07", "study:ST-16"),
+             "test:tests/test_uas.py", "test:tests/test_feeds_risk.py", "module:aero_audit/uas/trend.py", "rule:DAA-005", "command:aero uas wellclear", "command:aero uas risk", "command:aero uas trend", "study:ST-07", "study:ST-16", "study:ST-21"),
             notes="Definitions re-implemented from DAIDALUS/DO-365 for offline metrics at surveillance update rates; not a DAA system."),
     Control("C-12", "UTM API conformance", "Validate captured exchanges against OpenAPI contracts (NASA utm-apis, and this app's own document).",
             "compliance", ("uas-utm",), ("ASTM-F3411",), "partial", ("module:aero_audit/uas/utm.py", "test:tests/test_uas.py", "command:aero uas utm-check", "study:ST-09")),

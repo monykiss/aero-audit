@@ -12,7 +12,7 @@ Governance index: **90%** (controls 84%, standards 100%, risk share low/medium 9
 | Space: launch and ascent | active | 8 | 9 / 6 / 0 | Launch Library 2 upcoming/previous (keyless, 15/h); telemetry CSV (t, speed, altitude); local footage; NASA library captions (.srt) |
 | Space: orbital operations and conjunction | active | 15 | 7 / 5 / 0 | CelesTrak GP elements (keyless); CCSDS CDM 508.0-B files (KVN / XML); space-track.org cdm_public (free account); mission descriptions (JSON) |
 | Earth observation: crisis overlays for operations | scaffold | 0 | 0 / 1 / 0 | GeoJSON crisis extents (from CMT / Earth Engine exports); bundled airport table |
-| Air: UAS integration, detect-and-avoid, UTM | active | 4 | 2 / 4 / 0 | surveillance recordings (ADS-B, live or replayed); UTM operator/USS APIs (OpenAPI) |
+| Air: UAS integration, detect-and-avoid, UTM | active | 5 | 2 / 4 / 0 | surveillance recordings (ADS-B, live or replayed); UTM operator/USS APIs (OpenAPI) |
 | Space: environment and space weather | active | 5 | 4 / 0 / 0 | NOAA SWPC noaa-scales.json and planetary_k_index_1m.json (keyless); surveillance recordings for exposure |
 
 ## Pillars
@@ -74,6 +74,7 @@ By residual rating: {'critical': 0, 'high': 2, 'medium': 11, 'low': 10}
 | ST-18 | Traffic near launch pads during windows | space-launch | runnable |
 | ST-19 | Encounter model Monte Carlo | uas-utm | runnable |
 | ST-20 | Element history: manoeuvres and decay | space-orbital | runnable |
+| ST-21 | Well-clear rate trend across recordings | uas-utm | runnable |
 | ST-15 | Data catalogue reconciliation | air-surveillance | runnable |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable |
 | ST-12 | Conjunction data message assessment | space-orbital | runnable |

@@ -1688,6 +1688,28 @@ def uas_encounter_model(recording: Path = typer.Argument(...), n: int = typer.Op
     con.print(f"Report: {jp}")
 
 
+@uas_app.command("trend")
+def uas_trend(folder: Path = typer.Argument(Path("data/recordings"), help="Directory of recordings (or pass files with --file)"), pattern: str = typer.Option("*"),
+              file: list[Path] | None = typer.Option(None, help="Explicit recordings instead of a directory scan"), max_batches: int | None = typer.Option(None),
+              out: Path = typer.Option(Path("reports"))) -> None:
+    """Well-clear and NMAC-proximate rates per recording, ordered in time, with the slope of the violation rate (DAA-005 when rising)."""
+    from .uas import trend as tr
+
+    recs = [Path(f) for f in file] if file else tr.find_recordings(folder, pattern)
+    if not recs:
+        raise typer.BadParameter("no recordings found")
+    summary, fs = tr.trend(recs, max_batches)
+    t = Table("recording", "flight h", "pairs", "violations", "viol/fh", "NMAC/fh", "lead s", "dense low cells")
+    for r in summary["rows"]:
+        t.add_row(r["recording"][:36], str(r["flight_hours"]), str(r["encounter_pairs"]), str(r["violations"]), str(r["violations_per_fh"]), str(r["nmac_per_fh"]), str(r["median_lead_s"]), str(r["dense_low_cells"]))
+    con.print(t)
+    con.print(f"{summary['recordings']} recordings over {summary['span_days']} days; slope {summary['slope_violations_per_fh_per_day']} violations/fh per day")
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    jp = write_generic(out, "uas_trend", "summary", summary, fs, inputs={f"recording{i}": r for i, r in enumerate(recs)})["json"]
+    con.print(f"Report: {jp}")
+
+
 @uas_app.command("utm-check")
 def uas_utm_check(spec: Path = typer.Argument(..., help="OpenAPI document (JSON)"), sample: list[Path] = typer.Argument(..., help="JSON samples to validate"),
                   schema: str | None = typer.Option(None, help="Component schema name"), path: str | None = typer.Option(None, help="Endpoint path for a response schema"),

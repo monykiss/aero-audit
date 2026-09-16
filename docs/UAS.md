@@ -54,6 +54,19 @@ horizon is shorter than the update interval, which a DAA case must address with 
 surveillance, not with a lower threshold. The UAS page in the app shows the bands, the pairs and
 the ratio with buttons that run both analyses on any recording.
 
+## Trend across recordings
+
+```bash
+aero uas trend data/recordings                 # every recording on disk, ordered in time
+aero uas trend --file a.jsonl.gz --file b.jsonl.gz
+aero gov run-study ST-21
+```
+
+`uas/trend.py` computes the encounter summary and the low-altitude density picture per recording,
+orders them by first timestamp and fits the slope of the violation rate per flight hour. DAA-005
+fires when the rate rises across at least three recordings and the latest is 1.5× the first;
+the playbook's first step is to check whether the feed's revisit rate or coverage changed.
+
 ## Encounter model (Monte Carlo)
 
 ```bash

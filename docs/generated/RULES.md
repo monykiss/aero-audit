@@ -50,6 +50,7 @@
 | DAA-002 | safety | Alert lead time below the warning time |
 | DAA-003 | safety | Observed DAA risk ratio above the programme limit |
 | DAA-004 | safety | Dense low-altitude airspace where small UAS operate |
+| DAA-005 | safety | Well-clear violation rate rising across recordings |
 | SWX-001 | operations | Geomagnetic conditions at ICAO advisory level (GNSS, drag) |
 | SWX-002 | operations | Radio blackout conditions at ICAO advisory level (HF) |
 | SWX-003 | operations | Solar radiation storm at ICAO advisory level (flight-level radiation) |

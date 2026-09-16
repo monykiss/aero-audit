@@ -257,6 +257,16 @@ def _element_history(files: list[str | Path] | None = None, tle: str | Path | No
             "changes_detail": summary["changes"][:50], "decaying_detail": summary["decaying"][:50], "findings": [f.rule_id for f in fs]}
 
 
+def _wellclear_trend(recordings_dir: str | Path = "data/recordings", pattern: str = "*", files: list[str | Path] | None = None, max_batches: int | None = None, **_: Any) -> dict[str, Any]:
+    from ..uas import trend as tr
+
+    recs = [Path(f) for f in files] if files else tr.find_recordings(recordings_dir, pattern)
+    if not recs:
+        raise RuntimeError(f"no recordings under {recordings_dir}")
+    summary, fs = tr.trend(recs, max_batches)
+    return {k: v for k, v in summary.items() if k != "rows"} | {"rows": [{k: v for k, v in r.items() if k != "regions"} for r in summary["rows"]], "findings": [f.rule_id for f in fs]}
+
+
 def _catalog_reconcile(**_: Any) -> dict[str, Any]:
     from .catalog import build_catalog, load_catalog, reconcile, save_catalog
 
@@ -271,7 +281,7 @@ RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
     "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
     "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
     "cdm_assessment": _cdm_assessment, "risk_classes": _risk_classes, "space_weather": _space_weather, "launch_join": _launch_join,
-    "encounter_model": _encounter_model, "element_history": _element_history,
+    "encounter_model": _encounter_model, "element_history": _element_history, "wellclear_trend": _wellclear_trend,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
     "integrity_by_operator": _integrity_by_operator, "recall_vs_revisit": _recall_vs_revisit,
@@ -328,6 +338,9 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-20", "Element history: manoeuvres and decay", "Which catalogued objects changed orbit between snapshots, and which are about to re-enter?",
           "space-orbital", "Mean elements per object across cached snapshots; semi-major-axis and inclination steps beyond drag, perigee and mean-motion decay rate.",
           ("two or more element files",), ("manoeuvre-scale changes", "objects decaying within 30 days"), "runnable", "element_history", ("CelesTrak", "CCSDS 502.0-B")),
+    Study("ST-21", "Well-clear rate trend across recordings", "Is the well-clear violation rate per flight hour rising, falling or flat across the recordings on disk?",
+          "uas-utm", "Encounter summary and low-altitude density per recording, ordered by first timestamp; least-squares slope of the violation rate; DAA-005 when rising.",
+          ("recordings directory",), ("violations per flight hour per recording", "slope per day", "dense low-altitude cells"), "runnable", "wellclear_trend", ("nasa/daidalus", "mit-ll/air-risk-class")),
     Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
           "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
           ("nasa/Common-Metadata-Repository", "nasa/cumulus")),

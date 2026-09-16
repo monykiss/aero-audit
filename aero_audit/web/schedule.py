@@ -19,6 +19,9 @@ from .. import observability as obs
 ENV = "AERO_SCHEDULE"
 MIN_INTERVAL_S = 60.0
 NETWORK_JOBS = {"space_weather", "launches", "spacetrack_pull", "conjunctions"}
+# politeness floors per job: Launch Library 2 allows 15 requests/hour keyless, Space-Track asks for restraint, CelesTrak caches for hours
+MIN_INTERVALS: dict[str, float] = {"launches": 300.0, "spacetrack_pull": 600.0, "conjunctions": 300.0, "space_weather": 120.0}
+MAX_BACKOFF_FACTOR = 8
 
 
 def parse_schedule(text: str | None) -> dict[str, float]:
@@ -28,16 +31,20 @@ def parse_schedule(text: str | None) -> dict[str, float]:
         if not part or "=" not in part:
             continue
         name, _, secs = part.partition("=")
+        name = name.strip()
         try:
-            out[name.strip()] = max(float(secs), MIN_INTERVAL_S)
+            out[name] = max(float(secs), MIN_INTERVAL_S, MIN_INTERVALS.get(name, 0.0))
         except ValueError:
             continue
     return out
 
 
 class Scheduler:
-    def __init__(self, submit: Any, known: set[str], schedule: dict[str, float] | None = None, offline: bool = False) -> None:
+    def __init__(self, submit: Any, known: set[str], schedule: dict[str, float] | None = None, offline: bool = False, is_running: Any = None) -> None:
         self.submit = submit
+        self.is_running = is_running or (lambda name: False)
+        self.failures: dict[str, int] = {}
+        self.deferred: dict[str, int] = {}
         self.schedule = {k: v for k, v in (schedule if schedule is not None else parse_schedule(os.getenv(ENV))).items() if k in known}
         self.unknown = sorted(k for k in (schedule if schedule is not None else parse_schedule(os.getenv(ENV))) if k not in known)
         self.offline = offline
@@ -65,7 +72,12 @@ class Scheduler:
         for name, every in self.schedule.items():
             if now < self.next_run.get(name, 0.0):
                 continue
-            self.next_run[name] = now + every
+            if self.is_running(name):  # never stack a second instance of a job that is still running (a slow feed must not pile up)
+                self.deferred[name] = self.deferred.get(name, 0) + 1
+                self.next_run[name] = now + min(every, 60.0)
+                obs.log_event("schedule.defer", "info", job=name, reason="still running")
+                continue
+            self.next_run[name] = now + every * min(2 ** self.failures.get(name, 0), MAX_BACKOFF_FACTOR)
             if self.offline and name in NETWORK_JOBS:
                 self.skipped[name] += 1
                 obs.log_event("schedule.skip", "info", job=name, reason="offline")
@@ -80,6 +92,18 @@ class Scheduler:
                 obs.log_event("schedule.error", "warning", job=name, error=f"{type(e).__name__}: {str(e)[:120]}")
         return fired
 
+    def report(self, name: str, ok: bool) -> None:
+        """Outcome feedback from the job manager: consecutive failures double the interval (capped), success resets it."""
+        if name not in self.schedule:
+            return
+        if ok:
+            self.failures.pop(name, None)
+        else:
+            self.failures[name] = min(self.failures.get(name, 0) + 1, 3)
+            factor = min(2 ** self.failures[name], MAX_BACKOFF_FACTOR)
+            self.next_run[name] = max(self.next_run.get(name, 0.0), time.time() + self.schedule[name] * factor)  # takes effect now, not at the next fire
+            obs.log_event("schedule.backoff", "warning", job=name, failures=self.failures[name], factor=factor)
+
     def _loop(self) -> None:
         while not self._stop.wait(5.0):
             self.tick()
@@ -87,8 +111,10 @@ class Scheduler:
     def status(self) -> dict[str, Any]:
         now = time.time()
         return {"env": ENV, "offline": self.offline, "network_jobs": sorted(NETWORK_JOBS), "unknown": self.unknown,
-                "entries": [{"job": k, "every_s": int(v), "next_in_s": max(0, int(self.next_run.get(k, now) - now)), "runs": self.runs.get(k, 0),
-                             "skipped_offline": self.skipped.get(k, 0), "last_run": self.last_run.get(k)} for k, v in self.schedule.items()]}
+                "min_intervals": MIN_INTERVALS,
+                "entries": [{"job": k, "every_s": int(v), "effective_s": int(v * min(2 ** self.failures.get(k, 0), MAX_BACKOFF_FACTOR)), "next_in_s": max(0, int(self.next_run.get(k, now) - now)),
+                             "runs": self.runs.get(k, 0), "skipped_offline": self.skipped.get(k, 0), "deferred_running": self.deferred.get(k, 0), "failures": self.failures.get(k, 0),
+                             "last_run": self.last_run.get(k)} for k, v in self.schedule.items()]}
 
 
-__all__ = ["ENV", "MIN_INTERVAL_S", "NETWORK_JOBS", "Scheduler", "parse_schedule"]
+__all__ = ["ENV", "MAX_BACKOFF_FACTOR", "MIN_INTERVALS", "MIN_INTERVAL_S", "NETWORK_JOBS", "Scheduler", "parse_schedule"]

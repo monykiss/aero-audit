@@ -18,6 +18,7 @@
 | ST-18 | Traffic near launch pads during windows | space-launch | runnable | launch file (sample bundled), recording | aircraft inside during window, baseline outside window | TheSpaceDevs/Launch Library 2 |
 | ST-19 | Encounter model Monte Carlo | uas-utm | runnable | recording | P(NMAC) unmitigated / mitigated, model risk ratio, NMAC per flight hour | mit-ll/em-core, ASTM F3442 |
 | ST-20 | Element history: manoeuvres and decay | space-orbital | runnable | two or more element files | manoeuvre-scale changes, objects decaying within 30 days | CelesTrak, CCSDS 502.0-B |
+| ST-21 | Well-clear rate trend across recordings | uas-utm | runnable | recordings directory | violations per flight hour per recording, slope per day, dense low-altitude cells | nasa/daidalus, mit-ll/air-risk-class |
 | ST-15 | Data catalogue reconciliation | air-surveillance | runnable |  | added, removed, changed | nasa/Common-Metadata-Repository, nasa/cumulus |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable | GeoJSON extent | airports inside, airports near, major hubs affected | nasa/CrisisMappingToolkit |
 | ST-12 | Conjunction data message assessment | space-orbital | runnable | CDM file (KVN) | Pc, miss distance, consistency | open-space-collective/ccsds-data-messages, nasa/GMAT |

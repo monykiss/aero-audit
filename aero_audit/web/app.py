@@ -69,8 +69,7 @@ class App:
         self.settings = load_settings()
         self.audit = AuditLog()
         self.sources = SourceManager(self.settings)
-        self.jobs = JobManager(self._job_types(), on_finish=lambda j: self.audit.record(
-            "job.finish", actor="system", job=j.id, type=j.type, status=j.status, error=j.error))
+        self.jobs = JobManager(self._job_types(), on_finish=self._on_job_finish)
         self.tour = DemoTour(lambda: self.sources.state, on_inject=lambda kind, icao, n, narration: self.audit.record(
             "inject", actor="tour", kind=kind, icao24=icao, polls=n))
         self.audit.record("app.start", actor="system", version=__version__, security_mode=self.guard.mode)
@@ -80,8 +79,15 @@ class App:
         self._load_inventory_cache()
         from .schedule import Scheduler
 
-        self.scheduler = Scheduler(lambda t, params: self.jobs.submit(t, params), set(self._job_types()), offline=os.getenv("AERO_OFFLINE") == "1")
+        self.scheduler = Scheduler(lambda t, params: self.jobs.submit(t, params), set(self._job_types()), offline=os.getenv("AERO_OFFLINE") == "1",
+                                   is_running=lambda t: any(j.type == t and j.status in ("queued", "running") for j in self.jobs.jobs.values()))
         self.scheduler.start()
+
+    def _on_job_finish(self, j: Job) -> None:
+        self.audit.record("job.finish", actor="system", job=j.id, type=j.type, status=j.status, error=j.error)
+        sched = getattr(self, "scheduler", None)
+        if sched is not None and j.params.get("scheduled"):
+            sched.report(j.type, j.status == "done")
 
     # ---- observability ----------------------------------------------------------------------
     def readiness(self) -> tuple[bool, dict[str, Any]]:

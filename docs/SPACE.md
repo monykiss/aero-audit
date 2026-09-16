@@ -159,6 +159,19 @@ manoeuvre (ORB-006, so approaches computed from the older set are void); a perig
 or a mean-motion derivative implying re-entry within 30 days is ORB-007. Thresholds are stated in
 every report; TIP messages from the tracking authority remain the reentry reference.
 
+## Availability and scale
+
+- Transport: every fetch tries httpx and falls back to the system curl once (some hosts filter Python
+  sockets); the switch is sticky for the process.
+- Degradation: a scheduled or page job whose fetch fails uses the newest cached product, logs
+  `feed.degraded`, counts `aero_feed_degraded_total{source}` and marks the report `degraded` with the
+  error; the product's own age then drives the stale finding. With nothing cached the job fails.
+- Scheduler: a job type still running is never stacked (deferred, counted), politeness floors apply
+  per job (Launch Library 300 s, Space-Track 600 s, CelesTrak 300 s, SWPC 120 s), consecutive
+  failures double the interval up to 8× and a success resets it. `/api/v1/schedule` shows all of it.
+- Pages: the Space page shows feed cache ages and a DEGRADED tile when the last run used cache; both
+  pages show their recent jobs and re-render once running jobs settle.
+
 ## Demo and evidence
 
 ```bash

@@ -92,7 +92,7 @@ def test_integration_inventory_never_prints_values(monkeypatch):
 
 
 def test_scheduler_parses_fires_and_skips_network_jobs_offline():
-    assert parse_schedule("cdm_inbox=600, launches=30,bad,x=y") == {"cdm_inbox": 600.0, "launches": 60.0}
+    assert parse_schedule("cdm_inbox=600, launches=30,bad,x=y") == {"cdm_inbox": 600.0, "launches": 300.0}  # launches has a politeness floor
     fired: list[tuple[str, dict]] = []
     s = Scheduler(lambda t, p: fired.append((t, p)), {"cdm_inbox", "launches"}, {"cdm_inbox": 60.0, "launches": 60.0, "unknown_job": 60.0}, offline=True)
     assert s.unknown == ["unknown_job"] and set(s.schedule) == {"cdm_inbox", "launches"}

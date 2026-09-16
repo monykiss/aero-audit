@@ -69,6 +69,9 @@
     return `<div class="job"><div class="row"><b>${j.type}</b><span class="note">${j.status}${j.error ? ' · <span class="bad">' + esc(j.error) + '</span>' : ''}</span><span class="grow"></span>${j.status === 'running' ? `<button class="small" data-act="cancelJob" data-arg="${j.id}">cancel</button>` : ''}<button class="small ghost" data-act="toggleLog" data-arg="${j.id}">log</button></div>
 <div class="bar"><i style="width:${pct}%"></i></div><div class="note">${esc(res)}</div><pre id="log-${j.id}" hidden>${esc((j.log || []).join('\n'))}</pre></div>`; }
 
+  /* Pages that submit jobs re-render once when the running-job count drops to zero, so results appear without a manual reload. */
+  const busy = {};
+  function refreshWhenJobsSettle(page, a) { if (store.page !== page) return; if (a.jobs_running) { busy[page] = true; } else if (busy[page]) { busy[page] = false; navigate(); } }
   const pages = {
     home: { title: 'Home', async render(el) {
       const [regs, recs] = await Promise.all([api('/regions'), api('/recordings')]); const a = store.app; const src = a.source;
@@ -179,7 +182,8 @@ ${p.evidence.missing.length ? `<div class="card accent-amber" style="margin-top:
       el.querySelector('#ggo').onclick = () => location.hash = '#/governance?' + qs({pillar: el.querySelector('#gpil').value, status: el.querySelector('#gst').value});
     } },
     space: { title: 'Space', async render(el) {
-      const [s, integ, sched, recs] = await Promise.all([api('/space'), api('/integrations'), api('/schedule'), api('/recordings')]);
+      const [s, integ, sched, recs, jobs] = await Promise.all([api('/space'), api('/integrations'), api('/schedule'), api('/recordings'), api('/jobs')]);
+      const SPACE_JOBS = ['conjunctions', 'cdm_inbox', 'spacetrack_pull', 'space_weather', 'launches', 'maneuvers', 'catalog_build'];
       const sw = s.space_weather, lc = s.launches, cj = s.conjunctions, cd = s.cdm, db = s.debris, as = s.assets;
       const sevc = v => v === 'critical' || v === 'high' ? 'neg' : (v === 'medium' ? 'amb' : '');
       const fcols = [{k: 'rule_id', label: 'Rule'}, {k: 'severity', label: 'Sev', cls: r => sevc(r.severity)}, {k: 'title', label: 'Finding', fmt: r => esc(r.title)}, {k: 'callsign', label: 'Object', fmt: r => esc(r.callsign || '')}];
@@ -188,6 +192,8 @@ ${p.evidence.missing.length ? `<div class="card accent-amber" style="margin-top:
 <p class="lead">Passive space situational awareness on public data: element sets screened for close approaches, conjunction messages assessed for probability of collision, mission designs checked against debris rules, NOAA space weather mapped to ICAO advisory conditions, and launch windows joined to the air traffic actually observed near the pad. Every number links to a report on disk.</p>
 <div class="tiles"><div class="tile c-blue"><b>${s.elements.length}</b><span>element files</span></div><div class="tile ${cj.approaches ? 'c-amber' : 'c-grey'}"><b>${cj.approaches ?? '—'}</b><span>close approaches (latest screen)</span></div><div class="tile ${cd.events.some(e => e.trend === 'escalating') ? 'c-red' : 'c-teal'}"><b>${cd.events.length}</b><span>CDM events · ${cd.ledger_rows} ledger rows</span></div><div class="tile ${sw && Object.values(sw.icao_advisory_conditions).some(Boolean) ? 'c-amber' : 'c-grey'}"><b>${sw ? `R${sw.scales_now.R} S${sw.scales_now.S} G${sw.scales_now.G}` : '—'}</b><span>NOAA scales now${sw && sw.kp != null ? ` · Kp ${sw.kp}` : ''}</span></div><div class="tile c-violet"><b>${lc ? lc.count : '—'}</b><span>launches cached</span></div><div class="tile c-green"><b>${as.dataset_items}</b><span>dataset items${as.classifier ? ` · clf ${Math.round((as.classifier.accuracy || 0) * 100)}%` : ''}</span></div></div>
 <div class="row"><button class="primary" id="spconj">Screen conjunctions (CelesTrak stations)</button><button id="spmvb">Element history</button><button id="spcdm">Process CDM inbox</button><button id="spswx">Fetch space weather</button><button id="splch">Fetch launch windows</button><select id="sprec">${recOpts}</select><button id="spjoin">Join launches to this recording</button><button id="spexp">Exposed flights (space weather)</button></div>
+<div class="jobs" id="spjobs">${jobs.filter(j => SPACE_JOBS.includes(j.type)).slice(0, 4).map(jobCard).join('')}</div>
+<h2>Feeds <span class="note">cached products and their age; a job that cannot fetch uses the newest cached product and says so</span></h2><div class="tiles">${s.feeds.map(f => `<div class="tile ${f.cached ? (f.newest_age_h != null && f.newest_age_h > 48 ? 'c-amber' : 'c-green') : 'c-grey'}"><b>${f.cached ? (f.newest_age_h != null ? f.newest_age_h + ' h' : '—') : 'none'}</b><span>${esc(f.source)} · ${f.cached} cached</span></div>`).join('')}${s.degraded_last_run.length ? `<div class="tile c-amber"><b>DEGRADED</b><span>last run used cache: ${esc(s.degraded_last_run.join(', '))}</span></div>` : ''}</div>
 <h2>Space weather ${sw ? `<span class="note">${esc(sw.file)} · product ${esc(sw.product_time)} · age ${sw.age_s == null ? '—' : Math.round(sw.age_s / 60) + ' min'}</span>` : '<span class="note">no product cached; fetch one</span>'}</h2>
 ${sw ? `<div class="cards">${['G', 'R', 'S'].map(k => `<div class="card ${sw.icao_advisory_conditions[k] ? 'accent-amber' : ''}"><b>${k}${sw.scales_now[k]}</b> now · ${k}${sw.scales_24h[k]} past 24 h<br><span class="note">${esc(sw.effects[k])}</span><br>ICAO conditions: <b>${sw.icao_advisory_conditions[k] || 'none'}</b> <span class="note">(moderate at ${k}${sw.mapping[k].moderate}, severe at ${k}${sw.mapping[k].severe})</span></div>`).join('')}</div><div id="spswxf"></div>` : ''}
 <h2>Launch windows ${lc ? `<span class="note">${esc(lc.file)} · ${esc(lc.mode)} · fetched ${esc(lc.fetched_at)}</span>` : ''}</h2><div id="splcht"></div>
@@ -219,15 +225,16 @@ ${sw ? `<div class="cards">${['G', 'R', 'S'].map(k => `<div class="card ${sw.ica
       el.querySelector('#splch').onclick = () => App.runJob('launches', {}, 'space');
       el.querySelector('#spjoin').onclick = () => App.runJob('launches', {file: lc ? 'data/space/launches/' + lc.file : undefined, recording: el.querySelector('#sprec').value}, 'space');
       el.querySelector('#spexp').onclick = () => App.runJob('space_weather', {file: sw ? 'data/space/spaceweather/' + sw.file : undefined, recording: el.querySelector('#sprec').value}, 'space');
-    } },
+    }, tick(a) { refreshWhenJobsSettle('space', a); } },
     uas: { title: 'UAS', async render(el) {
-      const [u, recs] = await Promise.all([api('/uas'), api('/recordings')]); const k = u.wellclear.kpis; const rr = (u.risk.summary || {}).risk_ratio || {}; const dens = (u.risk.summary || {}).density;
+      const [u, recs, jobs] = await Promise.all([api('/uas'), api('/recordings'), api('/jobs')]); const k = u.wellclear.kpis; const rr = (u.risk.summary || {}).risk_ratio || {}; const dens = (u.risk.summary || {}).density;
       const sevc = v => v === 'critical' || v === 'high' ? 'neg' : (v === 'medium' ? 'amb' : '');
       const fcols = [{k: 'rule_id', label: 'Rule'}, {k: 'severity', label: 'Sev', cls: r => sevc(r.severity)}, {k: 'title', label: 'Finding', fmt: r => esc(r.title)}, {k: 'callsign', label: 'Aircraft', fmt: r => esc(r.callsign || '')}];
       el.innerHTML = `<h1>UAS integration <span class="note">well-clear · encounters · airspace density · DAA risk ratio · UTM contracts</span></h1>
 <p class="lead">What a detect-and-avoid safety case needs from real traffic: encounters between airborne aircraft scored with the DO-365 well-clear definitions, how often they were violated and with how much notice, how dense the low-altitude airspace is where small UAS fly, and an observed bound on the DAA risk ratio. Definitions: ${esc(u.definitions.well_clear)} · NMAC ${esc(u.definitions.nmac)} · alerts ${esc(u.definitions.alert_levels)}.</p>
 <div class="tiles"><div class="tile c-blue"><b>${k.flight_hours ?? '—'}</b><span>flight hours observed</span></div><div class="tile c-teal"><b>${k.encounter_pairs ?? '—'}</b><span>encounter pairs</span></div><div class="tile ${k.violations ? 'c-amber' : 'c-grey'}"><b>${k.violations ?? '—'}</b><span>well-clear violations · ${k.violations_per_flight_hour ?? '—'}/fh</span></div><div class="tile ${k.nmac_proximate ? 'c-red' : 'c-grey'}"><b>${k.nmac_proximate ?? '—'}</b><span>NMAC-proximate</span></div><div class="tile c-violet"><b>${k.median_lead_time_s ?? '—'} s</b><span>median alert lead</span></div><div class="tile ${rr.risk_ratio != null && rr.risk_ratio > rr.limit ? 'c-amber' : 'c-green'}"><b>${rr.risk_ratio ?? '—'}</b><span>observed DAA risk ratio (limit ${rr.limit ?? '0.2'})</span></div></div>
 <div class="row"><select id="urec">${recs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('')}</select><button class="primary" id="uwc">Score well-clear on this recording</button><button id="urk">Density classes and risk ratio</button><button id="uem">Encounter model (Monte Carlo)</button></div>
+<div class="jobs" id="ujobs">${jobs.filter(j => ['wellclear', 'uas_risk', 'encounter_model'].includes(j.type)).slice(0, 4).map(jobCard).join('')}</div>
 <h2>Encounters ${u.wellclear.report ? `<span class="note">${esc(u.wellclear.report)} · ${ago(u.wellclear.mtime)}</span>` : '<span class="note">none yet</span>'}</h2><div id="upairs"></div>
 <h2>Findings</h2><div id="ufind"></div>
 <h2>Airspace density by altitude band ${u.risk.report ? `<span class="note">${esc(u.risk.report)} · classes per 100 nm² per hour: ${esc(((dens || {}).classes || []).join(' < '))}</span>` : ''}</h2><div id="udens"></div>
@@ -244,7 +251,7 @@ ${sw ? `<div class="cards">${['G', 'R', 'S'].map(k => `<div class="card ${sw.ica
       el.querySelector('#uwc').onclick = () => App.runJob('wellclear', {recording: el.querySelector('#urec').value}, 'uas');
       el.querySelector('#urk').onclick = () => App.runJob('uas_risk', {recording: el.querySelector('#urec').value}, 'uas');
       el.querySelector('#uem').onclick = () => App.runJob('encounter_model', {recording: el.querySelector('#urec').value, n: 1000}, 'uas');
-    } },
+    }, tick(a) { refreshWhenJobsSettle('uas', a); } },
     observability: { title: 'Observability', async render(el) {
       const q = store.query; const [o, lg] = await Promise.all([api('/observability'), api('/logs?' + qs({limit: 150, level: q.level, event: q.event}))]);
       const k = o.kpis, h = o.health, chk = o.readiness.checks; const n = v => v == null ? '—' : (Number.isInteger(v) ? v : Number(v).toFixed(1));

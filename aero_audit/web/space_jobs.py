@@ -77,7 +77,18 @@ def conjunctions(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space.orbital import fetch_group, findings, parse_tle, screen
 
-    path = _confine(p["tle"], ELEMENT_SUFFIXES) if p.get("tle") else asyncio.run(fetch_group(p.get("group") or "stations"))
+    group = p.get("group") or "stations"
+    err = None
+    if p.get("tle"):
+        path = _confine(p["tle"], ELEMENT_SUFFIXES)
+    else:
+        from ..space.orbital import ELEMENTS_DIR
+
+        def _latest_group() -> Path | None:
+            files = sorted(ELEMENTS_DIR.glob(f"celestrak_{group}_*.tle")) if ELEMENTS_DIR.is_dir() else []
+            return files[-1] if files else None
+
+        path, err = _fetch_or_cached(job, lambda: asyncio.run(fetch_group(group)), _latest_group, "conjunctions")
     sets = parse_tle(Path(path).read_text())
     max_sets = int(p.get("max_sets") or 150)
     res = screen(sets, None, float(p.get("hours") or 24.0), float(p.get("threshold_km") or 10.0), max_sets=max_sets)
@@ -86,10 +97,28 @@ def conjunctions(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     REPORTS.mkdir(parents=True, exist_ok=True)
     from ..audit.generic_report import write_generic
 
+    res["degraded"] = err is not None
+    res["fetch_error"] = err
     rp = write_generic(REPORTS, f"conjunctions_{Path(path).stem}", "screen", res, fs, inputs={"elements": path})["json"]
     for f in fs:
         obs.METRICS.inc("aero_findings_total", rule=f.rule_id, severity=f.severity.value)
-    return {"report": str(rp), "sets": len(sets), "approaches": len(res["approaches"]), "findings": len(fs)}
+    return {"report": str(rp), "sets": len(sets), "approaches": len(res["approaches"]), "findings": len(fs), "degraded": err is not None}
+
+
+def _fetch_or_cached(job: Job, fetch: Any, latest: Any, what: str) -> tuple[Path, str | None]:
+    """Availability over freshness: when the live fetch fails, use the newest cached product and say so (the product's
+    own age then drives the stale finding); with nothing cached the failure propagates."""
+    try:
+        return Path(fetch()), None
+    except Exception as e:
+        cached = latest()
+        err = f"{type(e).__name__}: {str(e)[:160]}"
+        if cached is None:
+            raise RuntimeError(f"{what}: fetch failed ({err}) and nothing is cached") from e
+        job.say(f"{what}: fetch failed ({err}); using cached {Path(cached).name}")
+        obs.log_event("feed.degraded", "warning", source=what, error=err, cached=str(cached))
+        obs.METRICS.inc("aero_feed_degraded_total", source=what)
+        return Path(cached), err
 
 
 def space_weather(job: Job, p: dict[str, Any]) -> dict[str, Any]:
@@ -97,15 +126,21 @@ def space_weather(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space import spaceweather
 
-    path = _confine(p["file"], JSON_SUFFIXES) if p.get("file") else asyncio.run(spaceweather.fetch())
+    err = None
+    if p.get("file"):
+        path = _confine(p["file"], JSON_SUFFIXES)
+    else:
+        path, err = _fetch_or_cached(job, lambda: asyncio.run(spaceweather.fetch()), spaceweather.latest, "space_weather")
     payload = json.loads(Path(path).read_text())
     summary, fs = spaceweather.assess(payload)
+    summary["degraded"] = err is not None
+    summary["fetch_error"] = err
     if p.get("recording"):
         exp, fs2 = spaceweather.exposed_flights(_recording_path(p["recording"]), summary["icao_advisory_conditions"], float(p.get("lat_min") or spaceweather.HIGH_LAT_DEG))
         summary["exposed"] = exp
         fs += fs2
     job.say(f"scales {summary['scales_now']} advisories {summary['icao_advisory_conditions']}")
-    return {"file": str(path), **_write_report("space_weather", summary, fs, {"product": path, "recording": p.get("recording")}), "scales": summary["scales_now"]}
+    return {"file": str(path), "degraded": err is not None, **_write_report("space_weather", summary, fs, {"product": path, "recording": p.get("recording")}), "scales": summary["scales_now"]}
 
 
 def launches(job: Job, p: dict[str, Any]) -> dict[str, Any]:
@@ -113,11 +148,17 @@ def launches(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
     from ..space import launches as ll
 
-    path = _confine(p["file"], JSON_SUFFIXES) if p.get("file") else asyncio.run(ll.fetch(p.get("mode") or "upcoming", int(p.get("limit") or 20)))
+    err = None
+    if p.get("file"):
+        path = _confine(p["file"], JSON_SUFFIXES)
+    else:
+        path, err = _fetch_or_cached(job, lambda: asyncio.run(ll.fetch(p.get("mode") or "upcoming", int(p.get("limit") or 20))), ll.latest, "launches")
     payload = json.loads(Path(path).read_text())
-    out: dict[str, Any] = {"file": str(path), "launches": len(payload.get("launches", []))}
+    out: dict[str, Any] = {"file": str(path), "launches": len(payload.get("launches", [])), "degraded": err is not None}
     if p.get("recording"):
         summary, fs = ll.join_traffic(payload, _recording_path(p["recording"]), float(p.get("hazard_nm") or ll.HAZARD_NM))
+        summary["degraded"] = err is not None
+        summary["fetch_error"] = err
         out.update(_write_report("launches", summary, fs, {"launches": path, "recording": p.get("recording")}))
     job.say(f"{out['launches']} launches cached")
     return out

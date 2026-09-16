@@ -102,8 +102,18 @@ def _space_summary() -> dict[str, Any]:
     dataset = _load(Path("data/space/dataset/manifest.json")) or {}
     reg = _load(Path("models/registry.json")) or []
     clf = next((e for e in reversed(reg) if isinstance(e, dict) and "scene_classifier" in str(e.get("model_path", ""))), None) if isinstance(reg, list) else None
+    feeds = []
+    for name, folder, pattern in (("celestrak elements", orbital.ELEMENTS_DIR, "*.tle"), ("noaa swpc", spaceweather.CACHE_DIR, "swpc_*.json"),
+                                  ("launch library 2", launches.CACHE_DIR, "ll2_*.json"), ("cdm inbox", cdm_inbox.INBOX, "*")):
+        files = [f for f in Path(folder).glob(pattern) if f.is_file() and not f.name.endswith(".provenance.json")] if Path(folder).is_dir() else []
+        newest = max((f.stat().st_mtime for f in files), default=None)
+        feeds.append({"source": name, "cached": len(files), "newest_age_h": None if newest is None else round((now - newest) / 3600, 1), "folder": str(folder)})
+    degraded = [k for k, (pth, rep) in {"space_weather": (swp, _latest_report("space_weather")[1]), "launches": (lp, _latest_report("launches")[1])}.items()
+                if rep and (rep.get("summary") or {}).get("degraded")]
     return {
         "generated_at": now,
+        "feeds": feeds,
+        "degraded_last_run": degraded,
         "elements": elements,
         "conjunctions": {"report": conj_path.name if conj_path else None, "mtime": conj_path.stat().st_mtime if conj_path else None,
                          "approaches": len((conj or {}).get("screen", {}).get("approaches", [])), "pairs": (conj or {}).get("screen", {}).get("pairs"),
