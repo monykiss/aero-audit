@@ -1343,10 +1343,10 @@ def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,la
 
 
 @space_app.command("render")
-def space_render(model: Path = typer.Argument(..., help="Wavefront OBJ model"), label: str | None = typer.Option(None, help="Class label (default: file stem)"),
+def space_render(model: Path = typer.Argument(..., help="Model file: .obj, .stl, .glb, .3ds or .lwo"), label: str | None = typer.Option(None, help="Class label (default: file stem)"),
                  n_yaw: int = typer.Option(12), size: int = typer.Option(256), dest: Path = typer.Option(Path("data/space/renders")),
                  manifest: Path | None = typer.Option(None, help="Append the renders as items to this dataset manifest")) -> None:
-    """Multi-view silhouette renders of an OBJ model (numpy z-buffer) for training data, with a manifest and optional dataset append."""
+    """Multi-view silhouette renders of a model (STL, GLB, 3DS, LightWave, OBJ; numpy z-buffer) for training data, with a manifest and optional dataset append."""
     from .space import render
     from .space.dataset import load_manifest, write_manifest
 

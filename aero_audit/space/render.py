@@ -8,7 +8,7 @@ PNGs with a manifest that carries the view parameters and the model's SHA-256. I
 rasteriser, not a renderer: no textures, no shadows, a single directional light. That is enough
 for shape and silhouette, which is what the scene classifier and a detector fine-tune learn from.
 
-OBJ only: the 3DS and LWO models need a converter (Blender or assimp, both outside this tree).
+Formats: OBJ here; STL, GLB, 3DS and LightWave through space/mesh.py (no converter needed).
 """
 
 from __future__ import annotations
@@ -195,8 +195,10 @@ def render_views(model: str | Path, dest: str | Path = RENDER_DIR, label: str | 
         import cv2
     except ImportError as e:  # pragma: no cover - environment dependent
         raise RuntimeError("rendering needs OpenCV to write PNGs: uv pip install -e '.[vision]'") from e
+    from .mesh import load_mesh
+
     model = Path(model)
-    v, f = load_obj(model)
+    v, f = load_mesh(model)  # obj, 3ds, lwo, stl, glb
     label = label or model.stem
     out_dir = Path(dest) / _safe(label)
     out_dir.mkdir(parents=True, exist_ok=True)

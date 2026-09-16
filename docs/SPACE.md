@@ -149,10 +149,14 @@ aero space maneuvers                                  # every cached element fil
 aero gov run-study ST-20 --tle a.tle --tle b.tle      # element history study
 ```
 
-`space/render.py` is a numpy z-buffer rasteriser for Wavefront OBJ (polygons fanned, two-sided
-Lambert, orthographic): many viewpoints of one spacecraft with a manifest carrying the model hash
+`space/render.py` is a numpy z-buffer rasteriser (polygons fanned, two-sided Lambert, orthographic)
+fed by `space/mesh.py`, which reads STL, glTF binary (Draco-compressed, through the DracoPy wheel in
+the vision extra), 3DS and LightWave LWO2/LWOB: 607 of the 622 NASA models, no converter needed
+(Blender's .blend and FBX are the remainder): many viewpoints of one spacecraft with a manifest carrying the model hash
 and view parameters, appended to the dataset as `nasa3d-render` items. It gives shape and
-silhouette, not texture; the 3DS and LWO models in NASA-3D-Resources need a converter first.
+silhouette, not texture. `scripts/train_detector.py --register` fine-tunes YOLOv8n-cls on the dataset
+(CPU is enough for a proof: 3 epochs on 72 renders of two NASA models reached top-1 0.905) and files
+the weights with a card and a registry entry behind the checksum gate.
 `space/maneuvers.py` compares mean elements of the same object across cached snapshots: a
 semi-major-axis rise, or a fall beyond what drag explains per day, or an inclination step is a
 manoeuvre (ORB-006, so approaches computed from the older set are void); a perigee under 200 km

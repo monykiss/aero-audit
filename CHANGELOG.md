@@ -24,6 +24,11 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Formats and detector: space/mesh.py reads STL, glTF binary (Draco via the DracoPy wheel), 3DS and LightWave LWO2/LWOB,
+  covering 607 of the 622 NASA-3D-Resources models without Blender or assimp; renders of two real NASA models feed a dataset;
+  the ultralytics classification fine-tune ran on CPU (YOLOv8n-cls, 3 epochs, top-1 0.905 on held-out renders) and
+  `scripts/train_detector.py --register` files the weights with a card and a registry entry; upstream package: catalogue
+  regenerated and verify run recorded in docs/UPSTREAM.md with the licence email drafted for the user.
 - Availability and scale: network jobs degrade to the newest cached product with a `degraded` flag and metric; scheduler
   never stacks a running job type, applies politeness floors per feed and backs off on failures; feed health and job
   cards on the Space and UAS pages with auto-refresh when jobs settle; `aero uas trend` and ST-21 (DAA-005) across
