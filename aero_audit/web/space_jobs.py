@@ -140,6 +140,15 @@ def space_weather(job: Job, p: dict[str, Any]) -> dict[str, Any]:
         exp, fs2 = spaceweather.exposed_flights(_recording_path(p["recording"]), summary["icao_advisory_conditions"], float(p.get("lat_min") or spaceweather.HIGH_LAT_DEG))
         summary["exposed"] = exp
         fs += fs2
+    if p.get("donki"):
+        from ..space import donki as dk
+
+        try:
+            dp = _confine(p["donki"], JSON_SUFFIXES) if isinstance(p["donki"], str) else asyncio.run(dk.fetch())
+            summary["donki"] = dk.crosscheck(summary, json.loads(Path(dp).read_text())["notifications"])
+        except Exception as e:  # noqa: BLE001 - the second opinion is optional
+            summary["donki"] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
+            job.say(f"DONKI cross-check unavailable: {summary['donki']['error']}")
     job.say(f"scales {summary['scales_now']} advisories {summary['icao_advisory_conditions']}")
     return {"file": str(path), "degraded": err is not None, **_write_report("space_weather", summary, fs, {"product": path, "recording": p.get("recording")}), "scales": summary["scales_now"]}
 

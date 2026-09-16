@@ -8,6 +8,7 @@ tool degrades to "what is public" rather than failing.
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -49,6 +50,82 @@ INTEGRATIONS: dict[str, Integration] = {i.key: i for i in (
 )}
 
 
+PROBES: dict[str, tuple[str, str]] = {  # key -> (url, what a 200 proves); authenticated ones are handled in probe()
+    "adsblol": ("https://api.adsb.lol/v2/lat/40.7/lon/-74/dist/5", "keyless feed answers"),
+    "celestrak": ("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=tle", "keyless element fetch answers"),
+    "swpc": ("https://services.swpc.noaa.gov/products/noaa-scales.json", "keyless scales product answers"),
+    "ll2": ("https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=1", "keyless launch list answers (15/h)"),
+    "noaa_awc": ("https://aviationweather.gov/api/data/metar?ids=KJFK&format=json", "keyless METAR answers"),
+    "faa_nas": ("https://nasstatus.faa.gov/api/airport-status-information", "keyless NAS status answers"),
+    "github": ("https://api.github.com/rate_limit", "rate limit endpoint answers (token raises the quota)"),
+    "nasa_api": ("https://api.nasa.gov/DONKI/notifications", "key (or DEMO_KEY) accepted by the DONKI endpoint the tool uses"),
+}
+
+
+def probe(get: Any = None, timeout: float = 30.0) -> list[dict[str, Any]]:
+    """One harmless read per service, authenticated where credentials exist; reports ok / status without printing any value.
+    ``get(url, headers, params, auth)`` may be injected for tests; the default uses httpx with the curl fallback disabled."""
+    import httpx
+
+    from .config import settings
+
+    def default_get(url: str, headers: dict[str, str] | None = None, params: dict[str, str] | None = None, auth: Any = None) -> tuple[int, str]:
+        with httpx.Client(timeout=timeout, follow_redirects=True, headers={"User-Agent": settings.user_agent}) as c:  # feeds refuse anonymous agents
+            r = c.get(url, headers=headers, params=params, auth=auth)
+            return r.status_code, r.text[:200]
+
+    get = get or default_get
+    rows = []
+    for key, integ in INTEGRATIONS.items():
+        row: dict[str, Any] = {"key": key, "name": integ.name, "configured": integ.configured(), "required": bool(integ.env)}
+        try:
+            if key == "spacetrack":
+                if not integ.configured():
+                    row.update(ok=None, detail="not configured: set SPACETRACK_USER / SPACETRACK_PASS")
+                else:
+                    from .space.spacetrack import SpaceTrack
+
+                    st = SpaceTrack()
+                    st.login()
+                    n = len(st.query("class/boxscore/limit/1", use_cache_s=0.0))
+                    row.update(ok=True, detail=f"login accepted; boxscore query returned {n} row(s)")
+            elif key == "opensky":
+                if not integ.configured():
+                    row.update(ok=None, detail="not configured: anonymous quota applies")
+                else:
+                    import asyncio
+
+                    from .ingest.opensky import OpenSkyProvider
+
+                    async def tok() -> bool:
+                        c = OpenSkyProvider()
+                        try:
+                            h = await c._auth_headers()
+                            return bool(h.get("Authorization"))
+                        finally:
+                            await c.aclose()
+
+                    row.update(ok=asyncio.run(tok()), detail="OAuth2 client credentials accepted")
+            elif key == "nasa_api":
+                k = os.getenv("NASA_API_KEY", "").strip() or "DEMO_KEY"
+                today = time.strftime("%Y-%m-%d", time.gmtime())
+                code, _ = get(PROBES[key][0], None, {"api_key": k, "startDate": today, "endDate": today, "type": "all"}, None)
+                row.update(ok=code == 200, detail=f"HTTP {code} with {'your key' if k != 'DEMO_KEY' else 'DEMO_KEY'}")
+            elif key == "github":
+                tokv = os.getenv("GITHUB_TOKEN", "").strip()
+                code, _body = get(PROBES[key][0], {"Authorization": f"Bearer {tokv}"} if tokv else None, None, None)
+                row.update(ok=code == 200, detail=f"HTTP {code} ({'token' if tokv else 'anonymous'})")
+            elif key in PROBES:
+                code, _ = get(PROBES[key][0], None, None, None)
+                row.update(ok=code == 200, detail=f"HTTP {code}: {PROBES[key][1]}")
+            else:
+                row.update(ok=None, detail="no probe defined")
+        except Exception as e:  # noqa: BLE001 - a probe reports, never raises
+            row.update(ok=False, detail=f"{type(e).__name__}: {str(e)[:120]}")
+        rows.append(row)
+    return rows
+
+
 def status() -> list[dict[str, Any]]:
     return [i.to_dict() for i in INTEGRATIONS.values()]
 
@@ -57,4 +134,4 @@ def missing() -> list[str]:
     return [i.key for i in INTEGRATIONS.values() if i.env and not i.configured()]
 
 
-__all__ = ["INTEGRATIONS", "Integration", "missing", "status"]
+__all__ = ["INTEGRATIONS", "PROBES", "Integration", "missing", "probe", "status"]

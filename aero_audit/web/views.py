@@ -88,6 +88,12 @@ def _space_summary() -> dict[str, Any]:
         if payload:
             summ, fs = spaceweather.assess(payload, now=now)
             swx = {"file": swp.name, **summ, "findings_list": [{"rule_id": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
+            from ..space import donki as dk
+
+            dpath = dk.latest()
+            if dpath:
+                dpay = _load(dpath) or {}
+                swx["donki"] = dk.crosscheck(summ, dpay.get("notifications", []), now=now) | {"file": dpath.name, "own_key": dpay.get("own_key")}
     # launches (cached)
     lch: dict[str, Any] | None = None
     lp = launches.latest()

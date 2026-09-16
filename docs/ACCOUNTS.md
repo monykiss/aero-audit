@@ -27,6 +27,32 @@ missing column and never prints a value; `aero doctor` adds one line summarising
 | NOAA Aviation Weather Center | none | none | METAR/TAF | fully keyless |
 | FAA NAS status | none | none | airport programmes and delays | fully keyless |
 
+## Two-minute path for Space-Track (the one account worth having)
+
+1. Create the account at https://www.space-track.org/auth/createAccount with your email; accept their
+   user agreement. Approval usually arrives within a day or two.
+2. `cp .env.example .env`, fill `SPACETRACK_USER` and `SPACETRACK_PASS`, `chmod 600 .env`, `source .env`.
+3. `aero accounts --probe`: the Space-Track row should read "login accepted; boxscore query returned 1 row(s)".
+4. From then on: the Space page shows a "Pull Space-Track summaries" button instead of the call-out,
+   `aero space watch` adds `spacetrack_pull=3600` to its schedule by itself, and `AERO_SCHEDULE` can
+   include `spacetrack_pull=3600` for the web app. Nothing is transmitted to Space-Track beyond the
+   login and read queries.
+
+The tool never creates accounts or types credentials for you; that is deliberate.
+
+## Probing what you configured
+
+`aero accounts --probe` makes one harmless read per service (authenticated where credentials
+exist): Space-Track login plus a one-row boxscore query, an OpenSky token request, an api.nasa.gov
+call with your key or `DEMO_KEY`, and the keyless endpoints. It prints OK / skip / FAIL with an
+HTTP status or error class, never a value.
+
+## NASA DONKI without a key
+
+`aero space weather --donki` (and the `space_weather` job with `donki: true`) fetches DONKI
+notifications with `NASA_API_KEY`, or `DEMO_KEY` when unset, and cross-checks them against the SWPC
+assessment per effect: both, swpc-only, donki-only or quiet. It is listed on the Space page, not scored.
+
 ## Setting them
 
 ```bash

@@ -24,6 +24,10 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Accounts wired: `aero accounts --probe` (harmless authenticated reads, values never printed), `.env.example` with the space
+  variables, Space-Track call-out and pull button on the Space page, `aero space watch` adds the Space-Track pull when
+  credentials exist; NASA DONKI notifications with DEMO_KEY fallback cross-checked against the SWPC assessment
+  (`aero space weather --donki`, job param, Space page card). Account creation itself stays with the user.
 - Formats and detector: space/mesh.py reads STL, glTF binary (Draco via the DracoPy wheel), 3DS and LightWave LWO2/LWOB,
   covering 607 of the 622 NASA-3D-Resources models without Blender or assimp; renders of two real NASA models feed a dataset;
   the ultralytics classification fine-tune ran on CPU (YOLOv8n-cls, 3 epochs, top-1 0.905 on held-out renders) and

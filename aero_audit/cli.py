@@ -783,15 +783,25 @@ def demo(
 
 
 @app.command()
-def accounts() -> None:
+def accounts(probe: bool = typer.Option(False, help="One harmless read per service, authenticated where credentials exist; values never printed")) -> None:
     """External services: what each unlocks, its keyless fallback, where to sign up, and whether it is configured (values never printed)."""
-    from .integrations import status
+    from .integrations import missing, status
 
     t = Table("service", "configured", "env", "unlocks", "without it", "sign up")
     for i in status():
         conf = "[green]yes" if i["configured"] and i["required"] else ("[cyan]keyless" if not i["required"] else "[yellow]no")
         t.add_row(i["name"], conf, " ".join(i["env"] + i["optional_env"]), i["unlocks"][:70], i["keyless"][:50], i["signup"][:60])
     con.print(t)
+    if probe:
+        from .integrations import probe as run_probe
+
+        pt = Table("service", "probe", "detail")
+        for r in run_probe():
+            pt.add_row(r["name"], "[green]OK" if r["ok"] else ("[yellow]skip" if r["ok"] is None else "[red]FAIL"), r["detail"])
+        con.print(pt)
+    miss = missing()
+    if miss:
+        con.print("Not configured: " + ", ".join(miss) + ". Copy .env.example to .env, fill the lines, `source .env`, then `aero accounts --probe`.")
     con.print("Set variables in a git-ignored .env (see docs/ACCOUNTS.md); never on the command line.")
 
 
@@ -1268,12 +1278,19 @@ def space_classify(paths: list[Path] = typer.Argument(..., help="Images, or one 
 @space_app.command("weather")
 def space_weather_cmd(file: Path | None = typer.Option(None, help="Cached or sample SWPC product instead of fetching (e.g. data/samples/swpc_scales_sample.json)"),
                       recording: Path | None = typer.Option(None, help="Recording whose high-latitude traffic to list as exposed"),
-                      lat_min: float = typer.Option(60.0, help="Poleward of this latitude counts as exposed"), out: Path = typer.Option(Path("reports"))) -> None:
-    """NOAA SWPC scales and Kp (keyless) mapped to ICAO advisory conditions (SWX-001..004); optionally the flights exposed (SWX-005)."""
+                      lat_min: float = typer.Option(60.0, help="Poleward of this latitude counts as exposed"), out: Path = typer.Option(Path("reports")),
+                      donki: bool = typer.Option(False, help="Cross-check with NASA DONKI notifications (NASA_API_KEY or DEMO_KEY)")) -> None:
+    """NOAA SWPC scales and Kp (keyless) mapped to ICAO advisory conditions (SWX-001..004); optionally the flights exposed (SWX-005) and a DONKI cross-check."""
     from .space import spaceweather
 
     path = file or asyncio.run(spaceweather.fetch())
     summary, fs = spaceweather.assess(json.loads(Path(path).read_text()))
+    if donki:
+        from .space import donki as dk
+
+        dp = asyncio.run(dk.fetch())
+        summary["donki"] = dk.crosscheck(summary, json.loads(dp.read_text())["notifications"])
+        con.print("DONKI: " + " · ".join(f"{k}: {v['agreement']} ({v['donki_notifications']} notif.)" for k, v in summary["donki"]["effects"].items()))
     if recording:
         exp, fs2 = spaceweather.exposed_flights(recording, summary["icao_advisory_conditions"], lat_min)
         summary["exposed"] = exp
@@ -1313,15 +1330,18 @@ def space_launches_cmd(mode: str = typer.Option("upcoming", help="upcoming | pre
 
 
 @space_app.command("watch")
-def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,launches=3600", help="job=seconds,... (jobs: cdm_inbox spacetrack_pull conjunctions space_weather launches catalog_build)"),
+def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,launches=3600", help="job=seconds,... (jobs: cdm_inbox spacetrack_pull conjunctions space_weather launches catalog_build); spacetrack_pull=3600 is added when credentials exist"),
                 offline: bool = typer.Option(False, help="Skip network jobs"), once: bool = typer.Option(False, help="Run every job once and exit")) -> None:
     """Headless scheduled intake without the web app: the same job registry, the same reports, one log line per run."""
     import time as _time
 
+    from .integrations import INTEGRATIONS
     from .web.jobs import JobManager
     from .web.schedule import Scheduler, parse_schedule
     from .web.space_jobs import REGISTRY
 
+    if INTEGRATIONS["spacetrack"].configured() and "spacetrack_pull" not in schedule:
+        schedule += ",spacetrack_pull=3600"
     jm = JobManager(REGISTRY, persist=Path("data/app/jobs.json"))
     sched = Scheduler(lambda t, p: jm.submit(t, p), set(REGISTRY), parse_schedule(schedule), offline=offline)
     if sched.unknown:
