@@ -1,6 +1,6 @@
 # Programme status (generated)
 
-Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air rules and 33 space/UAS rules; 30 controls implemented, 13 partial, 0 planned; 20 of 21 studies runnable; 176 tests.
+Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air rules and 33 space/UAS rules; 30 controls implemented, 13 partial, 0 planned; 20 of 21 studies runnable; 177 tests.
 
 ## Domains
 
@@ -26,7 +26,7 @@ Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air 
 
 ## Publication readiness
 
-9 of 10 checks pass; only the upstream licence question (P-08) remains.
+10 of 11 checks pass; only the upstream licence question (P-08) remains.
 
 - PUB-01 Nothing private tracked: ok (clean)
 - PUB-02 No secret-looking strings in tracked text: ok (clean)
@@ -38,3 +38,4 @@ Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air 
 - PUB-08 Changelog carries an Unreleased section: ok (present)
 - PUB-09 README links the branch documentation: ok (linked)
 - PUB-10 Licence question settled with upstream (P-08): NO (waiting on the NASA-3D-Resources licence confirmation; see docs/UPSTREAM.md)
+- PUB-11 No Space-Track material tracked (user agreement, 10 USC 2274): ok (clean)

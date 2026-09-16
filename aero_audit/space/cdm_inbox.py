@@ -24,6 +24,9 @@ from .cdm import CDM, CdmObject, assess, parse_cdm
 INBOX = Path("data/space/cdm/inbox")
 LEDGER = Path("data/space/cdm/ledger.jsonl")
 TCA_WINDOW_S = 600.0
+# Space-Track's user agreement (10 USC 2274(c)(2)): data and analyses of it are not transferred to another entity without
+# prior approval. Rows carrying this marker stay out of evidence bundles and public artefacts (evidence.collect, PUB-11).
+RESTRICTED_SPACETRACK = "space-track user agreement: no redistribution without prior approval (10 USC 2274)"
 
 
 def parse_cdm_xml(text: str) -> CDM:
@@ -148,11 +151,19 @@ def record_summary(rows: list[dict[str, Any]], ledger: str | Path = LEDGER, sour
                    "originator": r.get("EMERGENCY_REPORTABLE", "") and "18 SDS" or "space-track", "creation_date": r.get("CREATED", ""), "tca": str(r.get("TCA", "")),
                    "tca_ts": _tca_ts(str(r.get("TCA", ""))), "pair": ":".join(sorted(str(x) for x in (r.get("SAT_1_ID"), r.get("SAT_2_ID")))),
                    "objects": [str(r.get("SAT_1_ID")), str(r.get("SAT_2_ID"))], "pc": None, "stated_pc": float(pc) if pc not in (None, "") else None,
-                   "miss_m": None, "stated_miss_m": float(miss) * 1000.0 if miss not in (None, "") else None, "error": None, "findings": [], "summary_only": True}
+                   "miss_m": None, "stated_miss_m": float(miss) * 1000.0 if miss not in (None, "") else None, "error": None, "findings": [], "summary_only": True,
+                   "restricted": RESTRICTED_SPACETRACK}
             fh.write(json.dumps(row, default=str) + "\n")
             known.add((mid, sha))
             n += 1
     return n
+
+
+def restricted_share(ledger: str | Path = LEDGER) -> dict[str, Any]:
+    """How much of the ledger is Space-Track material (restricted) versus files supplied to the inbox."""
+    rows = _ledger_rows(Path(ledger)) if Path(ledger).is_file() else []
+    r = sum(1 for x in rows if x.get("restricted"))
+    return {"rows": len(rows), "restricted": r, "note": RESTRICTED_SPACETRACK if r else None}
 
 
 def events(ledger: str | Path = LEDGER, now: float | None = None) -> list[dict[str, Any]]:

@@ -83,6 +83,16 @@ def checks(root: str | Path = ".") -> list[dict[str, Any]]:
     miss_docs = [d for d in docs_needed if d not in readme or not (root / d).is_file()]
     row("PUB-09", "README links the branch documentation", not miss_docs, "linked" if not miss_docs else "missing: " + ", ".join(miss_docs))
     row("PUB-10", "Licence question settled with upstream (P-08)", False, "waiting on the NASA-3D-Resources licence confirmation; see docs/UPSTREAM.md")
+    st_hits = []
+    for f in files:
+        p = root / f
+        if p.suffix.lower() in (".json", ".jsonl", ".md", ".csv") and p.is_file() and p.stat().st_size < 20_000_000:
+            try:
+                if "space-track user agreement" in p.read_text(errors="replace") and f not in ("aero_audit/space/cdm_inbox.py", "aero_audit/evidence.py", "docs/ACCOUNTS.md"):
+                    st_hits.append(f)
+            except OSError:
+                continue
+    row("PUB-11", "No Space-Track material tracked (user agreement, 10 USC 2274)", not st_hits, "clean" if not st_hits else "tracked: " + ", ".join(st_hits[:5]))
     return rows
 
 

@@ -40,6 +40,14 @@ missing column and never prints a value; `aero doctor` adds one line summarising
 
 The tool never creates accounts or types credentials for you; that is deliberate.
 
+**Read the user agreement before you tick the box.** It says the user "agrees not to transfer any data or
+technical information received from this website, or other U.S. Government source, including the
+analysis of data, to any other entity without prior express approval" (10 USC 2274(c)(2)). The tool
+honours that mechanically: every ledger row that came from Space-Track carries a `restricted` marker,
+`aero log bundle` leaves any report carrying that marker out of the evidence zip, and publish-check
+PUB-11 fails if Space-Track material is ever tracked in git. Keep Space-Track-derived screenshots and
+numbers out of anything you share, including this project's public repository, unless they approve it.
+
 ## Probing what you configured
 
 `aero accounts --probe` makes one harmless read per service (authenticated where credentials

@@ -113,3 +113,20 @@ def test_accounts_setup_prompts_hidden_and_writes_env(tmp_path, monkeypatch):
     monkeypatch.delenv("AERO_SETUP_ALLOW_PIPE")
     r = CliRunner().invoke(cli.app, ["accounts-setup", "spacetrack", "--no-probe"], input="a\nb\nb\n")
     assert r.exit_code != 0 and "interactive terminal" in r.output
+
+
+def test_spacetrack_rows_are_restricted_and_kept_out_of_bundles(tmp_path, monkeypatch):
+    from aero_audit import evidence
+    from aero_audit.space import cdm_inbox
+
+    monkeypatch.chdir(tmp_path)
+    ledger = tmp_path / "data/space/cdm/ledger.jsonl"
+    n = cdm_inbox.record_summary([{"CDM_ID": "ST-9", "SAT_1_ID": "1", "SAT_2_ID": "2", "TCA": "2026-09-20T00:00:00.000", "MIN_RNG": "0.5", "PC": "1e-5"}], ledger)
+    assert n == 1 and cdm_inbox.restricted_share(ledger) == {"rows": 1, "restricted": 1, "note": cdm_inbox.RESTRICTED_SPACETRACK}
+    (tmp_path / "reports").mkdir()
+    (tmp_path / "reports/cdm_events_x.json").write_text(json.dumps({"summary": {"events": [{"restricted": cdm_inbox.RESTRICTED_SPACETRACK}]}}))
+    (tmp_path / "reports/cdm_events_x.md").write_text("# events")
+    (tmp_path / "reports/ok_y.json").write_text("{}")
+    names = {p.name for p in evidence.collect(reports_dir=tmp_path / "reports", docs_dir=tmp_path / "nodocs")}
+    assert "ok_y.json" in names and "cdm_events_x.json" not in names and "cdm_events_x.md" not in names
+    assert evidence.is_restricted(tmp_path / "reports/cdm_events_x.md") and not evidence.is_restricted(tmp_path / "reports/ok_y.json")
