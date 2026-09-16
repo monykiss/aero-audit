@@ -54,11 +54,12 @@ def cdm_inbox(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     ledger = _confine(p["ledger"], (".jsonl",), must_exist=False) if p.get("ledger") else inbox.LEDGER
     res = inbox.process_inbox(inbox_dir, ledger, float(p.get("hbr_m") or 20.0))
     ev = inbox.events(ledger)
+    n_new = len(res["processed"]) if isinstance(res.get("processed"), list) else int(res.get("processed") or 0)
     escalating = sum(1 for e in ev if e.get("trend") == "escalating")
     obs.METRICS.set("aero_cdm_events", float(len(ev)), trend="all")
     obs.METRICS.set("aero_cdm_events", float(escalating), trend="escalating")
-    job.say(f"{res.get('processed', 0)} new message(s), {len(ev)} event(s), {escalating} escalating")
-    return {"processed": res.get("processed"), "skipped": res.get("skipped_duplicates"), "events": len(ev), "escalating": escalating}
+    job.say(f"{n_new} new message(s), {len(ev)} event(s), {escalating} escalating")
+    return {"processed": n_new, "skipped": res.get("skipped_duplicates"), "events": len(ev), "escalating": escalating}
 
 
 def spacetrack_pull(job: Job, p: dict[str, Any]) -> dict[str, Any]:

@@ -218,6 +218,19 @@ aero docs-build                                                # regenerate docs
 scripts/run_pipeline.sh                                        # train → evaluate → audit → assess → impact → docs
 ```
 
+## Space and UAS in sixty seconds (this branch)
+
+```bash
+aero space demo            # debris, CDM, space weather, launch windows, well-clear, risk classes, encounter model on the samples
+aero app                   # then SPACE and UAS in the left nav, or type SPACE / UAS on the command line
+aero accounts              # which optional services are configured; everything runs keyless first
+```
+
+The same auditability applies: every report has a manifest with provenance, every rule id has a
+description and (where it demands action) a playbook, every control traces to tests, and the
+governance page shows the posture across air and space. See [docs/SPACE.md](docs/SPACE.md),
+[docs/UAS.md](docs/UAS.md) and [docs/HOLISTIC_PLAN.md](docs/HOLISTIC_PLAN.md).
+
 ## Documentation
 
 | Document | What it covers |
