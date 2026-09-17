@@ -24,6 +24,9 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Real-imagery evaluation: 160-image NASA library dataset (4 scene classes); histogram classifier 52.5%, YOLOv8n-cls
+  fine-tune 77.5% top-1 on held-out real images, both registered with cards; docs/RELEASE_PLAN.md (three slices, decision
+  points, mechanical gate); launchd example for `aero space watch`; empty-dataset guard in `aero space dataset`.
 - `aero space live-check`: every keyless space client end to end against the live feeds, one report, exit code on failure.
 - Space-Track made optional: CelesTrak SATCAT client (keyless, 70k objects) for identity, owner, type, orbit and decay
   dates; ORB-008; catalogue enrichment on every conjunction screen; `aero space satcat`, satcat job and page section;

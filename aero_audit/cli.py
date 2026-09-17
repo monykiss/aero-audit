@@ -1283,6 +1283,8 @@ def space_dataset(
         items += asyncio.run(build_from_library(DEFAULT_CLASSES, per_class, dest))
     if nasa3d_catalog:
         items += asyncio.run(add_nasa3d_previews(nasa3d_catalog, dest))
+    if not items:
+        raise typer.BadParameter("no images collected: enable --library and/or pass --nasa3d-catalog")
     mp = write_manifest(items, dest, DEFAULT_CLASSES)
     layout = to_classify_layout(mp)
     counts: dict[str, int] = {}

@@ -1,8 +1,8 @@
-# Scene classifier (YOLOv8-cls fine-tune) card (2026-09-16 11:29:19Z)
+# Scene classifier (YOLOv8-cls fine-tune) card (2026-09-17 12:23:08Z)
 
-- Model: `yolov8n-cls.pt` fine-tuned for 3 epoch(s); file `models/scene_yolo_cls.pt` sha256 `8e80b1a3f5f1bc0b…`
-- Data: `data/space/dataset_renders/manifest.json` (72 items; classes ['carrier', 'satellite']; counts {'satellite': {'train': 23, 'val': 13}, 'carrier': {'train': 28, 'val': 8}}); split by content hash
-- Validation top-1: **90.5%**
+- Model: `yolov8n-cls.pt` fine-tuned for 8 epoch(s); file `models/scene_yolo_cls.pt` sha256 `53586f55f3786453…`
+- Data: `data/space/dataset/manifest.json` (160 items; classes ['launch', 'orbit', 'station', 'surface']; counts {'launch': {'train': 27, 'val': 13}, 'orbit': {'train': 30, 'val': 10}, 'station': {'train': 32, 'val': 8}, 'surface': {'train': 31, 'val': 9}}); split by content hash
+- Validation top-1: **77.5%**
 
 ## Intended use
 Scene labels for spaceflight imagery and rendered spacecraft views; not object detection, not safety decisions.

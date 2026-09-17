@@ -116,7 +116,18 @@ SHA-256, attribution, and a deterministic train/validation split by content hash
 `space/classifier.py` is a colour-histogram plus gradient-orientation logistic regression, trained
 and evaluated on the manifest splits, saved with a model card and a registry entry behind the same
 checksum gate as the anomaly model. It labels scenes (launch, orbit, station, surface); it is not
-a detector. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
+a detector.
+
+Measured on real imagery (2026-09-17, 160 NASA library images, 120 train / 40 validation by content hash):
+
+| Model | Validation accuracy | Notes |
+|---|---|---|
+| Histogram + gradient logistic regression | 52.5% | chance is 25%; colour alone confuses orbit and station |
+| YOLOv8n-cls fine-tune, 8 CPU epochs | 77.5% top-1 | `scripts/train_detector.py --register`; card in `models/scene_yolo_cls.md` |
+
+Both numbers come from one small hand-labelled dataset built from search queries; the queries
+define the classes, so label noise is part of the error. More images per class and a held-out set
+from a different source are the next steps before either model labels anything in a report. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
 when that extra is installed.
 
 ## Space weather, launch windows, scheduled intake (cross-domain)
@@ -187,6 +198,13 @@ every report; TIP messages from the tracking authority remain the reentry refere
   failures double the interval up to 8× and a success resets it. `/api/v1/schedule` shows all of it.
 - Pages: the Space page shows feed cache ages and a DEGRADED tile when the last run used cache; both
   pages show their recent jobs and re-render once running jobs settle.
+
+## Running the intake unattended (macOS)
+
+`ops/launchd/org.aero-audit.watch.plist` runs `aero space watch` as a launch agent: CDM inbox every
+10 min, space weather every 15, launches hourly, SATCAT daily, a conjunction screen every 6 h, the
+catalogue hourly. Copy it to `~/Library/LaunchAgents/`, edit the paths, `launchctl load` it. It sources
+`.env` if present, so Space-Track joins the schedule only when you have configured it.
 
 ## Demo and evidence
 
