@@ -1,6 +1,6 @@
-# Scene classifier card (2026-09-17 13:09:54Z)
+# Scene classifier card (2026-09-17 19:44:56Z)
 
-- Model: logistic regression over hsv8x8x4+grad8x8x9 features; file `models/scene_classifier_study.joblib` sha256 `dac25c1bd9e5939c…`
+- Model: logistic regression over hsv8x8x4+grad8x8x9 features; file `models/scene_classifier_study.joblib` sha256 `35e4c6b9a53191c0…`
 - Data: `data/space/dataset/manifest.json` from nasa-images; classes ['launch', 'orbit', 'station', 'surface']; counts {'launch': 100, 'orbit': 100, 'station': 100, 'surface': 100}
 - Split: 314 train / 86 validation by content hash (deterministic)
 - Validation accuracy: **64.0%**

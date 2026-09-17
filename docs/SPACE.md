@@ -120,14 +120,18 @@ a detector.
 
 Measured on real imagery (2026-09-17, 400 NASA library images, 314 train / 86 validation by content hash):
 
-| Model | Validation accuracy | Notes |
-|---|---|---|
-| Histogram + gradient logistic regression | 64.0% | chance is 25%; colour alone confuses orbit and station (52.5% at 160 images) |
-| YOLOv8n-cls fine-tune, 10 CPU epochs | 80.2% top-1 | `scripts/train_detector.py --register`; card in `models/scene_yolo_cls.md` (77.5% at 160 images) |
+| Model | Validation (same queries) | Second-source hold-out (149 images, other queries, de-duplicated) | Notes |
+|---|---|---|---|
+| Histogram + gradient logistic regression | 64.0% | 40.9% | chance is 25%; launch is confused with orbit and surface |
+| YOLOv8n-cls fine-tune, 10 CPU epochs | 80.2% top-1 | 56.4% top-1 | `scripts/train_detector.py --register`; launch recall 0.28: "liftoff" queries return pad, rollout and night shots the training queries did not |
 
-Both numbers come from one small hand-labelled dataset built from search queries; the queries
-define the classes, so label noise is part of the error. More images per class and a held-out set
-from a different source are the next steps before either model labels anything in a report. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
+The second column is the number to quote. `aero space classify-eval` reproduces it and ST-14 reports both.
+
+The classes are defined by search queries, so a different query set is a different distribution:
+the 24-point drop from validation to hold-out is the honest generalisation gap, and label noise
+(a "launch" query returning a rollout photo) is part of it. Before either model labels a report:
+curate the labels by hand, add classes that exist in the data (pad, rollout, crew), and evaluate on
+the hold-out only. `scripts/train_detector.py` lays the dataset out for ultralytics and runs the fine-tune
 when that extra is installed.
 
 ## Space weather, launch windows, scheduled intake (cross-domain)
