@@ -31,7 +31,9 @@ def test_generic_report_writes_json_md_manifest_and_verifies(tmp_path):
 def test_space_demo_runs_offline_and_every_report_has_a_manifest(tmp_path):
     rows = demo.run(tmp_path / "reports", max_batches=4)
     steps = {r["step"].split("_")[0] for r in rows}
-    assert {"debris", "cdm", "space", "launches", "wellclear", "uas", "encounter"} <= steps
+    assert {"debris", "cdm", "space", "launches", "wellclear", "uas", "encounter", "gps3sv01"} <= steps
+    tel = next(r for r in rows if r["step"] == "gps3sv01_telemetry")
+    assert tel["findings"] == 0  # a genuine ascent audits clean
     for r in rows:
         assert Path(r["report"]).is_file() and Path(r["manifest"]).is_file()
         assert provenance.verify_manifest(r["manifest"])["ok"]

@@ -45,6 +45,30 @@ def run(out: str | Path = "reports", recording: str | Path | None = None, max_ba
     step(f"uas_risk_{rec.stem.split('.')[0]}", "summary", summary, fs, {"recording": rec})
     res = encounter_model.fit_and_simulate(rec, 500, max_batches=max_batches)
     step(f"encounter_model_{rec.stem.split('.')[0]}", "summary", res, [], {"recording": rec})
+    # real launch telemetry (public domain, bundled): the SPC rules on a genuine ascent
+    from ..space.telemetry import audit_telemetry, load_any, summarize
+
+    tp = SAMPLES / "gps3sv01_telemetry.json"
+    pts = load_any(tp)
+    fs = audit_telemetry(pts, stream=tp.stem)
+    step("gps3sv01_telemetry", "summary", summarize(pts, fs), fs, {"telemetry": tp})
+    # NASA's real UTM contract when it has been fetched (aero uas utm-fetch); the bundled samples otherwise stay unchecked
+    contract = Path("data/uas/utm-domain-commons.json")
+    if contract.is_file():
+        from ..uas.utm import check_samples, load_document
+
+        doc = load_document(contract)
+        samples = [(p.name, json.loads(p.read_text())) for p in (SAMPLES / "utm_position_sample.json", SAMPLES / "utm_position_bad.json")]
+        rep = check_samples(doc, samples, schema_name="Position")
+        step("utm_conformance", "summary", rep, [], {"contract": contract})
+    # live crisis extents when cached (aero data crisis-fetch): airports inside real warning polygons
+    from ..ingest import nws_alerts
+
+    gj = nws_alerts.latest()
+    if gj:
+        from ..governance.studies import _airports_in_extent
+
+        step("crisis_airports", "summary", _airports_in_extent(gj), [], {"extents": gj})
     return rows
 
 

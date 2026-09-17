@@ -16,15 +16,19 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-STEPS = ("elements", "satcat", "space_weather", "launches", "donki")
+STEPS = ("elements", "satcat", "space_weather", "launches", "donki", "nws_alerts", "utm_contracts")
 
 
 def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "stations", max_sets: int = 60) -> dict[str, Any]:
+    from ..ingest import nws_alerts
+    from ..uas import utm
     from . import donki, launches, satcat, spaceweather
     from .orbital import fetch_group, parse_tle, screen
 
     f = {"elements": lambda: asyncio.run(fetch_group(group)), "satcat": lambda: asyncio.run(satcat.fetch()), "space_weather": lambda: asyncio.run(spaceweather.fetch()),
-         "launches": lambda: asyncio.run(launches.fetch("upcoming", 10)), "donki": lambda: asyncio.run(donki.fetch(3))} | (fetchers or {})
+         "launches": lambda: asyncio.run(launches.fetch("upcoming", 10)), "donki": lambda: asyncio.run(donki.fetch(3)),
+         "nws_alerts": lambda: asyncio.run(nws_alerts.fetch(("Flood Warning", "Flash Flood Warning"))),
+         "utm_contracts": lambda: asyncio.run(utm.fetch_domains())[0]} | (fetchers or {})
     rows: list[dict[str, Any]] = []
     ctx: dict[str, Any] = {}
 
@@ -68,7 +72,20 @@ def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "sta
         cc = donki.crosscheck(ctx.get("swx", {"icao_advisory_conditions": {}}), pay.get("notifications", []))
         return {"file": Path(p).name, "notifications": len(pay.get("notifications", [])), "own_key": pay.get("own_key"), "agreement": {k: v["agreement"] for k, v in cc["effects"].items()}, "keyless": True}
 
-    for name, work in (("elements", _elements), ("satcat", _satcat), ("space_weather", _weather), ("launches", _launches), ("donki", _donki)):
+    def _nws() -> dict[str, Any]:
+        p = f["nws_alerts"]()
+        s = nws_alerts.summary(p)
+        return {"file": Path(p).name, "extents": s["features"], "by_event": s["by_event"], "keyless": True}
+
+    def _utm() -> dict[str, Any]:
+        p = f["utm_contracts"]()
+        doc = utm.load_document(p)
+        defs = doc.get("definitions") or (doc.get("components") or {}).get("schemas") or {}
+        good = json.loads(Path("data/samples/utm_position_sample.json").read_text()) if Path("data/samples/utm_position_sample.json").is_file() else None
+        errs = utm.validate(good, utm.schema_for(doc, "Position"), doc) if good is not None and "Position" in defs else None
+        return {"file": Path(p).name, "definitions": len(defs), "sample_position_errors": None if errs is None else len(errs), "keyless": True}
+
+    for name, work in (("elements", _elements), ("satcat", _satcat), ("space_weather", _weather), ("launches", _launches), ("donki", _donki), ("nws_alerts", _nws), ("utm_contracts", _utm)):
         step(name, work)
     ok = sum(1 for r in rows if r["ok"])
     return {"steps": rows, "passed": ok, "total": len(rows), "all_keyless": True, "spacetrack_used": False, "ran_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

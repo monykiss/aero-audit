@@ -24,6 +24,8 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Demo and live check cover the gap fills: bundled public-domain Falcon 9 telemetry sample, UTM conformance and crisis
+  airports when their inputs are fetched; live-check adds NWS alerts and the UTM contract fetch (7 keyless paths).
 - Second-source hold-out (149 NASA-library images from other queries, de-duplicated by id): histogram 40.9%, YOLOv8n-cls
   56.4% top-1, recorded next to the in-distribution numbers as the ones to quote.
 - Gap fills: JSON telemetry loader and a real Falcon 9 ascent audited with a manifest; UTM validator resolves external

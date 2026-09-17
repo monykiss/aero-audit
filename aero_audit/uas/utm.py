@@ -92,7 +92,7 @@ async def fetch_domains(dest_dir: str | Path = "data/uas", files: tuple[str, ...
 
             doc = yaml.safe_load(r.text)
             p = dest / (Path(rel).stem + ".json")
-            text = json.dumps(doc, indent=1)
+            text = json.dumps(doc, indent=1, default=str)  # YAML parses dates into datetime objects
             p.write_text(text)
             p.with_suffix(".json.provenance.json").write_text(json.dumps({"source": UTM_APIS_RAW + rel, "fetched_at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
                                                                           "sha256": hashlib.sha256(text.encode()).hexdigest(), "terms": "nasa/utm-apis (NASA open source; contracts only, no data)"}, indent=1))

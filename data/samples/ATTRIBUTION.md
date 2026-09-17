@@ -36,4 +36,9 @@ personal data beyond what every aircraft transmits in the clear.
   a provenance sidecar; CelesTrak asks to be cited (Dr. T.S. Kelso).
 - NASA-3D-Resources previews and NASA image library items are cached under `data/space/` (git-ignored) with their
   terms in each provenance sidecar (NOSA 1.3 and the NASA media guidelines).
+- `gps3sv01_telemetry.json`: the analysed ascent telemetry of the GPS III SV01 Falcon 9 launch from
+  https://github.com/shahar603/Telemetry-Data (Unlicense, public domain), parallel arrays of time (s), velocity (m/s)
+  and altitude (km) transcribed from the webcast. Used as a genuine launch for the SPC rules and the demo.
+- `utm_position_sample.json`, `utm_position_bad.json`: our own synthetic UTM Position messages; the contract they are
+  checked against (nasa/utm-apis) is fetched on demand and never bundled.
 

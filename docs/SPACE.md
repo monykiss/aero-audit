@@ -223,7 +223,7 @@ catalogue hourly. Copy it to `~/Library/LaunchAgents/`, edit the paths, `launchc
 ## Demo and evidence
 
 ```bash
-aero space demo            # debris, CDM, space weather, launches, well-clear, risk classes, encounter model on the samples
+aero space demo            # debris, CDM, space weather, launches, well-clear, risk classes, encounter model, a real ascent; UTM and crisis when fetched
 aero doctor                # adds space rows: sgp4, OpenCV, cached elements, CDM ledger, samples
 aero log bundle            # the evidence zip carries every report, its Markdown and its manifest
 ```
