@@ -57,6 +57,11 @@ numbers out of anything you share, including this project's public repository, u
 | Decay and reentry | TIP messages | CelesTrak SATCAT decay dates (`aero space satcat`, ORB-008) plus our decay estimate (ORB-007); official reentry predictions stay with the tracking authority |
 | Object identity, owner, type | satcat queries | CelesTrak SATCAT (70,000 objects, daily CSV) |
 
+`aero space live-check` proves it on demand: it runs every keyless client end to end (CelesTrak
+elements into the SGP4 screen, SATCAT into identity and decays, NOAA scales into ICAO conditions,
+Launch Library, DONKI with `DEMO_KEY`) and writes a report; on 2026-09-17 all five passed in under
+10 s with no account involved.
+
 Nothing in the tool requires Space-Track, and with it connected the user agreement's redistribution
 clause applies to every row it contributes; the keyless paths carry no such restriction.
 

@@ -1484,6 +1484,24 @@ def space_satcat(norad: list[int] | None = typer.Option(None, help="NORAD ids to
     con.print(f"Report: {jp}")
 
 
+@space_app.command("live-check")
+def space_live_check(group: str = typer.Option("stations", help="CelesTrak group for the screen step"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Every keyless space path end to end, live: elements -> screen, SATCAT -> identity/decays, SWPC -> conditions, Launch Library, DONKI. No account involved."""
+    from .space.livecheck import run
+
+    res = run(group=group)
+    t = Table("step", "ok", "s", "result")
+    for r in res["steps"]:
+        detail = r.get("error") or ", ".join(f"{k}={v}" for k, v in r.items() if k not in ("step", "ok", "seconds", "file", "keyless"))
+        t.add_row(r["step"], "[green]yes" if r["ok"] else "[red]NO", str(r["seconds"]), detail[:100])
+    con.print(t)
+    con.print(f"{res['passed']}/{res['total']} keyless paths worked; Space-Track used: {res['spacetrack_used']}")
+    jp = write_generic(out, "live_check", "summary", res, [])["json"]
+    con.print(f"Report: {jp}")
+    if res["passed"] < res["total"]:
+        raise typer.Exit(code=1)
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
