@@ -15,6 +15,18 @@ answer from the NASA-3D-Resources maintainers, blocks only the parts that actual
 Slice A is 80% of the branch by lines and all of its measurable claims. Slice B's *code* is
 publishable today; what it must not do without the answer is ship NASA-derived artefacts.
 
+## Recommendation
+
+Publish **slice A and C together with slice B's code, but without any NASA-derived data**, as **0.7.0**,
+the day the licence answer arrives; if no answer comes within a month, publish the same set anyway,
+because nothing in it redistributes NASA material (the repository is already free of NASA assets: they
+live under git-ignored `data/space/`). Merging everything at once avoids a refactor that exists only to
+hold back code that is ours. The upstream pull request to NASA-3D-Resources stays separate and waits.
+
+`scripts/release_candidate.sh 0.7.0` prepares that release on a local, push-guarded branch: version
+bump, changelog heading, generated docs, suite, and the publication gate. It stops before pushing and
+prints the two commands that publish.
+
 ## Decision points (yours)
 
 1. **Send the licence email** in `docs/UPSTREAM.md`. Until then nothing in slice B ships data.

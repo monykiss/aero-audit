@@ -118,12 +118,12 @@ and evaluated on the manifest splits, saved with a model card and a registry ent
 checksum gate as the anomaly model. It labels scenes (launch, orbit, station, surface); it is not
 a detector.
 
-Measured on real imagery (2026-09-17, 160 NASA library images, 120 train / 40 validation by content hash):
+Measured on real imagery (2026-09-17, 400 NASA library images, 314 train / 86 validation by content hash):
 
 | Model | Validation accuracy | Notes |
 |---|---|---|
-| Histogram + gradient logistic regression | 52.5% | chance is 25%; colour alone confuses orbit and station |
-| YOLOv8n-cls fine-tune, 8 CPU epochs | 77.5% top-1 | `scripts/train_detector.py --register`; card in `models/scene_yolo_cls.md` |
+| Histogram + gradient logistic regression | 64.0% | chance is 25%; colour alone confuses orbit and station (52.5% at 160 images) |
+| YOLOv8n-cls fine-tune, 10 CPU epochs | 80.2% top-1 | `scripts/train_detector.py --register`; card in `models/scene_yolo_cls.md` (77.5% at 160 images) |
 
 Both numbers come from one small hand-labelled dataset built from search queries; the queries
 define the classes, so label noise is part of the error. More images per class and a held-out set

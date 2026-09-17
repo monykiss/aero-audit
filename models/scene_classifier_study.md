@@ -1,10 +1,10 @@
-# Scene classifier card (2026-09-17 12:24:02Z)
+# Scene classifier card (2026-09-17 13:09:54Z)
 
-- Model: logistic regression over hsv8x8x4+grad8x8x9 features; file `models/scene_classifier_study.joblib` sha256 `0f998fdbebf694ce…`
-- Data: `data/space/dataset/manifest.json` from nasa-images; classes ['launch', 'orbit', 'station', 'surface']; counts {'launch': 40, 'orbit': 40, 'station': 40, 'surface': 40}
-- Split: 120 train / 40 validation by content hash (deterministic)
-- Validation accuracy: **52.5%**
-- Per class: launch P 0.643 R 0.692 (n=13); orbit P 0.6 R 0.3 (n=10); station P 0.4 R 0.5 (n=8); surface P 0.455 R 0.556 (n=9)
+- Model: logistic regression over hsv8x8x4+grad8x8x9 features; file `models/scene_classifier_study.joblib` sha256 `dac25c1bd9e5939c…`
+- Data: `data/space/dataset/manifest.json` from nasa-images; classes ['launch', 'orbit', 'station', 'surface']; counts {'launch': 100, 'orbit': 100, 'station': 100, 'surface': 100}
+- Split: 314 train / 86 validation by content hash (deterministic)
+- Validation accuracy: **64.0%**
+- Per class: launch P 0.84 R 0.84 (n=25); orbit P 0.522 R 0.667 (n=18); station P 0.478 R 0.579 (n=19); surface P 0.733 R 0.458 (n=24)
 
 ## Intended use
 Scene segmentation of launch and spaceflight footage frames; not object detection, not safety-related decisions.

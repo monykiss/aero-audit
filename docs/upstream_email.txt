@@ -1,0 +1,16 @@
+To: arc-special-proj@lists.nasa.gov
+Subject: NASA-3D-Resources: contribution licence question and a small catalogue/verify tool
+
+Hello,
+
+I maintain a small open-source auditing toolkit and would like to contribute a dependency-free Python script and a generated catalogue (CATALOG.json) to nasa/NASA-3D-Resources. The script regenerates the catalogue from the GitHub tree API (1,195 files, 5.00 GB, 374 subjects on the current default branch), lists model subjects without a preview image, and verifies a downloaded file against its git blob id, so users who need one model do not have to clone the 5 GB repository.
+
+meta.json names the NASA Open Source Agreement 1.3. Before opening a pull request I would like to confirm:
+
+1. that NOSA 1.3 is the intended licence for contributions to this repository, and
+2. whether a generated catalogue file at the repository root, or under tools/, is acceptable.
+
+I am happy to sign whatever contributor paperwork the agreement requires. The script is Python 3.9+ standard library only, modifies no existing files, and runs in a few seconds.
+
+Thank you,
+[your name]
