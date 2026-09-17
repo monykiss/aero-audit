@@ -92,6 +92,10 @@ aero uas utm-check <openapi.json> response.json --path /positions --method get -
 aero gov run-study ST-09 --spec <openapi.json> --sample <exchange.json> --schema <Name>
 ```
 
+`aero uas utm-fetch` downloads NASA's utm-apis contracts as JSON beside each other so their external
+`$ref`s (the GeoJSON and metadata domain files) resolve; `data/samples/utm_position_sample.json` is a
+conformant Position and `utm_position_bad.json` fails on three injected faults against the real contract.
+
 A dependency-free validator for what contracts actually use (type, required, properties, items,
 enum, nullable, oneOf/anyOf/allOf, local `$ref`, date-time / uuid / uri formats, bounds). Works
 on NASA's utm-apis documents (fetch them from `nasa/utm-apis`; YAML needs PyYAML or a conversion

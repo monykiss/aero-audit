@@ -24,23 +24,80 @@ _FORMATS = {
 def load_document(path: str | Path) -> dict[str, Any]:
     text = Path(path).read_text()
     try:
-        return json.loads(text)
+        doc = json.loads(text)
     except ValueError:
         try:
             import yaml  # type: ignore[import-not-found]
         except ImportError as e:
             raise ValueError("YAML documents need PyYAML; convert to JSON or install pyyaml") from e
-        return yaml.safe_load(text)
+        doc = yaml.safe_load(text)
+    if isinstance(doc, dict):
+        doc["__file__"] = str(Path(path).resolve())  # lets external $ref resolve to sibling documents
+    return doc
+
+
+_SIBLINGS: dict[str, dict[str, Any]] = {}
 
 
 def resolve_ref(doc: dict[str, Any], ref: str) -> Any:
+    """Local ``#/…`` refs, and external ``<url-or-path>#/…`` refs when a document with the same base name (json or yaml)
+    sits beside the loaded document: NASA's utm-apis spread definitions over utm-domain-*.yaml files that way."""
+    target = doc
     if not ref.startswith("#/"):
-        raise ValueError(f"only local $ref is supported: {ref}")
-    node: Any = doc
+        base, _, frag = ref.partition("#")
+        folder = Path(doc.get("__file__", "")).parent if doc.get("__file__") else None
+        stem = Path(base.split("?")[0]).stem
+        found = None
+        if folder is not None:
+            for cand in (folder / f"{stem}.json", folder / f"{stem}.yaml", folder / f"{stem}.yml"):
+                if cand.is_file():
+                    key = str(cand)
+                    if key not in _SIBLINGS:
+                        _SIBLINGS[key] = load_document(cand)
+                    found = _SIBLINGS[key]
+                    break
+        if found is None:
+            raise ValueError(f"unresolvable $ref {ref} (external documents resolve only to a sibling file named {stem}.json/.yaml)")
+        target, ref = found, "#" + frag
+    node: Any = target
     for part in ref[2:].split("/"):
         part = part.replace("~1", "/").replace("~0", "~")
         node = node[part]
     return node
+
+
+UTM_APIS_RAW = "https://raw.githubusercontent.com/nasa/utm-apis/master/"
+UTM_DOMAIN_FILES = ("utm-domains/utm-domain-commons.yaml", "utm-domains/utm-domain-geojson.yaml", "utm-domains/utm-domain-metadata.yaml",
+                    "utm-domains/utm-domain-performance-auth.yaml", "uss-api/swagger.yaml", "oper-api/operator-api.yaml")
+
+
+async def fetch_domains(dest_dir: str | Path = "data/uas", files: tuple[str, ...] = UTM_DOMAIN_FILES) -> list[Path]:
+    """Download NASA's UTM contracts (keyless GitHub raw) and store them as JSON beside each other, so external refs resolve."""
+    import hashlib
+    import time
+
+    import httpx
+
+    from ..config import settings
+    from ..ingest.http import get_json  # noqa: F401 - keeps the transport fallback import path warm
+
+    dest = Path(dest_dir)
+    dest.mkdir(parents=True, exist_ok=True)
+    out = []
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        for rel in files:
+            r = await client.get(UTM_APIS_RAW + rel, headers={"User-Agent": settings.user_agent})
+            r.raise_for_status()
+            import yaml  # type: ignore[import-not-found]
+
+            doc = yaml.safe_load(r.text)
+            p = dest / (Path(rel).stem + ".json")
+            text = json.dumps(doc, indent=1)
+            p.write_text(text)
+            p.with_suffix(".json.provenance.json").write_text(json.dumps({"source": UTM_APIS_RAW + rel, "fetched_at": time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()),
+                                                                          "sha256": hashlib.sha256(text.encode()).hexdigest(), "terms": "nasa/utm-apis (NASA open source; contracts only, no data)"}, indent=1))
+            out.append(p)
+    return out
 
 
 def schema_for(doc: dict[str, Any], name: str) -> dict[str, Any]:
@@ -150,4 +207,4 @@ def check_samples(doc: dict[str, Any], samples: list[tuple[str, Any]], schema_na
     return {"schema": schema_name or f"{method.upper()} {path} {status}", "samples": len(rows), "conformant": sum(1 for r in rows if r["ok"]), "rows": rows}
 
 
-__all__ = ["check_samples", "load_document", "resolve_ref", "response_schema", "schema_for", "validate"]
+__all__ = ["UTM_APIS_RAW", "UTM_DOMAIN_FILES", "check_samples", "fetch_domains", "load_document", "resolve_ref", "response_schema", "schema_for", "validate"]

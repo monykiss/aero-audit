@@ -534,6 +534,25 @@ def config_init(out: Path = typer.Option(Path("aero.toml"))) -> None:
 
 
 @data_app.command("catalog")
+def data_crisis_fetch(events: list[str] | None = typer.Option(None, help="NWS event names (default: flood, flash flood, tornado, hurricane, red flag warnings)"),
+                      area: str | None = typer.Option(None, help="State code, e.g. IN"), study: bool = typer.Option(True, help="Run ST-11 (airports inside the extents) on the result")) -> None:
+    """Live crisis extents from the NWS alerts API (keyless, public domain) as GeoJSON with provenance; then the airports-in-extent study."""
+    from .ingest import nws_alerts
+
+    p = asyncio.run(nws_alerts.fetch(tuple(events) if events else nws_alerts.DEFAULT_EVENTS, area=area))
+    s = nws_alerts.summary(p)
+    con.print(f"{s['features']} extent(s) with geometry ({s['by_event']}), {s['without_geometry']} zone-only alerts skipped -> {p}")
+    if study and s["features"]:
+        from .governance import run_study
+
+        rec = run_study("ST-11", Path("reports/studies"), geojson=p)
+        con.print(f"ST-11: {json.dumps({k: v for k, v in rec['result'].items() if k not in ('airports',)}, default=str)[:400]}")
+        con.print(f"Result: {rec['files']['md']}")
+
+
+data_app.command("crisis-fetch")(data_crisis_fetch)
+
+
 def data_catalog(action: str = typer.Argument("build", help="build | search | reconcile"), q: str | None = typer.Option(None), collection: str | None = typer.Option(None),
                  path: Path = typer.Option(Path("data/app/catalog.json"))) -> None:
     """CMR-style data catalogue: every recording, report, study, asset, element set, CDM and model as a granule with hash, time bounds and provenance."""
@@ -1504,6 +1523,30 @@ def space_live_check(group: str = typer.Option("stations", help="CelesTrak group
         raise typer.Exit(code=1)
 
 
+@space_app.command("classify-eval")
+def space_classify_eval(manifest: Path = typer.Argument(Path("data/space/dataset_holdout/manifest.json"), help="Manifest to evaluate on (a hold-out from other queries)"),
+                        model: str = typer.Option("both", help="histogram | yolo | both"), split: str | None = typer.Option(None, help="val | train | all (default all)"),
+                        out: Path = typer.Option(Path("reports"))) -> None:
+    """Evaluate the registered scene classifiers on a manifest they were not trained on: accuracy, per-class precision/recall, confusion."""
+    from .space import classifier as clf
+
+    rows = []
+    which = ("histogram", "yolo") if model == "both" else (model,)
+    for name in which:
+        try:
+            m = clf.load() if name == "histogram" else clf.load_yolo()
+        except (FileNotFoundError, RuntimeError, clf.ModelIntegrityError) as e:
+            con.print(f"[yellow]{name}: {e}")
+            continue
+        ev = clf.evaluate(manifest, m, None if split in (None, "all") else split)
+        rows.append({"model": name, **ev})
+        con.print(f"{name}: accuracy {ev['accuracy']:.1%} on {ev['n']} images; per class " + "; ".join(f"{k} P {v['precision']} R {v['recall']} (n={v['support']})" for k, v in ev["per_class"].items()))
+    if not rows:
+        raise typer.Exit(code=1)
+    jp = write_generic(out, "classify_eval", "summary", {"models": rows}, [], inputs={"manifest": manifest})["json"]
+    con.print(f"Report: {jp}")
+
+
 @space_app.command("telemetry-audit")
 def space_telemetry(
     csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
@@ -1511,16 +1554,16 @@ def space_telemetry(
     out: Path = typer.Option(Path("reports")),
 ) -> None:
     """Physics checks on a launch telemetry stream (SPC-001..005); writes JSON and Markdown reports."""
-    from .space.telemetry import audit_telemetry, load_csv, summarize, write_report
+    from .space.telemetry import audit_telemetry, load_any, summarize
 
-    pts = load_csv(csv_path)
+    pts = load_any(csv_path)
     findings = audit_telemetry(pts, stream=csv_path.stem)
     s = summarize(pts, findings)
     con.print(f"{s['samples']} samples, max {s['max_speed_mps']} m/s, {s['max_altitude_km']} km; findings {s['findings']} {s['by_rule']}")
     for f in findings:
         con.print(f"  [{f.severity.value}] {f.rule_id} t={f.ts}s {f.title}")
-    jp, mp = write_report(pts, findings, out, f"{name or csv_path.stem}_telemetry_{_stamp()}")
-    con.print(f"Reports: {mp}, {jp}")
+    paths = write_generic(out, f"{name or csv_path.stem}_telemetry", "summary", summarize(pts, findings), findings, inputs={"telemetry": csv_path})
+    con.print(f"Reports: {paths['md']}, {paths['json']} (manifest {paths['manifest'].name})")
 
 
 # ---- governance: the bird's-eye view ----------------------------------------------------------
@@ -1629,6 +1672,9 @@ def gov_run_study(
     mission: Path | None = typer.Option(None, help="Mission JSON for ST-13"),
     scales: Path | None = typer.Option(None, help="SWPC product file for ST-17 (default: the bundled sample)"),
     launches: Path | None = typer.Option(None, help="Launch file for ST-18 (default: the bundled sample)"),
+    spec: Path | None = typer.Option(None, help="OpenAPI/Swagger document for ST-09"),
+    sample: Path | None = typer.Option(None, help="Captured exchange (JSON) for ST-09"),
+    schema: str | None = typer.Option(None, help="Schema name for ST-09"),
     out: Path = typer.Option(Path("reports/studies")),
 ) -> None:
     """Run a study with provenance; results in reports/studies/."""
@@ -1655,6 +1701,12 @@ def gov_run_study(
         params["scales"] = scales
     if launches:
         params["launches"] = launches
+    if spec:
+        params["spec"] = spec
+    if sample:
+        params["sample"] = sample
+    if schema:
+        params["schema"] = schema
     try:
         rec = run_study(study_id.upper(), out, **params)
     except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:
@@ -1834,6 +1886,15 @@ def uas_trend(folder: Path = typer.Argument(Path("data/recordings"), help="Direc
         con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
     jp = write_generic(out, "uas_trend", "summary", summary, fs, inputs={f"recording{i}": r for i, r in enumerate(recs)})["json"]
     con.print(f"Report: {jp}")
+
+
+@uas_app.command("utm-fetch")
+def uas_utm_fetch(dest: Path = typer.Option(Path("data/uas"))) -> None:
+    """Download NASA's UTM API contracts (utm-apis, keyless) as JSON so `utm-check` and ST-09 run against the real documents."""
+    from .uas.utm import fetch_domains
+
+    paths = asyncio.run(fetch_domains(dest))
+    con.print(f"{len(paths)} contract(s) under {dest}: " + ", ".join(p.name for p in paths))
 
 
 @uas_app.command("utm-check")

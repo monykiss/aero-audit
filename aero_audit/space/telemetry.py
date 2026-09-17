@@ -66,6 +66,26 @@ def load_csv(path: str | Path) -> list[TelemetryPoint]:
     return rows
 
 
+def load_telemetry_json(path: str | Path) -> list[TelemetryPoint]:
+    """The public launch-telemetry layout (shahar603/Telemetry-Data, Unlicense): parallel arrays ``time`` (s), ``velocity`` (m/s),
+    ``altitude`` (km). Rows with a missing value are dropped, not interpolated."""
+    d = json.loads(Path(path).read_text())
+    t, v, a = d.get("time"), d.get("velocity"), d.get("altitude")
+    if not (isinstance(t, list) and isinstance(v, list) and isinstance(a, list)):
+        raise TypeError("expected parallel lists 'time', 'velocity', 'altitude'")
+    out = []
+    for ts, vel, alt in zip(t, v, a, strict=False):
+        if ts is None or vel is None or alt is None:
+            continue
+        out.append(TelemetryPoint(float(ts), float(vel), float(alt)))
+    return out
+
+
+def load_any(path: str | Path) -> list[TelemetryPoint]:
+    p = Path(path)
+    return load_telemetry_json(p) if p.suffix.lower() == ".json" else load_csv(p)
+
+
 def _finding(rule: str, sev: Severity, cat: Category, title: str, ts: float, evidence: dict[str, Any],
              controls: list[str], rec: str) -> Finding:
     return Finding(rule_id=rule, title=title, severity=sev, category=cat, ts=ts, evidence=evidence, controls=controls,

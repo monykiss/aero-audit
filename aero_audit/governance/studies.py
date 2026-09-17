@@ -203,11 +203,19 @@ def _debris(mission: str | Path, **_: Any) -> dict[str, Any]:
     return {**summary, "findings": [{"rule": f.rule_id, "severity": f.severity.value, "title": f.title} for f in fs]}
 
 
-def _classifier_eval(manifest: str | Path = "data/space/dataset/manifest.json", **_: Any) -> dict[str, Any]:
-    from ..space.classifier import train
+def _classifier_eval(manifest: str | Path = "data/space/dataset/manifest.json", holdout: str | Path | None = None, **_: Any) -> dict[str, Any]:
+    """Train on the manifest's split and report validation accuracy; with a hold-out manifest (other queries, de-duplicated
+    against training), report the second-source accuracy too, which is the number that matters."""
+    from ..space.classifier import evaluate, load, train
 
-    stats = train(manifest, Path("models") / "scene_classifier_study.joblib")
-    return {k: stats[k] for k in ("manifest", "classes", "counts", "n_train", "n_val", "accuracy", "per_class", "sha256")}
+    out_path = Path("models") / "scene_classifier_study.joblib"
+    stats = train(manifest, out_path)
+    res = {k: stats[k] for k in ("manifest", "classes", "counts", "n_train", "n_val", "accuracy", "per_class", "sha256")}
+    hp = Path(holdout) if holdout else Path("data/space/dataset_holdout/manifest.json")
+    if hp.is_file():
+        ev = evaluate(hp, load(out_path, allow_unverified=True), split=None)
+        res["holdout"] = {"manifest": str(hp), "n": ev["n"], "accuracy": ev["accuracy"], "per_class": ev["per_class"], "confusion": ev["confusion"]}
+    return res
 
 
 def _risk_classes(recording: str | Path, max_batches: int | None = None, **_: Any) -> dict[str, Any]:

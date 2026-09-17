@@ -155,10 +155,72 @@ def predict(model: dict[str, Any], paths: list[str | Path]) -> list[dict[str, An
     return out
 
 
+YOLO_PATH = Path("models/scene_yolo_cls.pt")
+
+
+def load_yolo(path: str | Path = YOLO_PATH, allow_unverified: bool = False) -> dict[str, Any]:
+    """The fine-tuned YOLO classification weights behind the same registry gate; returns the same dict shape as load()."""
+    import os
+
+    info = verify_model(path)
+    if not info["exists"]:
+        raise FileNotFoundError(path)
+    if not info["match"] and not (allow_unverified or os.getenv(ALLOW_ENV) == "1"):
+        raise ModelIntegrityError(f"refusing to load {path}: no matching registry entry (set {ALLOW_ENV}=1 to override)")
+    try:
+        from ultralytics import YOLO
+    except ImportError as e:  # pragma: no cover - environment dependent
+        raise RuntimeError("the YOLO classifier needs ultralytics: uv pip install -e '.[vision]'") from e
+    y = YOLO(str(path))
+    names = y.names if isinstance(y.names, dict) else dict(enumerate(y.names))
+    return {"yolo": y, "classes": [names[k] for k in sorted(names)], "feature_version": "yolov8-cls", "verified_": bool(info["match"]), "sha256_": info["sha256"]}
+
+
+def predict_any(model: dict[str, Any], paths: list[str | Path]) -> list[dict[str, Any]]:
+    """predict() for the histogram model, or the YOLO classifier when the dict carries one."""
+    if "yolo" not in model:
+        return predict(model, paths)
+    out = []
+    for p, r in zip(paths, model["yolo"].predict([str(x) for x in paths], verbose=False, imgsz=224), strict=True):
+        probs = r.probs
+        classes = model["classes"]
+        scores = {classes[i]: round(float(probs.data[i]), 4) for i in range(len(classes))}
+        i = int(probs.top1)
+        out.append({"path": str(p), "label": classes[i], "proba": round(float(probs.top1conf), 4), "scores": scores})
+    return out
+
+
+def evaluate(manifest_path: str | Path, model: dict[str, Any], split: str | None = "val") -> dict[str, Any]:
+    """Accuracy and per-class precision/recall of any loaded model on a manifest (a hold-out built from other queries
+    is the honest test: same labels, different images)."""
+    m = load_manifest(manifest_path)
+    items = [it for it in m["items"] if Path(it["path"]).is_file() and (split is None or it["split"] == split)]
+    if not items:
+        raise ValueError("no items to evaluate")
+    preds = predict_any(model, [it["path"] for it in items])
+    labels = sorted({it["label"] for it in items} | set(model["classes"]))
+    y_true = [it["label"] for it in items]
+    y_pred = [p["label"] for p in preds]
+    acc = float(np.mean([a == b for a, b in zip(y_true, y_pred, strict=True)]))
+    per: dict[str, dict[str, float]] = {}
+    for lab in labels:
+        tp = sum(1 for p, t in zip(y_pred, y_true, strict=True) if p == lab and t == lab)
+        fp = sum(1 for p, t in zip(y_pred, y_true, strict=True) if p == lab and t != lab)
+        fn = sum(1 for p, t in zip(y_pred, y_true, strict=True) if p != lab and t == lab)
+        if tp + fn == 0 and tp + fp == 0:
+            continue
+        per[lab] = {"precision": round(tp / (tp + fp), 3) if tp + fp else 0.0, "recall": round(tp / (tp + fn), 3) if tp + fn else 0.0, "support": tp + fn}
+    confusion = {}
+    for t, p in zip(y_true, y_pred, strict=True):
+        confusion[f"{t}->{p}"] = confusion.get(f"{t}->{p}", 0) + 1
+    return {"manifest": str(manifest_path), "split": split, "n": len(items), "accuracy": round(acc, 4), "per_class": per, "confusion": confusion,
+            "model_feature_version": model.get("feature_version"), "model_sha256": model.get("sha256_"), "verified": model.get("verified_")}
+
+
 def classify_frames(frame_manifest: dict[str, Any], model: dict[str, Any]) -> list[dict[str, Any]]:
     frames = frame_manifest["frames"]
-    preds = predict(model, [f["file"] for f in frames]) if frames else []
+    preds = predict_any(model, [f["file"] for f in frames]) if frames else []
     return [{"t_s": f["t_s"], **p} for f, p in zip(frames, preds, strict=True)]
 
 
-__all__ = ["FEATURE_VERSION", "MODEL_PATH", "classify_frames", "features", "load", "predict", "train"]
+__all__ = ["FEATURE_VERSION", "MODEL_PATH", "YOLO_PATH", "classify_frames", "evaluate", "features", "load", "load_yolo", "predict", "predict_any", "train"]

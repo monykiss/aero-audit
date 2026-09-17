@@ -164,6 +164,16 @@ is still screened for an object the catalogue records as decayed. Together with 
 cached element history it covers everything the project would otherwise take from Space-Track, so the
 account stays optional (docs/ACCOUNTS.md has the capability matrix).
 
+## Telemetry from a real launch
+
+```bash
+aero space telemetry-audit data/space/telemetry/gps3sv01_analysed.json   # public-domain Falcon 9 ascent (Telemetry-Data), SPC rules, manifest
+```
+
+`space/telemetry.py` reads the public Telemetry-Data JSON layout (time, velocity, altitude) as well as
+CSV; the GPS III SV01 ascent (494 samples to 7.6 km/s and 174 km) audits clean, which is the
+expected result on genuine data and the baseline the injected-fault tests measure precision against.
+
 ## Renders, element history (depth items)
 
 ```bash
