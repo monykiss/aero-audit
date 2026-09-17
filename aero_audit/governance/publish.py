@@ -77,7 +77,10 @@ def checks(root: str | Path = ".") -> list[dict[str, Any]]:
     deps_ok = "sgp4" in py and "sgp4" in lock and "DracoPy" in py and "ultralytics" in py
     row("PUB-07", "Optional dependencies declared and sgp4 locked", deps_ok, "space extra + lock, vision extra" if deps_ok else "check pyproject extras and requirements.lock.txt")
     ch = (root / "CHANGELOG.md").read_text() if (root / "CHANGELOG.md").is_file() else ""
-    row("PUB-08", "Changelog carries an Unreleased section", "## Unreleased" in ch, "present" if "## Unreleased" in ch else "add '## Unreleased' with what this branch adds")
+    from .. import __version__
+
+    has_section = "## Unreleased" in ch or f"## {__version__} - " in ch  # a release candidate has already renamed the heading
+    row("PUB-08", "Changelog carries an Unreleased or current-version section", has_section, "present" if has_section else f"add '## Unreleased' or '## {__version__} - <date>' with what this branch adds")
     readme = (root / "README.md").read_text() if (root / "README.md").is_file() else ""
     docs_needed = ("docs/SPACE.md", "docs/UAS.md", "docs/ACCOUNTS.md", "docs/HOLISTIC_PLAN.md")
     miss_docs = [d for d in docs_needed if d not in readme or not (root / d).is_file()]

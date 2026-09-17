@@ -35,7 +35,7 @@ Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air 
 - PUB-05 Control library referentially clean: ok (clean)
 - PUB-06 Traceability: no orphan rules, studies, standards or untested controls: ok (clean)
 - PUB-07 Optional dependencies declared and sgp4 locked: ok (space extra + lock, vision extra)
-- PUB-08 Changelog carries an Unreleased section: ok (present)
+- PUB-08 Changelog carries an Unreleased or current-version section: ok (present)
 - PUB-09 README links the branch documentation: ok (linked)
 - PUB-10 Licence question settled with upstream (P-08): NO (waiting on the NASA-3D-Resources licence confirmation; see docs/UPSTREAM.md)
 - PUB-11 No Space-Track material tracked (user agreement, 10 USC 2274): ok (clean)
