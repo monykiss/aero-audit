@@ -109,7 +109,7 @@ TARGETS: dict[str, Callable[[bytes], None]] = {"recording": target_recording, "e
 SEEDS: dict[str, list[bytes]] = {
     "recording": [b"", b"{", b'{"ts": 1, "provider": "p", "region": "r", "states": []}\n', b'{"ts": "x"}\n\n{"states": [{"icao24": "abc123", "ts": 1}]}\n', b"\xff\xfe\x00"],
     "engine": [b"[]", b'[{"icao24": "abc123", "ts": 1, "lat": 40.7, "lon": -74.0, "baro_alt_ft": 35000, "gs_kt": 450, "track_deg": 90}]', b'[{"icao24": "abc123", "ts": 1, "lat": 400}]', b"not json"],
-    "safe_path": [b"", b"../../etc/passwd", b"data/samples/x.jsonl.gz", b"\x00", b"data/recordings/" + b"a" * 5000 + b".jsonl"],
+    "safe_path": [b"", b"../../etc/passwd", b"data/samples/x.jsonl.gz", b"\x00", b"data/recordings/" + b"a" * 5000 + b".jsonl", b"~nobody/x.jsonl", b"~/x.jsonl"],
     "manifest": [b"", b"{}", b'{"files": {"json": {"path": "/nope", "sha256": "0"}}}', b"[1,2,3]", b"\x00\x01"],
 }
 
@@ -131,6 +131,12 @@ def main(argv: list[str]) -> int:
         print(f"usage: {argv[0]} <{'|'.join(TARGETS)}> [libFuzzer args] | --smoke")
         return 2
     import atheris
+
+    with atheris.instrument_imports():  # coverage guidance needs the modules instrumented at import time
+        import aero_audit.audit
+        import aero_audit.ingest.replay
+        import aero_audit.provenance
+        import aero_audit.web.security  # noqa: F401
 
     fn = TARGETS[argv[1]]
     atheris.Setup([argv[0], *argv[2:]], fn)
