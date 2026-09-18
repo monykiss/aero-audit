@@ -20,6 +20,8 @@ publishable today; what it must not do without the answer is ship NASA-derived a
 - **0.7.0 published 2026-09-18** from pull request #5 (every CI job green; three CodeQL taint alerts on the DONKI client
   dismissed as false positives with a written justification: the key travels in a header and never enters the cached
   product), tagged `v0.7.0`; the release workflow signs every asset with Sigstore.
+- **0.8.0 published 2026-09-18** from pull request #6 (every check green, merged without admin override): the air/space seam
+  (FAA TFRs, reentry corridors, spaceports, mission dossier), tagged `v0.8.0`, signed by the same release workflow.
 - **Upstream contribution**: offered as nasa/NASA-3D-Resources#50 and withdrawn the same day (no public fork wanted); the package is kept in `upstream/nasa3d/` for resubmission from a fork of the maintainer's choosing.
 - The private branch `space-intake` stays local as the working branch; `main` carries everything it had.
 
