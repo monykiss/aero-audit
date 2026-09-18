@@ -15,6 +15,14 @@ answer from the NASA-3D-Resources maintainers, blocks only the parts that actual
 Slice A is 80% of the branch by lines and all of its measurable claims. Slice B's *code* is
 publishable today; what it must not do without the answer is ship NASA-derived artefacts.
 
+## Status
+
+- **0.7.0 published 2026-09-18** from pull request #5 (every CI job green; three CodeQL taint alerts on the DONKI client
+  dismissed as false positives with a written justification: the key travels in a header and never enters the cached
+  product), tagged `v0.7.0`; the release workflow signs every asset with Sigstore.
+- **Upstream contribution open**: nasa/NASA-3D-Resources pull request #50.
+- The private branch `space-intake` stays local as the working branch; `main` carries everything it had.
+
 ## Recommendation
 
 Publish **slice A and C together with slice B's code, but without any NASA-derived data**, as **0.7.0**,

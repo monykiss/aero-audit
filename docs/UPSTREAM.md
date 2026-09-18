@@ -34,6 +34,14 @@ users of the repository three things they ask for in the issue tracker:
 > `meta.json`). Please confirm that is the intended licence for contributions, and whether the
 > catalogue should live at the root or under `tools/`.
 
+## Status
+
+**Opened 2026-09-18**: https://github.com/nasa/NASA-3D-Resources/pull/50 from the fork
+`monykiss/NASA-3D-Resources`, branch `catalogue-tool`: `tools/nasa3d_catalog.py`, `tools/CATALOG.json` (regenerated the
+same day: 1,195 files, 5.00 GB, 374 subjects) and a three-line `tools/README.md`. Nothing else in the repository is touched.
+The maintainers' response decides the file location and any paperwork; the determination in
+`docs/LICENSE_DETERMINATION.md` stands either way.
+
 ## Before sending
 
 1. Licence: **determined 2026-09-18** in `docs/LICENSE_DETERMINATION.md` (NOSA 1.3 for the contribution; nothing NASA-owned redistributed). The email below is a courtesy about the preferred location of CATALOG.json.
