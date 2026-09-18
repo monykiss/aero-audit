@@ -39,8 +39,8 @@ async def fetch(days: int = 7, dest_dir: str | Path = CACHE_DIR) -> Path:
     key, own = api_key()
     end = time.strftime("%Y-%m-%d", time.gmtime())
     start = time.strftime("%Y-%m-%d", time.gmtime(time.time() - days * 86400))
-    async with httpx.AsyncClient(timeout=30) as client:
-        rows = await get_json(client, API, {"startDate": start, "endDate": end, "type": "all", "api_key": key}, {"User-Agent": settings.user_agent})
+    async with httpx.AsyncClient(timeout=30) as client:  # the key travels in a header (api.data.gov accepts X-Api-Key), never in the URL or the cache
+        rows = await get_json(client, API, {"startDate": start, "endDate": end, "type": "all"}, {"User-Agent": settings.user_agent, "X-Api-Key": key})
     dest = Path(dest_dir)
     dest.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())

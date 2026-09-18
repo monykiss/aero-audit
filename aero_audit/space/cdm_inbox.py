@@ -60,7 +60,7 @@ def parse_cdm_xml(text: str) -> CDM:
             try:
                 setattr(cdm, attr, float(head[key].split()[0]))
             except ValueError:
-                pass
+                pass  # an unparseable numeric field stays None; the message is still recorded and ORB-005 reports inconsistency
     for seg in segments:
         f = texts(seg)
         o = CdmObject(designator=f.get("OBJECT_DESIGNATOR", ""), name=f.get("OBJECT_NAME", ""), ref_frame=f.get("REF_FRAME", ""), fields=f)

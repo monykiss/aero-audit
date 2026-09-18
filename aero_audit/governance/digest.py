@@ -85,7 +85,7 @@ def build(days: float = 7.0, reports_dir: str | Path = REPORTS, now: float | Non
             d = json.loads((Path(reports_dir) / live[-1]["file"]).read_text())["summary"]
             out["live_check"] = {"file": live[-1]["file"], "passed": d.get("passed"), "total": d.get("total"), "spacetrack_used": d.get("spacetrack_used")}
         except (OSError, ValueError, KeyError):
-            pass
+            out["live_check"] = {"file": live[-1]["file"], "error": "unreadable"}  # optional context; the digest still renders
     ev = [r for r in rows if r["kind"] == "classify_eval"]
     out["classifier_holdout"] = None
     if ev:
@@ -93,7 +93,7 @@ def build(days: float = 7.0, reports_dir: str | Path = REPORTS, now: float | Non
             d = json.loads((Path(reports_dir) / ev[-1]["file"]).read_text())["summary"]
             out["classifier_holdout"] = {m["model"]: m["accuracy"] for m in d.get("models", [])}
         except (OSError, ValueError, KeyError):
-            pass
+            out["classifier_holdout"] = None  # optional context; an unreadable evaluation report is simply not shown
     jobs = Path("data/app/jobs.json")
     out["jobs"] = None
     if jobs.is_file():
