@@ -4,16 +4,19 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 0.6.0](https://img.shields.io/badge/version-0.6.0-orange.svg)](CHANGELOG.md)
+[![version 1.0.0](https://img.shields.io/badge/version-1.0.0-green.svg)](CHANGELOG.md)
 [![scorecard](https://api.securityscorecards.dev/projects/github.com/monykiss/aero-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/monykiss/aero-audit)
 
-**Aviation surveillance auditing, end to end.** aero-audit follows real aircraft from public
+**Air and space, audited end to end.** aero-audit follows real aircraft from public
 ADS-B feeds, checks every position report against physics, integrity and safety rules plus an
 anomaly model, measures its own detection accuracy with injected attacks, scores risk from the
 evidence, and shows all of it in a terminal-style local app whose every action and report is
 tamper-evident.
 
-It runs offline in one command, on any machine, and never transmits anything.
+It runs offline in one command, on any machine, and never transmits anything. Since 0.7 the same
+discipline covers space: orbital conjunctions, debris rules, space weather, launch windows and the
+airspace they close, reentry corridors, UAS well-clear, and a governance layer that traces every
+rule to a control, a test and a study. 1.0 freezes the public contract ([docs/STABILITY.md](docs/STABILITY.md)).
 
 ![Live picture during the scripted attack tour: the Seattle hub of a 15-hub replay, active injections and latest findings](docs/img/live.png)
 
@@ -285,10 +288,11 @@ tour, and gzip replay. `make lint` is ruff. CI fails when `docs/generated` drift
 
 ## Roadmap
 
-Fine-tune the detector on aerial datasets (DOTA, RarePlanes); sequence models over whole
-tracks; runway and taxiway geometry for surface movement; receiver-level provenance to close
-the ghost and drift gaps; FAA registry cross-checks; several concurrent sources in the app.
-Details: [docs/ROADMAP.md](docs/ROADMAP.md).
+1.0 is the contract, not the end. Next: fine-tune the detector on aerial datasets (DOTA,
+RarePlanes) so apron recall stops being the weakest number; sequence models over whole tracks;
+runway and taxiway geometry for surface movement; receiver-level provenance to close the ghost
+and drift gaps; FAA registry cross-checks; reentry predictions from a source without a user
+agreement; TFR history for displacement studies. Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Licence and attribution
 

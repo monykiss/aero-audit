@@ -31,6 +31,9 @@
 | SPC-003 | data-quality | Telemetry dropout in an otherwise dense stream |
 | SPC-004 | security | Telemetry time regression or duplicate sample (splice / replay) |
 | SPC-005 | data-quality | Altitude discontinuity in one telemetry step |
+| SPC-006 | security | Telemetry packet failed authentication (SDLS MAC mismatch) |
+| SPC-007 | data-quality | Telemetry accepted without authentication (no MAC or no key for the SPI) |
+| SPC-008 | security | Authenticated packet replays or regresses the sequence number |
 | ORB-001 | data-quality | Stale element set (older than the screening limit) |
 | ORB-002 | safety | Close approach under the distance threshold (no covariance) |
 | ORB-003 | data-quality | SGP4 propagation error (decayed or malformed set) |

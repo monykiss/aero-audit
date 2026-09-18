@@ -26,6 +26,7 @@ missing column and never prints a value; `aero doctor` adds one line summarising
 | GitHub API | `GITHUB_TOKEN` (optional) | github.com/settings/tokens, fine-grained, public repositories read-only | NASA-3D-Resources tree at 5,000 requests per hour | 60 per hour anonymous |
 | NOAA Aviation Weather Center | none | none | METAR/TAF | fully keyless |
 | FAA NAS status | none | none | airport programmes and delays | fully keyless |
+| SDLS packet keys | `AERO_SDLS_KEY_<spi>` (optional) | your link's ground segment | per-packet authentication of telemetry packet streams (`aero space telemetry-audit`, SPC-006..008) | streams are audited and reported as accepted on trust |
 | FAA TFR list | none | none | published space-operations restrictions with geometry, times and limits (`aero space tfr`, `tfr` job, mission dossier) | fully keyless |
 
 ## Two-minute path for Space-Track (the one account worth having)

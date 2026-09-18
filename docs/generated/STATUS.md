@@ -1,6 +1,6 @@
 # Programme status (generated)
 
-Governance index **98%** (controls 97%, standards 100%, risk share 100%); 24 air rules and 40 space/UAS rules; 44 controls implemented, 3 partial, 0 planned; 23 of 24 studies runnable; 197 tests.
+Governance index **100%** (controls 100%, standards 100%, risk share 100%); 24 air rules and 43 space/UAS rules; 47 controls implemented, 0 partial, 0 planned; 23 of 24 studies runnable; 207 tests.
 
 ## Domains
 
@@ -26,7 +26,7 @@ Governance index **98%** (controls 97%, standards 100%, risk share 100%); 24 air
 
 ## Publication readiness
 
-11 of 11 checks pass; ready.
+13 of 13 checks pass; ready.
 
 - PUB-01 Nothing private tracked: ok (clean)
 - PUB-02 No secret-looking strings in tracked text: ok (clean)
@@ -39,3 +39,5 @@ Governance index **98%** (controls 97%, standards 100%, risk share 100%); 24 air
 - PUB-09 README links the branch documentation: ok (linked)
 - PUB-10 Licence position determined and recorded (P-08): ok (docs/LICENSE_DETERMINATION.md: no NASA material redistributed; contribution under NOSA 1.3)
 - PUB-11 No Space-Track material tracked (user agreement, 10 USC 2274): ok (clean)
+- PUB-12 Every control implemented (the 1.0 bar; no partial or planned control): ok (all implemented)
+- PUB-13 Contract snapshot present and nothing removed from it (docs/STABILITY.md): ok (nothing removed)

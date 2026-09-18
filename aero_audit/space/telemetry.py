@@ -81,9 +81,36 @@ def load_telemetry_json(path: str | Path) -> list[TelemetryPoint]:
     return out
 
 
+def load_packet_points(path: str | Path) -> list[TelemetryPoint]:
+    """A packet stream (space/sdls.py layout): the telemetry fields of every packet, authentication ignored here."""
+    from .sdls import load_packets
+
+    packets, _ = load_packets(path)
+    return [TelemetryPoint(float(x["t_s"]), float(x["speed_mps"]), float(x["altitude_km"])) for x in packets if all(k in x for k in ("t_s", "speed_mps", "altitude_km"))]
+
+
 def load_any(path: str | Path) -> list[TelemetryPoint]:
+    from .sdls import is_packet_file
+
     p = Path(path)
+    if is_packet_file(p):
+        return load_packet_points(p)
     return load_telemetry_json(p) if p.suffix.lower() == ".json" else load_csv(p)
+
+
+def load_with_auth(path: str | Path) -> tuple[list[TelemetryPoint], dict[str, Any], list[Finding]]:
+    """Points plus the per-packet authentication record (C-32): for a packet stream the SDLS verification summary and its
+    findings; for CSV and parallel-array files an explicit note that the transport carried no security header."""
+    from . import sdls
+
+    p = Path(path)
+    if sdls.is_packet_file(p):
+        packets, stream = sdls.load_packets(p)
+        rows = sdls.verify(packets)
+        pts = [TelemetryPoint(float(x["t_s"]), float(x["speed_mps"]), float(x["altitude_km"])) for x in packets if all(k in x for k in ("t_s", "speed_mps", "altitude_km"))]
+        return pts, {"transport": "sdls-packets", **sdls.summary(rows), "per_packet": rows}, sdls.findings(rows, stream)
+    pts = load_any(p)
+    return pts, {"transport": "plain", "packets": len(pts), "verified": 0, "unauthenticated": len(pts), "note": "no security header on this transport; accepted on trust"}, []
 
 
 def _finding(rule: str, sev: Severity, cat: Category, title: str, ts: float, evidence: dict[str, Any],
@@ -133,7 +160,7 @@ def audit_telemetry(points: list[TelemetryPoint], stream: str = "telemetry") -> 
     return out
 
 
-def summarize(points: list[TelemetryPoint], findings: list[Finding]) -> dict[str, Any]:
+def summarize(points: list[TelemetryPoint], findings: list[Finding], auth: dict[str, Any] | None = None) -> dict[str, Any]:
     by_rule: dict[str, int] = {}
     for f in findings:
         by_rule[f.rule_id] = by_rule.get(f.rule_id, 0) + 1
@@ -141,7 +168,8 @@ def summarize(points: list[TelemetryPoint], findings: list[Finding]) -> dict[str
     alts = [p.altitude_km for p in points]
     return {"samples": len(points), "t_start_s": points[0].t_s if points else None, "t_end_s": points[-1].t_s if points else None,
             "max_speed_mps": max(speeds) if speeds else None, "max_altitude_km": max(alts) if alts else None,
-            "findings": len(findings), "by_rule": by_rule}
+            "findings": len(findings), "by_rule": by_rule,
+            "authentication": {k: v for k, v in auth.items() if k != "per_packet"} if auth else {"transport": "unknown", "note": "not recorded"}}
 
 
 def write_report(points: list[TelemetryPoint], findings: list[Finding], out_dir: str | Path, name: str) -> tuple[Path, Path]:

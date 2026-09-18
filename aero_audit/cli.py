@@ -734,22 +734,44 @@ def vision_detect(
 @vision_app.command("apron")
 def vision_apron(
     image: Path = typer.Argument(..., exists=True),
-    zones: Path | None = typer.Option(None, help="JSON list of {name, polygon, capacity}"),
+    zones: Path | None = typer.Option(None, help="JSON list of {name, polygon, capacity} (declared stands per zone)"),
+    detections: Path | None = typer.Option(None, help="Detections JSON from any detector or annotation instead of running the detector"),
+    truth: Path | None = typer.Option(None, help="Annotated aircraft (same JSON layout): detector recall and precision go into the report"),
     weights: str = typer.Option("yolov8n.pt"),
     conf: float = typer.Option(0.15),
     tile: int = typer.Option(320, help="Tile size for sliced inference (0 = whole image)"),
+    out: Path | None = typer.Option(None, help="Write a report (JSON, Markdown, manifest) here"),
 ) -> None:
-    """Count aircraft per apron zone and emit process findings."""
-    from .vision import DEFAULT_ZONES, Zone, detect, detect_tiled, occupancy, zone_findings
+    """Count aircraft per apron zone against declared capacity (OPS-VIS-001/002); detections from the detector or a file; recall against annotations when given."""
+    from .vision import (
+        DEFAULT_ZONES,
+        detect,
+        detect_tiled,
+        detections_from_json,
+        evaluate,
+        occupancy,
+        zone_findings,
+        zones_from_json,
+    )
 
-    zl = DEFAULT_ZONES
-    if zones:
-        zl = [Zone(z["name"], [tuple(p) for p in z["polygon"]], z.get("capacity", 1)) for z in json.loads(zones.read_text())]
-    dets, _ = detect_tiled(image, weights=weights, conf=conf, tile=tile) if tile else detect(image, weights=weights, conf=conf)
+    zl = zones_from_json(zones) if zones else DEFAULT_ZONES
+    if detections:
+        dets = detections_from_json(detections)
+    else:
+        dets, _ = detect_tiled(image, weights=weights, conf=conf, tile=tile) if tile else detect(image, weights=weights, conf=conf)
     occ = occupancy(dets, zl)
     con.print(json.dumps(occ, indent=2))
-    for f in zone_findings(occ, zl, str(image), time.time()):
+    fs = zone_findings(occ, zl, str(image), time.time())
+    for f in fs:
         con.print(f"  [{f.severity.value}] {f.rule_id} {f.title}")
+    ev = evaluate(dets, detections_from_json(truth)) if truth else None
+    if ev:
+        con.print(f"detector vs annotations: recall {ev['recall']} precision {ev['precision']} ({ev['matched']}/{ev['truth']} matched)")
+    if out:
+        summary = {"image": str(image), "zones": [{"name": z.name, "capacity": z.capacity, "count": occ.get(z.name, 0)} for z in zl], "detections": len(dets),
+                   "source": str(detections) if detections else f"{weights} conf>={conf} tile={tile}", "evaluation": ev}
+        paths = write_generic(out, f"apron_{image.stem}", "summary", summary, fs, inputs={"image": image, "zones": zones, "detections": detections, "truth": truth})
+        con.print(f"Report: {paths['json']}")
 
 
 # ---- demo / doctor / log -------------------------------------------------------------------
@@ -1654,16 +1676,18 @@ def space_telemetry(
     name: str | None = typer.Option(None),
     out: Path = typer.Option(Path("reports")),
 ) -> None:
-    """Physics checks on a launch telemetry stream (SPC-001..005); writes JSON and Markdown reports."""
-    from .space.telemetry import audit_telemetry, load_any, summarize
+    """Physics checks on a launch telemetry stream (SPC-001..005) and, for SDLS packet streams, per-packet authentication (SPC-006..008); writes JSON and Markdown reports."""
+    from .space.telemetry import audit_telemetry, load_with_auth, summarize
 
-    pts = load_any(csv_path)
-    findings = audit_telemetry(pts, stream=csv_path.stem)
-    s = summarize(pts, findings)
+    pts, auth, auth_fs = load_with_auth(csv_path)
+    findings = audit_telemetry(pts, stream=csv_path.stem) + auth_fs
+    s = summarize(pts, findings, auth)
     con.print(f"{s['samples']} samples, max {s['max_speed_mps']} m/s, {s['max_altitude_km']} km; findings {s['findings']} {s['by_rule']}")
+    a = s["authentication"]
+    con.print(f"authentication: transport {a.get('transport')}, verified {a.get('verified', 0)}, unauthenticated {a.get('unauthenticated', 0)}, failed {a.get('failed', 0)}, no-key {a.get('no-key', 0)}, replays {a.get('replays', 0)}")
     for f in findings:
         con.print(f"  [{f.severity.value}] {f.rule_id} t={f.ts}s {f.title}")
-    paths = write_generic(out, f"{name or csv_path.stem}_telemetry", "summary", summarize(pts, findings), findings, inputs={"telemetry": csv_path})
+    paths = write_generic(out, f"{name or csv_path.stem}_telemetry", "summary", s, findings, inputs={"telemetry": csv_path})
     con.print(f"Reports: {paths['md']}, {paths['json']} (manifest {paths['manifest'].name})")
 
 
@@ -1821,6 +1845,43 @@ def gov_run_study(
     res = rec["result"]
     con.print(json.dumps({k: v for k, v in res.items() if k not in ("operators", "findings_detail", "top_subjects", "by_airport")}, indent=1, default=str)[:2500])
     con.print(f"Result: [bold]{rec['files']['md']}[/] ({rec['duration_s']} s)")
+
+
+@gov_app.command("reviews")
+def gov_reviews(out: Path | None = typer.Option(None, help="Write the Markdown here"), strict: bool = typer.Option(False, help="Exit 1 when any component is overdue (not only safety-related ones)")) -> None:
+    """Assurance reviews practised: the dated review per component, automatic evidence, cadence and what is overdue (C-31)."""
+    from .governance import reviews
+
+    rows = reviews.status()
+    s = reviews.summary(rows)
+    t = Table("component", "class", "safety", "last review", "kind", "outcome", "days", "cadence", "due", "checks")
+    for r in rows:
+        t.add_row(r["component"][:34], r["nasa_class"], "yes" if r["safety_related"] else "no", str(r["last_date"]), str(r["last_kind"]), str(r["last_outcome"]), str(r["days_since"]), str(r["cadence_days"]),
+                  "[bold red]yes[/]" if r["due"] else "no", f"{r['checks_passed']}/{r['checks_total']}")
+    con.print(t)
+    con.print(f"{s['reviewed']}/{s['components']} reviewed ({s['peer_reviews']} peer, {s['self_reviews']} self); overdue: {', '.join(s['overdue']) or 'none'}; open actions {s['open_actions']}")
+    if out:
+        out.write_text(reviews.render_markdown())
+        con.print(f"Wrote {out}")
+    if s["overdue_safety_related"] or (strict and s["overdue"]):
+        raise typer.Exit(1)
+
+
+@gov_app.command("contract")
+def gov_contract(write: bool = typer.Option(False, help="Take the snapshot (contracts/contract-1.0.json) from the current tree"),
+                 check: bool = typer.Option(False, help="Exit 1 when anything was removed since the snapshot")) -> None:
+    """The 1.0 contract: CLI commands, rule ids, API routes, jobs, studies, controls, playbooks, env vars, report envelope; snapshot and diff (docs/STABILITY.md)."""
+    from .governance import contract
+
+    if write:
+        p = contract.write()
+        con.print(f"Wrote {p}")
+    d = contract.diff(contract.load())
+    cur = contract.current()
+    con.print(", ".join(f"{k} {len(v)}" for k, v in cur.items()))
+    con.print(contract.render_markdown(d))
+    if check and (d["breaking"] or d["snapshot"] is None):
+        raise typer.Exit(1)
 
 
 @gov_app.command("traceability")

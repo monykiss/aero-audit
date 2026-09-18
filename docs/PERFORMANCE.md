@@ -15,6 +15,8 @@ conjunction screen pair by pair on a synthetic shell with a planted close pair.
 | Rasteriser, `aero space render` | 39,600-triangle sphere at 256 px | 1.11 s | 0.04 s | every (triangle, bounding-box pixel) pair generated with repeat/cumsum, barycentrics in one shot, `np.maximum.at` z-buffer, chunked at 4 M candidate pixels |
 | Conjunction screen, `aero space conjunctions` | 120 objects, 7,140 pairs, 6 h at 60 s | Python double loop over pairs × samples | 0.04 s (167,000 pairs/s) | `SatrecArray` propagation to an (n, samples, 3) array; one broadcasted distance and `nanargmin` per object; fine pass only for candidates, propagated as arrays |
 | Catalogue build, `aero data catalog build` | 176 granules | hash every file each build | 0.17 s warm | size + mtime hash cache in `data/app/catalog_hashes.json`; a changed file re-hashes, a `hash_cache=None` build ignores it |
+| TFR traffic join, `aero space tfr --recording` (1.0) | 2 restrictions × 2,328 state vectors (12 batches) | new | 0.015 s (304,000 point-in-volume tests/s) | planar ray casting per fix with the altitude gate first; features filtered to those with geometry once per run |
+| Reentry subpoints, `aero space reentry` (1.0) | 120 objects × 721 samples (6 h at 30 s) | new | 0.029 s (3.0 M subpoints/s) | `SatrecArray` propagation to an (n, samples, 3) array, GMST and the geodetic iteration vectorised over the whole grid |
 | Space and UAS pages | polled every 3 s | rescanned reports and reassessed cached products per request | memoised 5 s | `web/views._memo` |
 
 The rules engine benchmark (`aero bench`) is unchanged by this work; its numbers live in the

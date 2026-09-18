@@ -47,3 +47,9 @@ personal data beyond what every aircraft transmits in the clear.
   synthetic in their ids and text. Live products are US Government works in the public domain.
 - `decaying_sample.tle`: a synthetic element set (NORAD 99999, perigee ~185 km) placed so that its pass crosses the New
   York recording; checksums valid; no real object.
+- `sdls_packets_sample.json`: a synthetic SDLS-style packet stream (SPI 1, sequence numbers, HMAC-SHA256 MACs) signed with the
+  documented demo key `aero-sdls-demo-key` (set `AERO_SDLS_KEY_1=aero-sdls-demo-key` to verify it); it contains one forged
+  packet, one replayed packet and one unsigned packet on purpose. No real link, no real key.
+- `apron_hohn_zones.json`, `apron_hohn_truth.json`: our own zone polygons (declared capacity) and approximate centre
+  annotations of the twelve parked transports in `apron_hohn.jpg`; `apron_hohn_detections_yolov8n.json` is the COCO
+  YOLOv8n detector's own output on that image (tiled at 320 px), kept so the measured recall (2 of 12 matched) is reproducible offline.

@@ -1,0 +1,333 @@
+{
+ "stream": "sdls_demo",
+ "note": "synthetic; demo key aero-sdls-demo-key; one forged, one replayed, one unsigned packet on purpose",
+ "packets": [
+  {
+   "spi": 1,
+   "seq": 1,
+   "t_s": 0.0,
+   "speed_mps": 0.0,
+   "altitude_km": 0.0,
+   "mac": "54bac86a4188f621feb8715421a0385ae0b30f1a4bec8982ed04ef5b0f25a5a5"
+  },
+  {
+   "spi": 1,
+   "seq": 2,
+   "t_s": 2.0,
+   "speed_mps": 25.6,
+   "altitude_km": 0.02,
+   "mac": "cb65d6eb0fa430ea5944539a14939c355c20caa07164179b9f2ad4cd3b79e215"
+  },
+  {
+   "spi": 1,
+   "seq": 3,
+   "t_s": 4.0,
+   "speed_mps": 54.4,
+   "altitude_km": 0.08,
+   "mac": "655b30588ad3eb22a69ce12ee79353878f2ddd3dc04ae0a4e55f2d12d3ae95e8"
+  },
+  {
+   "spi": 1,
+   "seq": 4,
+   "t_s": 6.0,
+   "speed_mps": 86.4,
+   "altitude_km": 0.18,
+   "mac": "450f8e20f3be72024b20480e508c433c2893f46025638aa67798313020dd1e2e"
+  },
+  {
+   "spi": 1,
+   "seq": 5,
+   "t_s": 8.0,
+   "speed_mps": 121.6,
+   "altitude_km": 0.32,
+   "mac": "29c04b8aa0831365d8a73e985f68ddbf8eb75d5631fbc8601ebc5455ea884ef3"
+  },
+  {
+   "spi": 1,
+   "seq": 6,
+   "t_s": 10.0,
+   "speed_mps": 160.0,
+   "altitude_km": 0.5,
+   "mac": "5c2370449e09e9e01f194859459fcaf25ed5fe5a50a4a843c41b781971476847"
+  },
+  {
+   "spi": 1,
+   "seq": 7,
+   "t_s": 12.0,
+   "speed_mps": 201.6,
+   "altitude_km": 0.72,
+   "mac": "0d4521b2594fdf68fdfa019b4bcb74b6c92e6178cf29169481f8fe6c6b17c4f5"
+  },
+  {
+   "spi": 1,
+   "seq": 8,
+   "t_s": 14.0,
+   "speed_mps": 246.4,
+   "altitude_km": 0.98,
+   "mac": "7b791ada2bd92d2ef2a5d45f23bc9d13229dea05f3a2c2c1b78a31f4cfbe3644"
+  },
+  {
+   "spi": 1,
+   "seq": 9,
+   "t_s": 16.0,
+   "speed_mps": 294.4,
+   "altitude_km": 1.28,
+   "mac": "de863729cc1c0bf78e9b98962a9f8a206dba5ccfe0e097c95e61d4155a87291c"
+  },
+  {
+   "spi": 1,
+   "seq": 10,
+   "t_s": 18.0,
+   "speed_mps": 345.6,
+   "altitude_km": 1.62,
+   "mac": "cad9d09a1df4804586823c0a419705aa20590f40d019274cadb41989240e8260"
+  },
+  {
+   "spi": 1,
+   "seq": 11,
+   "t_s": 20.0,
+   "speed_mps": 400.0,
+   "altitude_km": 2.0,
+   "mac": "4e25a752a7e9413cc1f3bed3971cc25d50b729096ab788da7974b431278deff5"
+  },
+  {
+   "spi": 1,
+   "seq": 12,
+   "t_s": 22.0,
+   "speed_mps": 457.6,
+   "altitude_km": 2.42,
+   "mac": "e3766f3502f3332a7b4018d165015ad59868f3ca5ea9cbfa0a68f2f6930ed6af"
+  },
+  {
+   "spi": 1,
+   "seq": 13,
+   "t_s": 24.0,
+   "speed_mps": 518.4,
+   "altitude_km": 2.88,
+   "mac": "b8d8f4f12f25901e75b73eac3553ccc5deeff95fc3a753823f769e94c146fcb1"
+  },
+  {
+   "spi": 1,
+   "seq": 14,
+   "t_s": 26.0,
+   "speed_mps": 582.4,
+   "altitude_km": 3.38,
+   "mac": "c9fd35b343c82b22d0dd1dd1fa6c128fb29c823738d6fbb0642ddb03e6993c51"
+  },
+  {
+   "spi": 1,
+   "seq": 15,
+   "t_s": 28.0,
+   "speed_mps": 649.6,
+   "altitude_km": 3.92,
+   "mac": "6bcad0abf24d3064df050d4a2cdee61371ce712915bcc945faf32ebc47b616ad"
+  },
+  {
+   "spi": 1,
+   "seq": 16,
+   "t_s": 30.0,
+   "speed_mps": 720.0,
+   "altitude_km": 4.5,
+   "mac": "fbed2e7bc6d5111217a104b42ad134a16a713e6b0e38f36cd2dca37d5df8d95e"
+  },
+  {
+   "spi": 1,
+   "seq": 17,
+   "t_s": 32.0,
+   "speed_mps": 793.6,
+   "altitude_km": 5.12,
+   "mac": "7082237363fd28a913b820446aa7bd08238ef20a7b48ec796c410988cc47ee03"
+  },
+  {
+   "spi": 1,
+   "seq": 18,
+   "t_s": 34.0,
+   "speed_mps": 9000.0,
+   "altitude_km": 5.78,
+   "mac": "bbdbc44cefec4b11701d25ec281a33bc418f9820ac0aae82831818cb961cd5b5"
+  },
+  {
+   "spi": 1,
+   "seq": 19,
+   "t_s": 36.0,
+   "speed_mps": 950.4,
+   "altitude_km": 6.48,
+   "mac": "fc4671b83fd6eb0c9134fcfc0f0bc5c139296ddad512258828990498e534992b"
+  },
+  {
+   "spi": 1,
+   "seq": 20,
+   "t_s": 38.0,
+   "speed_mps": 1033.6,
+   "altitude_km": 7.22,
+   "mac": "9644fb9682c27eba2d2e04c9e5d28a6db6f0329ff6341acb72204ca09113b491"
+  },
+  {
+   "spi": 1,
+   "seq": 21,
+   "t_s": 40.0,
+   "speed_mps": 1120.0,
+   "altitude_km": 8.0,
+   "mac": "e3f2c915e9bbb526e9fd051d32dc7adea2809fe22b531315e5faf0ea0bb548c1"
+  },
+  {
+   "spi": 1,
+   "seq": 22,
+   "t_s": 42.0,
+   "speed_mps": 1209.6,
+   "altitude_km": 8.82,
+   "mac": "31d42f8d43e93620969793d0c5414708c4ece724a7ce316e1956c86db9e02e66"
+  },
+  {
+   "spi": 1,
+   "seq": 23,
+   "t_s": 44.0,
+   "speed_mps": 1302.4,
+   "altitude_km": 9.68,
+   "mac": "35b7820218c0e9cc90deaf0937b4f069fee5ab7d2cdcc4624b1501635cbc8031"
+  },
+  {
+   "spi": 1,
+   "seq": 24,
+   "t_s": 46.0,
+   "speed_mps": 1398.4,
+   "altitude_km": 10.58,
+   "mac": "9241b6292980d01b77c5349573a5c1287cbbefd20256e63fb27a4e5f0037b100"
+  },
+  {
+   "spi": 1,
+   "seq": 25,
+   "t_s": 48.0,
+   "speed_mps": 1497.6,
+   "altitude_km": 11.52,
+   "mac": "4354f4ac09622f03c61a7b6ed56b6f494edf67ad9bff8ef13538ffced77d8df1"
+  },
+  {
+   "spi": 1,
+   "seq": 21,
+   "t_s": 40.0,
+   "speed_mps": 1120.0,
+   "altitude_km": 8.0,
+   "mac": "e3f2c915e9bbb526e9fd051d32dc7adea2809fe22b531315e5faf0ea0bb548c1"
+  },
+  {
+   "spi": 1,
+   "seq": 26,
+   "t_s": 50.0,
+   "speed_mps": 1600.0,
+   "altitude_km": 12.5,
+   "mac": "36348cedcd24a4b0d85605ea118e9a58c466bfe151e61d8708455479523cb0ce"
+  },
+  {
+   "spi": 1,
+   "seq": 27,
+   "t_s": 52.0,
+   "speed_mps": 1705.6,
+   "altitude_km": 13.52,
+   "mac": "167bbae4d616e1f1985994ff9d83c45e6b6931187a25ea9b9a4d4fce4e50e764"
+  },
+  {
+   "spi": 1,
+   "seq": 28,
+   "t_s": 54.0,
+   "speed_mps": 1814.4,
+   "altitude_km": 14.58,
+   "mac": "a048b5d5d0ba25b4e5230dbee1440bffca40dce38cf38e0a4f4923b2f60e2762"
+  },
+  {
+   "spi": 1,
+   "seq": 29,
+   "t_s": 56.0,
+   "speed_mps": 1926.4,
+   "altitude_km": 15.68,
+   "mac": "78c1a1b64a086486551fd6945e40dc97fc805d511a571fe65701a9f6c2b43827"
+  },
+  {
+   "spi": 1,
+   "seq": 30,
+   "t_s": 58.0,
+   "speed_mps": 2041.6,
+   "altitude_km": 16.82,
+   "mac": "01fcff4001dda165c92f7be95a8b5261ae48b0d518ed525f12d171a087047cc2"
+  },
+  {
+   "spi": 1,
+   "seq": 31,
+   "t_s": 60.0,
+   "speed_mps": 2160.0,
+   "altitude_km": 18.0,
+   "mac": "f43d3bef1c11a731294ba4f1a273812741c0a8e2514bf4e6ab08c6f6bd262356"
+  },
+  {
+   "spi": 1,
+   "seq": 32,
+   "t_s": 62.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 19.22,
+   "mac": "1a5d51e38099cfe56d4aeb657c8263633e5974b2c53509159a8d175f79e7eb06"
+  },
+  {
+   "spi": 1,
+   "seq": 33,
+   "t_s": 64.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 20.48
+  },
+  {
+   "spi": 1,
+   "seq": 34,
+   "t_s": 66.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 21.78,
+   "mac": "32a25bd2a0ffcb0000d0e4c3782a81f883ea62aab376d2d621bed65ba1958b7d"
+  },
+  {
+   "spi": 1,
+   "seq": 35,
+   "t_s": 68.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 23.12,
+   "mac": "d0286eb0679c4d547b6b5ec9a27f1545ea250b0a84fbe6f2849a33aae33ddb08"
+  },
+  {
+   "spi": 1,
+   "seq": 36,
+   "t_s": 70.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 24.5,
+   "mac": "388f8482cccea863039be624b4b7200315feb6821b054aae894191e5c3f419ab"
+  },
+  {
+   "spi": 1,
+   "seq": 37,
+   "t_s": 72.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 25.92,
+   "mac": "9cdae973f18bdf28290a85af8cab9a46b5746a8fb9c887ffd8ec5155b42d09fd"
+  },
+  {
+   "spi": 1,
+   "seq": 38,
+   "t_s": 74.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 27.38,
+   "mac": "579bded56a86bbb287843893e2c3049bd476045b90657aada6685501ada9c291"
+  },
+  {
+   "spi": 1,
+   "seq": 39,
+   "t_s": 76.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 28.88,
+   "mac": "877d5c687f7a22c0bb5e5c7c80da5c0a3e44fa1fc93fedabb3ac55b0abca863b"
+  },
+  {
+   "spi": 1,
+   "seq": 40,
+   "t_s": 78.0,
+   "speed_mps": 2200.0,
+   "altitude_km": 30.42,
+   "mac": "fbbb64a39a1067dbfb267489ada1a4d4e8a8801fdee291fe77e90b57a63fdb3c"
+  }
+ ]
+}

@@ -17,6 +17,10 @@ SPACE_RULE_CATALOG: dict[str, tuple[str, str]] = {
     "SPC-003": ("data-quality", "Telemetry dropout in an otherwise dense stream"),
     "SPC-004": ("security", "Telemetry time regression or duplicate sample (splice / replay)"),
     "SPC-005": ("data-quality", "Altitude discontinuity in one telemetry step"),
+    # space data link security (space/sdls.py)
+    "SPC-006": ("security", "Telemetry packet failed authentication (SDLS MAC mismatch)"),
+    "SPC-007": ("data-quality", "Telemetry accepted without authentication (no MAC or no key for the SPI)"),
+    "SPC-008": ("security", "Authenticated packet replays or regresses the sequence number"),
     # orbital (space/orbital.py, cdm.py, maneuvers.py)
     "ORB-001": ("data-quality", "Stale element set (older than the screening limit)"),
     "ORB-002": ("safety", "Close approach under the distance threshold (no covariance)"),
@@ -118,6 +122,15 @@ SPACE_PLAYBOOKS: dict[str, Playbook] = {
         "Range safety and the ATC facility; after the fact, the launch operator's airspace coordination review.",
         ("Record the count inside the real area and the displacement baseline.",),
         60,
+    ),
+    "SPC-006": Playbook(
+        "SPC-006", "Telemetry packet failed authentication",
+        ("Confirm the key for the SPI (AERO_SDLS_KEY_<spi>) matches the link's current key; a re-key explains a burst of failures at one time.",
+         "Compare the failed packets' physics (SPC-001..005) with their neighbours: forged content is usually implausible too."),
+        ("One failure in a long verified stream is corruption; a run of failures with plausible physics is an injection attempt or a key mismatch.",),
+        "The ground segment's link security owner; the mission's security officer for a suspected injection.",
+        ("Quarantine the affected packets and rerun the audit on the verified subset.",),
+        30,
     ),
     "TFR-001": Playbook(
         "TFR-001", "Aircraft inside a space-operations TFR while in effect",

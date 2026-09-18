@@ -68,14 +68,19 @@ def _alt_ft(node: ET.Element | None, which: str) -> float | None:
     return v * FL_TO_FT if uom == "FL" else v
 
 
-def _utc(stamp: str | None) -> float | None:
-    """'2026-09-20T14:00:00' (the XML says UTC in codeTimeZone; local zones are rare for space ops) -> epoch."""
+TZ_OFFSETS_H = {"UTC": 0, "GMT": 0, "Z": 0, "EST": -5, "EDT": -4, "CST": -6, "CDT": -5, "MST": -7, "MDT": -6, "PST": -8, "PDT": -7, "AKST": -9, "AKDT": -8, "HST": -10, "AST": -4, "ChST": 10}
+
+
+def _utc(stamp: str | None, tz: str | None = "UTC") -> float | None:
+    """'2026-09-20T14:00:00' in the document's codeTimeZone -> epoch. Space operations are issued in UTC; the US zone
+    abbreviations cover the local-time TFRs; an unknown zone is read as UTC and flagged by the caller."""
     if not stamp:
         return None
     try:
-        return datetime.strptime(stamp[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC).timestamp()
+        naive = datetime.strptime(stamp[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC).timestamp()
     except ValueError:
         return None
+    return naive - TZ_OFFSETS_H.get((tz or "UTC").strip(), 0) * 3600.0
 
 
 def parse_detail(xml_text: str, listing: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -104,6 +109,8 @@ def parse_detail(xml_text: str, listing: dict[str, Any] | None = None) -> dict[s
                 polygon.append([lat, lon])
     if len(polygon) < 3:
         polygon = []
+    tz = _find_text(not_, "codeTimeZone") or "UTC"
+    tz_exp = _find_text(not_, "codeExpirationTimeZone") or tz
     feat = {
         "notam_id": _find_text(not_, "txtLocalName") or (listing or {}).get("notam_id"),
         "type": (listing or {}).get("type") or ("SPACE OPERATIONS" if regulation == "91.143" else regulation),
@@ -116,8 +123,10 @@ def parse_detail(xml_text: str, listing: dict[str, Any] | None = None) -> dict[s
         "issued": _find_text(not_, "dateIssued"),
         "effective": _find_text(not_, "dateEffective"),
         "expire": _find_text(not_, "dateExpire"),
-        "effective_ts": _utc(_find_text(not_, "dateEffective")),
-        "expire_ts": _utc(_find_text(not_, "dateExpire")),
+        "effective_ts": _utc(_find_text(not_, "dateEffective"), tz),
+        "expire_ts": _utc(_find_text(not_, "dateExpire"), tz_exp),
+        "time_zone": tz,
+        "time_zone_assumed_utc": tz.strip() not in TZ_OFFSETS_H or tz_exp.strip() not in TZ_OFFSETS_H,
         "lower_ft": _alt_ft(tfr, "Lower"),
         "upper_ft": _alt_ft(tfr, "Upper"),
         "polygon": polygon,
@@ -232,4 +241,4 @@ def summary(path: str | Path) -> dict[str, Any]:
             "rows": [{k: f.get(k) for k in ("notam_id", "type", "facility", "state", "place", "effective", "expire", "lower_ft", "upper_ft", "vertices", "centroid")} for f in feats]}
 
 
-__all__ = ["CACHE_DIR", "DETAIL_URL", "LIST_URL", "SPACE_TYPES", "STALE_S", "active", "fetch", "inside", "latest", "load", "parse_detail", "point_in_polygon", "summary"]
+__all__ = ["CACHE_DIR", "DETAIL_URL", "LIST_URL", "SPACE_TYPES", "STALE_S", "TZ_OFFSETS_H", "active", "fetch", "inside", "latest", "load", "parse_detail", "point_in_polygon", "summary"]

@@ -39,7 +39,7 @@ def test_coverage_and_index():
     assert cov["standards_total"] == len(STANDARDS) and 0 < cov["standards_with_controls"] <= cov["standards_total"]
     assert sum(sum(v.values()) for v in cov["by_pillar"].values()) == len(CONTROLS)
     idx = implementation_index()
-    assert 0.5 < idx < 1.0
+    assert 0.5 < idx <= 1.0  # 1.0 since every control is implemented (PUB-12)
     from aero_audit.governance.controls import Control
 
     planned_only = {"X": Control("X", "t", "o", "risk", (), (), "planned", ())}

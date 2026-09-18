@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **97%** over 47 controls; 36 of 36 standards have at least one implemented or partial control.
+Implementation index: **100%** over 47 controls; 36 of 36 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -12,7 +12,7 @@ Implementation index: **97%** over 47 controls; 36 of 36 standards have at least
 | C-04 | Stream health: flooding and coverage collapse | implemented | air-surveillance | ICAO-DOC9924, ICAO-A10 | rule:SEC-016; rule:SEC-017; module:aero_audit/audit/engine.py; module:aero_audit/stream/poller.py; test:tests/test_security.py |
 | C-05 | Cross-feed corroboration | implemented | air-surveillance | ICAO-DOC9924 | rule:SEC-015; module:aero_audit/security/corroborate.py; command:aero corroborate; test:tests/test_security.py; study:ST-10 |
 | C-06 | Airspace and operations conformance | implemented | air-operations, air-surveillance | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | rule:OPS-001; rule:OPS-002; rule:OPS-003; rule:OPS-004; rule:OPS-005; rule:SAF-003; rule:SAF-004; module:aero_audit/ecosystem.py; test:tests/test_rules.py; test:tests/test_ecosystem.py; study:ST-05 |
-| C-07 | Apron capacity from imagery | partial | air-operations | ICAO-A14 | rule:OPS-VIS-001; rule:OPS-VIS-002; module:aero_audit/vision/apron.py; module:aero_audit/vision/detect.py; test:tests/test_vision_apron.py |
+| C-07 | Apron capacity from imagery | implemented | air-operations | ICAO-A14 | rule:OPS-VIS-001; rule:OPS-VIS-002; module:aero_audit/vision/apron.py; module:aero_audit/vision/detect.py; test:tests/test_vision_apron.py; test:tests/test_release_1_0.py; command:aero vision apron; artefact:data/samples/apron_hohn_zones.json; artefact:data/samples/apron_hohn_truth.json |
 | C-08 | Launch telemetry plausibility | implemented | space-launch | CCSDS-133, CFR14-450 | rule:SPC-001; rule:SPC-002; rule:SPC-003; rule:SPC-004; rule:SPC-005; module:aero_audit/space/telemetry.py; module:aero_audit/space/footage.py; test:tests/test_space.py; test:tests/test_gap_fill.py; command:aero space telemetry-audit; command:aero space frames |
 | C-09 | Conjunction screening | implemented | space-orbital | CCSDS-508, CCSDS-502 | module:aero_audit/space/orbital.py; module:aero_audit/space/cdm.py; rule:ORB-001; rule:ORB-002; rule:ORB-003; rule:ORB-004; rule:ORB-005; rule:ORB-006; rule:ORB-007; rule:ORB-008; module:aero_audit/space/maneuvers.py; module:aero_audit/space/satcat.py; test:tests/test_satcat.py; command:aero space satcat; module:aero_audit/space/cdm_inbox.py; module:aero_audit/space/spacetrack.py; test:tests/test_space_ops.py; test:tests/test_depth.py; command:aero space maneuvers; study:ST-20; test:tests/test_orbital.py; test:tests/test_cdm.py; command:aero space conjunctions; command:aero space cdm; study:ST-06; study:ST-12 |
 | C-10 | Debris mitigation compliance | implemented | space-orbital | NASA-STD-8719.14, ISO-24113 | module:aero_audit/space/debris.py; rule:DEB-001; rule:DEB-002; rule:DEB-003; rule:DEB-004; rule:DEB-005; rule:DEB-006; rule:DEB-007; rule:DEB-008; test:tests/test_space_ops.py; command:aero space debris; study:ST-13 |
@@ -59,8 +59,8 @@ Implementation index: **97%** over 47 controls; 36 of 36 standards have at least
 | C-29 | Passive-only operating policy | implemented | air-surveillance, air-operations, space-launch, space-orbital, uas-utm | ICAO-A17, CFR14-450 | doc:SECURITY.md; doc:CONTRIBUTING.md; module:aero_audit/stream/poller.py; test:tests/test_app_security.py |
 | C-30 | Threshold change control | implemented | air-surveillance, air-operations | ISO-27001, NIST-SP800-53 | module:aero_audit/tuning.py; command:aero config show; test:tests/test_tuning.py |
 | C-35 | Continuous monitoring of the platform itself | implemented | air-surveillance, air-operations, space-launch, space-orbital | NIST-CSF-2, NIST-SP800-53, ISO-27001 | module:aero_audit/observability.py; test:tests/test_observability.py; command:aero obs health; doc:docs/OBSERVABILITY.md; artefact:ops/aero-rules.yml |
-| C-31 | Software assurance classification | partial | space-launch, space-orbital, air-surveillance | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM | module:aero_audit/governance/assurance.py; test:tests/test_assurance_catalog.py; command:aero gov assurance; artefact:docs/generated/ASSURANCE.md |
-| C-32 | Space data link security expectations | partial | space-orbital, space-launch | CCSDS-355 | module:aero_audit/governance/assurance.py; artefact:docs/generated/ASSURANCE.md; test:tests/test_assurance_catalog.py |
+| C-31 | Software assurance classification | implemented | space-launch, space-orbital, air-surveillance | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM | module:aero_audit/governance/assurance.py; module:aero_audit/governance/reviews.py; test:tests/test_assurance_catalog.py; test:tests/test_release_1_0.py; command:aero gov assurance; command:aero gov reviews; artefact:docs/generated/ASSURANCE.md; artefact:docs/generated/REVIEWS.md; artefact:docs/assurance/review_log.json |
+| C-32 | Space data link security expectations | implemented | space-orbital, space-launch | CCSDS-355 | module:aero_audit/governance/assurance.py; module:aero_audit/space/sdls.py; rule:SPC-006; rule:SPC-007; rule:SPC-008; artefact:docs/generated/ASSURANCE.md; artefact:data/samples/sdls_packets_sample.json; test:tests/test_assurance_catalog.py; test:tests/test_release_1_0.py; command:aero space telemetry-audit |
 | C-36 | Data catalogue and reconciliation | implemented | air-surveillance, air-operations, space-assets, space-launch, space-orbital | NASA-SLIM, ISO-27001 | module:aero_audit/governance/catalog.py; test:tests/test_assurance_catalog.py; command:aero data catalog; study:ST-15 |
 | C-40 | Scheduled intake | implemented | space-orbital, space-environment, space-launch | NASA-SLIM, NIST-CSF-2 | module:aero_audit/web/schedule.py; module:aero_audit/web/space_jobs.py; test:tests/test_feeds_risk.py; command:aero space watch |
 | C-41 | Integration inventory | implemented | air-surveillance, space-assets, space-orbital, space-environment, space-launch | NIST-SP800-53, ISO-27001 | module:aero_audit/space/livecheck.py; command:aero space live-check; test:tests/test_livecheck.py; module:aero_audit/integrations.py; test:tests/test_feeds_risk.py; command:aero accounts; doc:docs/ACCOUNTS.md |
@@ -92,7 +92,7 @@ Implementation index: **97%** over 47 controls; 36 of 36 standards have at least
 | ICAO-A6 | ICAO Annex 6, Operation of Aircraft | ICAO | air | 1 / 0 / 0 |
 | ICAO-A10 | ICAO Annex 10 Vol III/IV, Aeronautical Telecommunications | ICAO | air | 2 / 0 / 0 |
 | ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 4 / 0 / 0 |
-| ICAO-A14 | ICAO Annex 14, Aerodromes | ICAO | air | 0 / 1 / 0 |
+| ICAO-A14 | ICAO Annex 14, Aerodromes | ICAO | air | 1 / 0 / 0 |
 | ICAO-A17 | ICAO Annex 17, Security | ICAO | air | 5 / 0 / 0 |
 | ICAO-DOC4444 | ICAO Doc 4444 PANS-ATM | ICAO | air | 3 / 0 / 0 |
 | ICAO-DOC9924 | ICAO Doc 9924, Aeronautical Surveillance Manual | ICAO | air | 3 / 0 / 0 |
@@ -110,13 +110,13 @@ Implementation index: **97%** over 47 controls; 36 of 36 standards have at least
 | CCSDS-133 | CCSDS 133.0-B, Space Packet Protocol | CCSDS | space | 1 / 0 / 0 |
 | CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 2 / 0 / 0 |
 | CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 1 / 0 / 0 |
-| CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 0 / 1 / 0 |
+| CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 1 / 0 / 0 |
 | NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 1 / 0 / 0 |
 | NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 2 / 0 / 0 |
 | ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 1 / 0 / 0 |
-| NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 1 / 1 / 0 |
-| NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 1 / 0 |
-| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 7 / 1 / 0 |
+| NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 2 / 0 / 0 |
+| NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 1 / 0 / 0 |
+| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 8 / 0 / 0 |
 | NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 6 / 0 / 0 |
 | NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 9 / 0 / 0 |
 | ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 8 / 0 / 0 |

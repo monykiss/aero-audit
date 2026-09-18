@@ -56,6 +56,11 @@ def build(out_dir: str | Path = "docs/generated", status: bool = True) -> list[P
     p = out / "ASSURANCE.md"
     p.write_text(render_assurance("."))
     written.append(p)
+    from .governance.reviews import render_markdown as render_reviews
+
+    p = out / "REVIEWS.md"
+    p.write_text(render_reviews(root="."))
+    written.append(p)
 
     from .governance.traceability import render_markdown as render_traceability
 

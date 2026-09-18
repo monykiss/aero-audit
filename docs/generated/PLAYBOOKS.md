@@ -422,6 +422,22 @@ Escalate: Range safety and the ATC facility; after the fact, the launch operator
 Contain:
 - Record the count inside the real area and the displacement baseline.
 
+## SPC-006: Telemetry packet failed authentication
+
+SLA to triage: 30 min
+
+Triage:
+1. Confirm the key for the SPI (AERO_SDLS_KEY_<spi>) matches the link's current key; a re-key explains a burst of failures at one time.
+1. Compare the failed packets' physics (SPC-001..005) with their neighbours: forged content is usually implausible too.
+
+Verify:
+- One failure in a long verified stream is corruption; a run of failures with plausible physics is an injection attempt or a key mismatch.
+
+Escalate: The ground segment's link security owner; the mission's security officer for a suspected injection.
+
+Contain:
+- Quarantine the affected packets and rerun the audit on the verified subset.
+
 ## TFR-001: Aircraft inside a space-operations TFR while in effect
 
 SLA to triage: 60 min

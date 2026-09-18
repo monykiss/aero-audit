@@ -48,7 +48,7 @@ def dossier(launch: dict[str, Any], recording: str | Path | None = None, tfr_pay
     ts_now = now if now is not None else time.time()
     fs: list[Finding] = []
     lat, lon = launch.get("pad_lat"), launch.get("pad_lon")
-    out: dict[str, Any] = {"launch": {k: launch.get(k) for k in ("id", "name", "provider", "status", "pad", "location", "pad_lat", "pad_lon", "window_start", "window_end", "net", "last_updated")},
+    out: dict[str, Any] = {"launch": {k: launch.get(k) for k in ("id", "name", "provider", "status", "pad", "location", "pad_lat", "pad_lon", "window_start", "window_end", "net", "last_updated", "mission_type", "orbit", "crewed")},
                            "generated_at": datetime.fromtimestamp(ts_now, UTC).isoformat(), "sections": []}
     # ground: spaceport and airports
     if lat is not None and lon is not None:

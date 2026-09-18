@@ -1,0 +1,148 @@
+[
+ {
+  "component": "Rules engine and scoring",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Feed ingest and recording",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Anomaly model and evaluation",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Local app and API",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Space assets and footage",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted-with-actions",
+  "actions": [
+   "hand-curated labels and richer classes before the scene classifier labels a report"
+  ],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Launch telemetry and orbital analysis",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "UAS well-clear metrics",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Launch and reentry airspace",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ },
+ {
+  "component": "Governance layer",
+  "date": "2026-09-18",
+  "kind": "self-review",
+  "reviewer": "programme lead (single maintainer)",
+  "scope": "1.0.0 tree: interfaces, error handling, tests, documentation",
+  "outcome": "accepted",
+  "actions": [],
+  "evidence": [
+   "tests/",
+   "ruff",
+   "CodeQL",
+   "fuzz/fuzz_targets.py",
+   "docs/generated/TRACEABILITY.md"
+  ]
+ }
+]

@@ -10,11 +10,11 @@ from aero_audit.governance import publish, status
 
 def test_publish_checks_on_this_tree_leave_only_the_licence_item_open():
     rows = {r["id"]: r for r in publish.checks(".")}
-    assert set(rows) == {f"PUB-{i:02d}" for i in range(1, 12)}
+    assert set(rows) == {f"PUB-{i:02d}" for i in range(1, 14)}
     failing = [k for k, r in rows.items() if not r["ok"]]
     assert failing == [], {k: rows[k]["detail"] for k in failing}
     s = publish.summary(list(rows.values()))
-    assert s["ready"] and not s["blocking_on_user"] and s["passed"] == 11
+    assert s["ready"] and not s["blocking_on_user"] and s["passed"] == 13
     assert "LICENSE_DETERMINATION" in rows["PUB-10"]["detail"]
     md = publish.render_markdown(list(rows.values()))
     assert "Ready to publish." in md and "| PUB-02 " in md
