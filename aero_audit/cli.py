@@ -1746,6 +1746,17 @@ def gov_publish_check(strict: bool = typer.Option(False, help="Exit non-zero whe
         raise typer.Exit(code=1)
 
 
+@gov_app.command("digest")
+def gov_digest(days: float = typer.Option(7.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """One brief from every report of the last N days: counts by kind, findings by rule and severity, worst findings, posture, live check, jobs, publication gate."""
+    from .governance import digest
+
+    paths = digest.write(days, out)
+    d = json.loads(paths["json"].read_text())["summary"]
+    con.print(f"{d['reports']} reports over {days:g} days; findings by severity {d['findings_by_severity']}; worst: " + "; ".join(f"{f['rule_id']} ({f['severity']})" for f in d["worst"][:5]))
+    con.print(f"Digest: {paths['md']} (manifest {paths['manifest'].name})")
+
+
 @gov_app.command("assurance")
 def gov_assurance(out: Path | None = typer.Option(None, help="Write the Markdown to this path")) -> None:
     """NPR 7150.2 classification per component, the SLIM repository checklist evaluated on this tree, SDLS expectations."""

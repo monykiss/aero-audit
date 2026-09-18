@@ -65,6 +65,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-40 Scheduled intake | implemented | NASA-SLIM, NIST-CSF-2 |  | schedule.py, space_jobs.py | test_feeds_risk.py |  |
 | C-41 Integration inventory | implemented | NIST-SP800-53, ISO-27001 |  | integrations.py | test_feeds_risk.py |  |
 | C-42 Bidirectional traceability | implemented | NASA-NPR-7150.2, NASA-SLIM |  | traceability.py | test_depth.py |  |
+| C-44 Periodic digest | implemented | NASA-SLIM, NIST-CSF-2 |  | digest.py | test_digest.py |  |
 | C-43 Publication readiness | implemented | NASA-NOSA-1.3, NASA-MEDIA, ODbL-1.0 |  | publish.py, status.py | test_publish_status.py |  |
 
 ## Rules to controls

@@ -183,7 +183,7 @@ ${p.evidence.missing.length ? `<div class="card accent-amber" style="margin-top:
     } },
     space: { title: 'Space', async render(el) {
       const [s, integ, sched, recs, jobs] = await Promise.all([api('/space'), api('/integrations'), api('/schedule'), api('/recordings'), api('/jobs')]);
-      const SPACE_JOBS = ['conjunctions', 'cdm_inbox', 'spacetrack_pull', 'space_weather', 'launches', 'maneuvers', 'catalog_build', 'satcat'];
+      const SPACE_JOBS = ['conjunctions', 'cdm_inbox', 'spacetrack_pull', 'space_weather', 'launches', 'maneuvers', 'catalog_build', 'satcat', 'digest'];
       const sw = s.space_weather, lc = s.launches, cj = s.conjunctions, cd = s.cdm, db = s.debris, as = s.assets;
       const sevc = v => v === 'critical' || v === 'high' ? 'neg' : (v === 'medium' ? 'amb' : '');
       const fcols = [{k: 'rule_id', label: 'Rule'}, {k: 'severity', label: 'Sev', cls: r => sevc(r.severity)}, {k: 'title', label: 'Finding', fmt: r => esc(r.title)}, {k: 'callsign', label: 'Object', fmt: r => esc(r.callsign || '')}];

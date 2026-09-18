@@ -12,7 +12,7 @@
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>cd /Users/you/Desktop/AERO &amp;&amp; [ -f .env ] &amp;&amp; source .env; exec .venv/bin/aero space watch --schedule cdm_inbox=600,space_weather=900,launches=3600,satcat=86400,conjunctions=21600,catalog_build=3600</string>
+    <string>cd /Users/you/Desktop/AERO &amp;&amp; [ -f .env ] &amp;&amp; source .env; exec .venv/bin/aero space watch --schedule cdm_inbox=600,space_weather=900,launches=3600,satcat=86400,conjunctions=21600,catalog_build=3600,digest=86400</string>
   </array>
   <key>WorkingDirectory</key><string>/Users/you/Desktop/AERO</string>
   <key>RunAtLoad</key><true/>

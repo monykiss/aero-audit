@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **85%** over 43 controls; 36 of 36 standards have at least one implemented or partial control.
+Implementation index: **85%** over 44 controls; 36 of 36 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -63,6 +63,7 @@ Implementation index: **85%** over 43 controls; 36 of 36 standards have at least
 | C-40 | Scheduled intake | implemented | space-orbital, space-environment, space-launch | NASA-SLIM, NIST-CSF-2 | module:aero_audit/web/schedule.py; module:aero_audit/web/space_jobs.py; test:tests/test_feeds_risk.py; command:aero space watch |
 | C-41 | Integration inventory | implemented | air-surveillance, space-assets, space-orbital, space-environment, space-launch | NIST-SP800-53, ISO-27001 | module:aero_audit/integrations.py; test:tests/test_feeds_risk.py; command:aero accounts; doc:docs/ACCOUNTS.md |
 | C-42 | Bidirectional traceability | implemented | air-surveillance, air-operations, space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NPR-7150.2, NASA-SLIM | module:aero_audit/governance/traceability.py; artefact:docs/generated/TRACEABILITY.md; test:tests/test_depth.py; command:aero gov traceability; command:aero docs-build |
+| C-44 | Periodic digest | implemented | air-surveillance, air-operations, space-orbital, space-environment, space-launch, uas-utm | NASA-SLIM, NIST-CSF-2 | module:aero_audit/governance/digest.py; test:tests/test_digest.py; command:aero gov digest |
 | C-43 | Publication readiness | implemented | space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NOSA-1.3, NASA-MEDIA, ODbL-1.0 | module:aero_audit/governance/publish.py; module:aero_audit/governance/status.py; artefact:docs/generated/STATUS.md; test:tests/test_publish_status.py; command:aero gov publish-check; doc:docs/UPSTREAM.md |
 
 ## Policies
@@ -112,8 +113,8 @@ Implementation index: **85%** over 43 controls; 36 of 36 standards have at least
 | ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 0 / 1 / 0 |
 | NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 1 / 1 / 0 |
 | NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 1 / 0 |
-| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 4 / 2 / 0 |
-| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 4 / 1 / 0 |
+| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 5 / 2 / 0 |
+| NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 5 / 1 / 0 |
 | NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 9 / 0 / 0 |
 | ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 8 / 0 / 0 |
 | NIST-AI-RMF | NIST AI Risk Management Framework 1.0 | NIST | cyber | 3 / 1 / 0 |

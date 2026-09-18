@@ -235,6 +235,15 @@ def satcat(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     return _write_report("satcat", {**s, "recent_decays": rd[:200]}, [], {"satcat": path}) | {"objects": s["objects"], "decays": len(rd)}
 
 
+def digest(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from ..governance import digest as dg
+
+    paths = dg.write(float(p.get("days") or 7.0), REPORTS)
+    d = json.loads(paths["json"].read_text())["summary"]
+    job.say(f"{d['reports']} reports, findings {d['findings_by_severity']}")
+    return {"report": str(paths["json"]), "reports": d["reports"], "findings": sum(d["findings_by_severity"].values())}
+
+
 def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     from ..governance import catalog
 
@@ -247,6 +256,6 @@ def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
 
 
 REGISTRY = {"cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
-            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model, "satcat": satcat}
+            "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model, "satcat": satcat, "digest": digest}
 
 __all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "space_weather", "spacetrack_pull", "uas_risk", "wellclear"]

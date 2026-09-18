@@ -220,6 +220,16 @@ every report; TIP messages from the tracking authority remain the reentry refere
 catalogue hourly. Copy it to `~/Library/LaunchAgents/`, edit the paths, `launchctl load` it. It sources
 `.env` if present, so Space-Track joins the schedule only when you have configured it.
 
+## The weekly brief
+
+```bash
+aero gov digest --days 7        # one page from every report of the week, with a manifest; also a scheduled job (digest=86400)
+```
+
+`governance/digest.py` groups the week's reports by kind, counts findings by rule and severity,
+lists the worst, and adds the posture index, the latest live check, the classifier hold-out number,
+job outcomes and the publication gate. The launchd agent writes it daily.
+
 ## Demo and evidence
 
 ```bash
