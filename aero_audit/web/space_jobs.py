@@ -17,7 +17,6 @@ REPORTS = Path("reports")
 SPACE_ROOTS = ("data/space", "data/samples")
 JSON_SUFFIXES = (".json",)
 ELEMENT_SUFFIXES = (".tle", ".txt")
-CDM_SUFFIXES = (".cdm", ".kvn", ".xml", ".json")
 
 
 def _confine(value: Any, suffixes: tuple[str, ...], must_exist: bool = True) -> Path:
@@ -33,9 +32,11 @@ def _stamp() -> str:
 
 
 def _recording_path(value: Any) -> Path:
-    from .app import App
+    """Same confinement as App.recording_path, without importing the app (no import cycle)."""
+    from ..ingest.replay import RECORDING_SUFFIXES
+    from .security import safe_path
 
-    return App.recording_path(value)
+    return safe_path(value, ("data/recordings", "data/samples"), RECORDING_SUFFIXES)
 
 
 def _write_report(prefix: str, summary: dict[str, Any], findings: list[Any], inputs: dict[str, Any] | None = None) -> dict[str, Any]:

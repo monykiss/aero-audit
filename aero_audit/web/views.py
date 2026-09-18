@@ -79,7 +79,7 @@ def _space_summary() -> dict[str, Any]:
             ledger_rows = sum(1 for _ in cdm_inbox.LEDGER.open())
             events = cdm_inbox.events(cdm_inbox.LEDGER, now=now)[:20]
         except (OSError, ValueError):
-            pass
+            ledger_rows, events = -1, []  # unreadable ledger: shown as -1 rows rather than hiding the section
     # space weather (cached product)
     swx: dict[str, Any] | None = None
     swp = spaceweather.latest()

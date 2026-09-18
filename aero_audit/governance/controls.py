@@ -116,7 +116,7 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-15", "Unified air and space register", "One register across domains with residuals from control status where detectors do not exist yet.",
             "risk", ("air-surveillance", "space-launch", "space-orbital", "uas-utm"), ("NIST-CSF-2",), "implemented", ("module:aero_audit/governance/register.py", "command:aero gov risks", "test:tests/test_governance.py")),
     Control("C-16", "Response playbooks with triage SLAs", "Triage, verify, escalate, contain per rule.",
-            "risk", ("air-surveillance", "air-operations"), ("NIST-SP800-53", "ICAO-A17"), "implemented", ("module:aero_audit/security/playbooks.py", "module:aero_audit/alerts.py", "artefact:docs/generated/PLAYBOOKS.md", "test:tests/test_security.py")),
+            "risk", ("air-surveillance", "air-operations"), ("NIST-SP800-53", "ICAO-A17"), "implemented", ("module:aero_audit/security/playbooks.py", "module:aero_audit/security/playbook_model.py", "module:aero_audit/alerts.py", "artefact:docs/generated/PLAYBOOKS.md", "test:tests/test_security.py")),
     Control("C-17", "Operational impact quantification", "Holding minutes to fuel, CO2 and delay cost with stated assumptions.",
             "risk", ("air-operations",), ("ICAO-A11",), "implemented", ("module:aero_audit/impact.py", "command:aero impact", "test:tests/test_impact.py")),
     # ---- study ---------------------------------------------------------------------------

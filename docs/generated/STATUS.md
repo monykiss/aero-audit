@@ -26,12 +26,12 @@ Governance index **98%** (controls 97%, standards 100%, risk share 100%); 24 air
 
 ## Publication readiness
 
-10 of 11 checks pass; failing: PUB-04
+11 of 11 checks pass; ready.
 
 - PUB-01 Nothing private tracked: ok (clean)
 - PUB-02 No secret-looking strings in tracked text: ok (clean)
 - PUB-03 Every external source attributed: ok (all named)
-- PUB-04 Generated docs match the code: NO (stale: API.md)
+- PUB-04 Generated docs match the code: ok (fresh)
 - PUB-05 Control library referentially clean: ok (clean)
 - PUB-06 Traceability: no orphan rules, studies, standards or untested controls: ok (clean)
 - PUB-07 Optional dependencies declared and sgp4 locked: ok (space extra + lock, vision extra)

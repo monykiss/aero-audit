@@ -40,7 +40,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-13 Threat catalogue with measured detection coverage | implemented | NIST-CSF-2, ICAO-A17 | SEC-020 | threats.py, watchlist.py, trust.py | test_security.py |  |
 | C-14 Evidence-adjusted risk register | implemented | NIST-CSF-2, ICAO-A17 |  | register.py | test_risk.py |  |
 | C-15 Unified air and space register | implemented | NIST-CSF-2 |  | register.py | test_governance.py |  |
-| C-16 Response playbooks with triage SLAs | implemented | NIST-SP800-53, ICAO-A17 |  | playbooks.py, alerts.py | test_security.py |  |
+| C-16 Response playbooks with triage SLAs | implemented | NIST-SP800-53, ICAO-A17 |  | playbooks.py, playbook_model.py, alerts.py | test_security.py |  |
 | C-17 Operational impact quantification | implemented | ICAO-A11 |  | impact.py | test_impact.py |  |
 | C-18 Injected-scenario evaluation | implemented | NIST-AI-RMF |  |  | test_evaluate.py |  |
 | C-19 Model card, registry and grouped holdout | implemented | NIST-AI-RMF | ML-001 | train.py, anomaly.py, evaluate.py | test_ml.py, test_security.py |  |

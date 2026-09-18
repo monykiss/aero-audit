@@ -19,7 +19,6 @@ from typing import Any
 from ..audit.findings import SEVERITY_ORDER
 
 REPORTS = Path("reports")
-STAMP_RX = re.compile(r"_(\d{8}T\d{6}Z)")
 KIND_RX = re.compile(r"^(conjunctions|cdm|debris|space_weather|launches|maneuvers|satcat|wellclear|uas_risk|uas_trend|encounter_model|utm_check|classify_eval|live_check|risk_assessment|evaluation|bench|bench_space|corroborate|demo_session|digest|.+?_telemetry)")
 
 
@@ -103,7 +102,7 @@ def build(days: float = 7.0, reports_dir: str | Path = REPORTS, now: float | Non
             recent = [j for j in (js if isinstance(js, list) else js.get("jobs", [])) if (j.get("finished") or 0) >= (time.time() if now is None else now) - days * 86400]
             out["jobs"] = {"finished": len(recent), "failed": sum(1 for j in recent if j.get("status") == "failed"), "by_type": dict(Counter(j.get("type") for j in recent))}
         except (OSError, ValueError, AttributeError):
-            pass
+            out["jobs"] = {"error": "jobs.json unreadable"}  # the digest still renders; the job history is optional context
     try:
         from .publish import checks, summary
 

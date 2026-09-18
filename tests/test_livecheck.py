@@ -14,7 +14,12 @@ def _tle(tmp_path: Path) -> Path:
     if src:
         p.write_text(src[-1].read_text())
     else:  # a single valid set is enough for the screen step
-        p.write_text("ISS (ZARYA)\n1 25544U 98067A   26250.50000000  .00010000  00000-0  10000-3 0  9990\n2 25544  51.6400 247.4627 0006703 130.5360 325.0288 15.49000000123456\n")
+        def cs(line: str) -> str:  # TLE checksum: digits summed, minus signs count 1, mod 10
+            return line[:68] + str(sum(int(c) if c.isdigit() else (1 if c == "-" else 0) for c in line[:68]) % 10)
+
+        l1 = "1 25544U 98067A   26250.50000000  .00010000  00000-0  10000-3 0  9990"
+        l2 = "2 25544  51.6400 247.4627 0006703 130.5360 325.0288 15.49000000123456"
+        p.write_text(f"ISS (ZARYA)\n{cs(l1)}\n{cs(l2)}\n")
     return p
 
 

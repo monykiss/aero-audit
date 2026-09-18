@@ -7,19 +7,7 @@ verify it is real, when to escalate, and what containment looks like for a *pass
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Playbook:
-    rule_id: str
-    title: str
-    triage: tuple[str, ...]
-    verify: tuple[str, ...]
-    escalate: str
-    contain: tuple[str, ...]
-    sla_minutes: int
-
+from .playbook_model import Playbook
 
 _SQUAWK = Playbook(
     "SEC-00x", "Emergency / interference squawk",

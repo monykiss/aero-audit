@@ -35,8 +35,6 @@ def load_mesh(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
     p = Path(path)
     ext = p.suffix.lower()
     if ext == ".obj":
-        from .render import load_obj
-
         return load_obj(p)
     if ext == ".3ds":
         return load_3ds(p.read_bytes())
@@ -50,6 +48,35 @@ def load_mesh(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
 
 
 SUPPORTED = (".obj", ".3ds", ".lwo", ".stl", ".glb", ".gltf")
+
+
+def load_obj(path: str | Path) -> tuple[np.ndarray, np.ndarray]:
+    """Vertices (n, 3) and triangle indices (m, 3); polygons with more than three vertices are fanned."""
+    verts: list[list[float]] = []
+    faces: list[list[int]] = []
+    for raw in Path(path).read_text(errors="replace").splitlines():
+        line = raw.strip()
+        if line.startswith("v "):
+            parts = line.split()
+            if len(parts) >= 4:
+                verts.append([float(parts[1]), float(parts[2]), float(parts[3])])
+        elif line.startswith("f "):
+            idx = []
+            for tok in line.split()[1:]:
+                v = tok.split("/")[0]
+                if not v:
+                    continue
+                i = int(v)
+                idx.append(i - 1 if i > 0 else len(verts) + i)
+            for k in range(1, len(idx) - 1):
+                faces.append([idx[0], idx[k], idx[k + 1]])
+    if not verts or not faces:
+        raise ValueError(f"no geometry in {path}")
+    v = np.asarray(verts, dtype=np.float64)
+    f = np.asarray(faces, dtype=np.int64)
+    if f.max() >= len(v) or f.min() < 0:
+        raise ValueError(f"face index out of range in {path}")
+    return v, f
 
 
 def _finish(verts: list[np.ndarray], faces: list[np.ndarray], what: str) -> tuple[np.ndarray, np.ndarray]:
@@ -326,4 +353,4 @@ def mesh_summary(v: np.ndarray, f: np.ndarray) -> dict[str, float | int]:
     return {"vertices": len(v), "triangles": len(f), "extent": [round(float(x), 4) for x in (hi - lo)]}
 
 
-__all__ = ["SUPPORTED", "load_3ds", "load_glb", "load_gltf_json", "load_lwo", "load_mesh", "load_stl", "mesh_summary"]
+__all__ = ["SUPPORTED", "load_3ds", "load_glb", "load_gltf_json", "load_lwo", "load_mesh", "load_obj", "load_stl", "mesh_summary"]

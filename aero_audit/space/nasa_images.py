@@ -26,7 +26,6 @@ from ..ingest.http import download_file, get_json
 API = "https://images-api.nasa.gov/search"
 ASSETS_HOST = "images-assets.nasa.gov"
 MEDIA_DIR = Path("data/space/nasa_media")
-MANIFEST_FILE = MEDIA_DIR / "manifest.json"
 TERMS = ("NASA content is generally not subject to copyright in the United States; individual items may carry a "
          "'copyright' field (respect it) and NASA insignia / identifiable people rules apply: "
          "https://www.nasa.gov/nasa-brand-center/images-and-media")

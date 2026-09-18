@@ -8,7 +8,7 @@ against the rule ids actually emitted in code, in both directions.
 
 from __future__ import annotations
 
-from .security.playbooks import Playbook
+from .security.playbook_model import Playbook
 
 SPACE_RULE_CATALOG: dict[str, tuple[str, str]] = {
     # launch telemetry (space/telemetry.py)
