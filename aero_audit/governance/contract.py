@@ -10,6 +10,7 @@ removal, so a renamed command or a dropped rule id cannot ship by accident.
 
 from __future__ import annotations
 
+import importlib
 import json
 import tempfile
 from pathlib import Path
@@ -23,7 +24,7 @@ ENV_VARS = ("AERO_EVALUATION_PATH", "AERO_HTTP_BACKEND", "AERO_LOG_FILE", "AERO_
 
 
 def _cli_commands() -> list[str]:
-    from ..cli import app
+    app = importlib.import_module("aero_audit.cli").app
 
     def walk(a: Any, prefix: tuple[str, ...] = ()) -> list[str]:
         out = []
@@ -37,10 +38,8 @@ def _cli_commands() -> list[str]:
 
 
 def _api_routes() -> list[str]:
-    from ..web.app import router
-    from ..web.openapi import build_spec
-
-    spec = build_spec(router)
+    router = importlib.import_module("aero_audit.web.app").router
+    spec = importlib.import_module("aero_audit.web.openapi").build_spec(router)
     return sorted(f"{m.upper()} {p}" for p, ops in spec.get("paths", {}).items() for m in ops)
 
 
@@ -56,11 +55,11 @@ def current() -> dict[str, list[str]]:
     from ..audit.rules import RULE_CATALOG
     from ..domain_rules import SPACE_PLAYBOOKS, SPACE_RULE_CATALOG
     from ..security.playbooks import PLAYBOOKS
-    from ..web.space_jobs import REGISTRY
     from .controls import CONTROLS
     from .studies import STUDIES
 
-    return {"cli": _cli_commands(), "rules": sorted({*RULE_CATALOG, *SPACE_RULE_CATALOG}), "api": _api_routes(), "jobs": sorted(REGISTRY), "studies": sorted(STUDIES),
+    registry = importlib.import_module("aero_audit.web.space_jobs").REGISTRY
+    return {"cli": _cli_commands(), "rules": sorted({*RULE_CATALOG, *SPACE_RULE_CATALOG}), "api": _api_routes(), "jobs": sorted(registry), "studies": sorted(STUDIES),
             "controls": sorted(CONTROLS), "playbooks": sorted({*PLAYBOOKS, *SPACE_PLAYBOOKS}), "env": sorted(ENV_VARS), "report_envelope": _report_envelope()}
 
 
