@@ -2,7 +2,7 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
-## Unreleased (space-intake, private branch)
+## 0.7.0 - 2026-09-18
 
 - Space: NASA-3D-Resources catalogue with blob-verified fetch; NASA image and video library client; footage frames
   and caption milestones; SPC launch telemetry rules; keyless CelesTrak elements with SGP4 screening (ORB-001..003);
