@@ -1,0 +1,48 @@
+{
+ "image": "apron_hohn.jpg",
+ "width": 1920,
+ "height": 1440,
+ "source": "yolov8n.pt (COCO) tiled 320 conf 0.15",
+ "detections": [
+  {
+   "label": "airplane",
+   "conf": 0.5,
+   "cx": 0.8437,
+   "cy": 0.7776,
+   "w": 0.1453,
+   "h": 0.2208
+  },
+  {
+   "label": "airplane",
+   "conf": 0.371,
+   "cx": 0.6434,
+   "cy": 0.5063,
+   "w": 0.0448,
+   "h": 0.0347
+  },
+  {
+   "label": "airplane",
+   "conf": 0.249,
+   "cx": 0.867,
+   "cy": 0.621,
+   "w": 0.099,
+   "h": 0.2021
+  },
+  {
+   "label": "airplane",
+   "conf": 0.229,
+   "cx": 0.7008,
+   "cy": 0.5221,
+   "w": 0.0521,
+   "h": 0.0382
+  },
+  {
+   "label": "airplane",
+   "conf": 0.203,
+   "cx": 0.6232,
+   "cy": 0.5119,
+   "w": 0.0865,
+   "h": 0.0236
+  }
+ ]
+}

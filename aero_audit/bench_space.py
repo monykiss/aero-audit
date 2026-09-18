@@ -90,6 +90,17 @@ def run_suite(recording: Path | None, rounds: int = 3) -> list[dict[str, Any]]:
     start = datetime(2026, 9, 7, 12, 0, tzinfo=UTC)
     best, med, res = _timed(lambda: screen(sets, start, 6.0, 10.0, max_sets=120), rounds)
     rows.append({"case": "orbital.screen 6 h", "input": f"{len(sets)} objects, {res['pairs']} pairs", "best_s": best, "median_s": med, "rate": f"{res['pairs'] / max(best, 1e-9):,.0f} pairs/s"})
+    from .ingest import tfr as tfr_mod
+    from .ingest.replay import iter_recording
+    from .space import airspace, reentry
+
+    if recording and Path(recording).is_file() and Path("data/samples/tfr_sample.json").is_file():
+        payload = tfr_mod.load("data/samples/tfr_sample.json")
+        best, med, (ts_, _fs) = _timed(lambda: airspace.join_traffic(payload, recording, max_batches=12), rounds)
+        n_states = sum(len(b.states) for i, b in enumerate(iter_recording(recording)) if i < 12)
+        rows.append({"case": "airspace.join_traffic (12 batches)", "input": f"{ts_['with_geometry']} TFRs x {n_states:,} state vectors", "best_s": best, "median_s": med, "rate": f"{n_states * ts_['with_geometry'] / max(best, 1e-9):,.0f} point-in-volume tests/s"})
+    best, med, sp = _timed(lambda: reentry.subpoints(sets, datetime(2026, 9, 7, 12, tzinfo=UTC), 6.0, 30.0), rounds)
+    rows.append({"case": "reentry.subpoints 6 h @ 30 s", "input": f"{len(sets)} objects x {sp[1].shape[1]} samples", "best_s": best, "median_s": med, "rate": f"{sp[1].size / max(best, 1e-9):,.0f} subpoints/s"})
     best, med, cat = _timed(lambda: catalog.build_catalog("."), rounds)
     rows.append({"case": "catalog.build (hash cache warm)", "input": f"{cat['granules_total']} granules", "best_s": best, "median_s": med, "rate": f"{cat['granules_total'] / max(best, 1e-9):,.0f} granules/s"})
     return rows

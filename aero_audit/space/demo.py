@@ -76,6 +76,28 @@ def run(out: str | Path = "reports", recording: str | Path | None = None, max_ba
     pts = load_any(tp)
     fs = audit_telemetry(pts, stream=tp.stem)
     step("gps3sv01_telemetry", "summary", summarize(pts, fs), fs, {"telemetry": tp})
+    # an SDLS packet stream: per-packet authentication with the documented demo key (a forged packet, a replay, an unsigned one)
+    import os
+
+    from ..space.telemetry import load_with_auth
+
+    os.environ.setdefault("AERO_SDLS_KEY_1", "aero-sdls-demo-key")
+    sp = SAMPLES / "sdls_packets_sample.json"
+    pts, auth, afs = load_with_auth(sp)
+    fs = audit_telemetry(pts, stream=sp.stem) + afs
+    step("sdls_packets", "summary", summarize(pts, fs, auth), fs, {"telemetry": sp})
+    # apron capacity from detections: the detector's own output on the sample image, scored against the annotations
+    from ..vision import detections_from_json, evaluate, occupancy, zone_findings, zones_from_json
+
+    zl = zones_from_json(SAMPLES / "apron_hohn_zones.json")
+    truth = detections_from_json(SAMPLES / "apron_hohn_truth.json")
+    det_file = SAMPLES / "apron_hohn_detections_yolov8n.json"
+    dets = detections_from_json(det_file) if det_file.is_file() else truth
+    occ = occupancy(dets, zl)
+    fs = zone_findings(occ, zl, "apron_hohn.jpg", 0.0)
+    step("apron_hohn", "summary", {"image": "apron_hohn.jpg", "zones": [{"name": z.name, "capacity": z.capacity, "count": occ.get(z.name, 0)} for z in zl], "detections": len(dets),
+                                   "source": det_file.name if det_file.is_file() else "annotations", "evaluation": evaluate(dets, truth)}, fs,
+         {"image": SAMPLES / "apron_hohn.jpg", "zones": SAMPLES / "apron_hohn_zones.json", "truth": SAMPLES / "apron_hohn_truth.json"})
     # NASA's real UTM contract when it has been fetched (aero uas utm-fetch); the bundled samples otherwise stay unchecked
     contract = Path("data/uas/utm-domain-commons.json")
     if contract.is_file():

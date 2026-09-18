@@ -29,7 +29,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-04 Stream health: flooding and coverage collapse | implemented | ICAO-DOC9924, ICAO-A10 | SEC-016, SEC-017 | engine.py, poller.py | test_security.py |  |
 | C-05 Cross-feed corroboration | implemented | ICAO-DOC9924 | SEC-015 | corroborate.py | test_security.py | ST-10 |
 | C-06 Airspace and operations conformance | implemented | ICAO-DOC4444, ICAO-A11, CFR14-91.135, ICAO-A6 | OPS-001, OPS-002, OPS-003, OPS-004, OPS-005, SAF-003, SAF-004 | ecosystem.py | test_rules.py, test_ecosystem.py | ST-05 |
-| C-07 Apron capacity from imagery | partial | ICAO-A14 | OPS-VIS-001, OPS-VIS-002 | apron.py, detect.py | test_vision_apron.py |  |
+| C-07 Apron capacity from imagery | implemented | ICAO-A14 | OPS-VIS-001, OPS-VIS-002 | apron.py, detect.py | test_vision_apron.py, test_release_1_0.py |  |
 | C-08 Launch telemetry plausibility | implemented | CCSDS-133, CFR14-450 | SPC-001, SPC-002, SPC-003, SPC-004, SPC-005 | telemetry.py, footage.py | test_space.py, test_gap_fill.py |  |
 | C-09 Conjunction screening | implemented | CCSDS-508, CCSDS-502 | ORB-001, ORB-002, ORB-003, ORB-004, ORB-005, ORB-006, ORB-007, ORB-008 | orbital.py, cdm.py, maneuvers.py, satcat.py, cdm_inbox.py, spacetrack.py | test_satcat.py, test_space_ops.py, test_depth.py, test_orbital.py, test_cdm.py | ST-20, ST-06, ST-12 |
 | C-10 Debris mitigation compliance | implemented | NASA-STD-8719.14, ISO-24113 | DEB-001, DEB-002, DEB-003, DEB-004, DEB-005, DEB-006, DEB-007, DEB-008 | debris.py | test_space_ops.py | ST-13 |
@@ -56,8 +56,8 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-29 Passive-only operating policy | implemented | ICAO-A17, CFR14-450 |  | poller.py | test_app_security.py |  |
 | C-30 Threshold change control | implemented | ISO-27001, NIST-SP800-53 |  | tuning.py | test_tuning.py |  |
 | C-35 Continuous monitoring of the platform itself | implemented | NIST-CSF-2, NIST-SP800-53, ISO-27001 |  | observability.py | test_observability.py |  |
-| C-31 Software assurance classification | partial | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM |  | assurance.py | test_assurance_catalog.py |  |
-| C-32 Space data link security expectations | partial | CCSDS-355 |  | assurance.py | test_assurance_catalog.py |  |
+| C-31 Software assurance classification | implemented | NASA-NPR-7150.2, NASA-STD-8739.8, NASA-SLIM |  | assurance.py, reviews.py | test_assurance_catalog.py, test_release_1_0.py |  |
+| C-32 Space data link security expectations | implemented | CCSDS-355 | SPC-006, SPC-007, SPC-008 | assurance.py, sdls.py | test_assurance_catalog.py, test_release_1_0.py |  |
 | C-36 Data catalogue and reconciliation | implemented | NASA-SLIM, ISO-27001 |  | catalog.py | test_assurance_catalog.py | ST-15 |
 | C-37 Training-data provenance and scene classifier | implemented | NIST-AI-RMF, NASA-MEDIA |  | mesh.py, dataset.py, classifier.py, render.py | test_mesh_formats.py, test_gap_fill.py, test_dataset_classifier.py, test_depth.py | ST-14 |
 | C-38 Space weather watch | implemented | ICAO-A3, NOAA-SCALES | SWX-001, SWX-002, SWX-003, SWX-004, SWX-005 | donki.py, spaceweather.py | test_accounts_donki.py, test_feeds_risk.py | ST-17 |
@@ -131,6 +131,9 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | SPC-003 | C-08 |
 | SPC-004 | C-08 |
 | SPC-005 | C-08 |
+| SPC-006 | C-32 |
+| SPC-007 | C-32 |
+| SPC-008 | C-32 |
 | SWX-001 | C-38 |
 | SWX-002 | C-38 |
 | SWX-003 | C-38 |

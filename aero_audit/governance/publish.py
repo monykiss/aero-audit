@@ -99,6 +99,16 @@ def checks(root: str | Path = ".") -> list[dict[str, Any]]:
             except OSError:
                 continue
     row("PUB-11", "No Space-Track material tracked (user agreement, 10 USC 2274)", not st_hits, "clean" if not st_hits else "tracked: " + ", ".join(st_hits[:5]))
+    from .controls import CONTROLS
+
+    partial = [c.id for c in CONTROLS.values() if c.status != "implemented"]
+    row("PUB-12", "Every control implemented (the 1.0 bar; no partial or planned control)", not partial, "all implemented" if not partial else "open: " + ", ".join(partial))
+    from .contract import diff, load
+
+    d = diff(load(root / "contracts/contract-1.0.json"))
+    removed = {k: v for k, v in d["removed"].items() if v}
+    row("PUB-13", "Contract snapshot present and nothing removed from it (docs/STABILITY.md)", d["snapshot"] is not None and not d["breaking"],
+        ("no snapshot at contracts/contract-1.0.json" if d["snapshot"] is None else ("nothing removed" if not removed else "removed: " + "; ".join(f"{k}: {', '.join(v[:4])}" for k, v in removed.items()))))
     return rows
 
 

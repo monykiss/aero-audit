@@ -2,6 +2,28 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.0.0 - 2026-09-18
+
+The 1.0 bar: every control implemented, the public contract frozen, the honest numbers written into the reports.
+
+- **Space data link security practised** (C-32): SDLS-style packet streams (SPI, sequence, HMAC-SHA256 MAC) verified per packet
+  with keys from `AERO_SDLS_KEY_<spi>`, anti-replay on the sequence, and the authentication status of the transport recorded
+  in every telemetry report; SPC-006 (failed authentication), SPC-007 (accepted on trust), SPC-008 (replay); `space/sdls.py`.
+- **Assurance reviews practised** (C-31): a dated review record per component with cadence by class and safety relevance,
+  self-reviews labelled as such, automatic evidence (tests importing the component, lint, CodeQL, fuzzing, traceability,
+  documentation); `aero gov reviews`, `docs/generated/REVIEWS.md`, `docs/assurance/review_log.json`.
+- **Apron capacity closed the loop** (C-07): zones with declared capacity from JSON, detections from the detector or any
+  annotation file, detector recall and precision against annotations measured and written into every report (the COCO
+  baseline draws 5 boxes on the sample of which 2 match the 12 annotated transports; the number ships with the finding); `aero vision apron
+  --detections/--truth/--out`.
+- **Contract and stability policy**: `contracts/contract-1.0.json` snapshots CLI commands, rule ids, API routes, jobs,
+  studies, controls, playbooks, environment variables and the report envelope; `aero gov contract --check` and PUB-13
+  fail on any removal; `docs/STABILITY.md` states what is frozen and how deprecation works; PUB-12 requires every control
+  implemented; classifier Production/Stable.
+- TFR documents in local time zones are converted (US zone abbreviations; unknown zones flagged); launch records keep
+  mission type, orbit and a crewed flag, shown in the mission dossier; bench rows for the airspace join and reentry
+  subpoints.
+
 ## 0.8.0 - 2026-09-18
 
 - The air/space seam: FAA temporary flight restrictions fetched keyless (list plus XNOTAM geometry, times and

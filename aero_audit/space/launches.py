@@ -63,7 +63,9 @@ def parse(payload: dict[str, Any]) -> list[dict[str, Any]]:
         out.append({"id": r.get("id"), "name": r.get("name"), "provider": ((r.get("launch_service_provider") or {}).get("name")),
                     "status": status.get("abbrev") or status.get("name"), "net": r.get("net"), "window_start": r.get("window_start"), "window_end": r.get("window_end"),
                     "pad": pad.get("name"), "location": loc.get("name"), "country": loc.get("country_code"),
-                    "pad_lat": _f(pad.get("latitude")), "pad_lon": _f(pad.get("longitude")), "last_updated": r.get("last_updated"), "url": r.get("url")})
+                    "pad_lat": _f(pad.get("latitude")), "pad_lon": _f(pad.get("longitude")), "last_updated": r.get("last_updated"), "url": r.get("url"),
+                    "mission_type": (r.get("mission") or {}).get("type"), "orbit": ((r.get("mission") or {}).get("orbit") or {}).get("abbrev"),
+                    "crewed": bool(((r.get("rocket") or {}).get("spacecraft_stage") or {}).get("launch_crew")) or (r.get("mission") or {}).get("type") == "Human Exploration"})
     return out
 
 

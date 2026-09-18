@@ -299,8 +299,14 @@ and their hashes). `aero log verify-report <manifest>` re-hashes them; the Repor
   summaries carry the originator's Pc only.
 - The ICAO mapping of NOAA scales is a programme choice; the advisory centres apply the normative
   thresholds. The launch hazard radius is a default, not the published TFR.
-- Telemetry must be supplied as CSV. Reading the numbers off a webcast overlay (OCR) is not
-  implemented; when it is, it stays optional (tesseract) and its output is audited by the same rules.
+- Telemetry must be supplied as CSV, the public parallel-array JSON, or an SDLS-style packet stream
+  (`space/sdls.py`); reading the numbers off a webcast overlay (OCR) is not implemented. A plain
+  stream's report says "accepted on trust"; only a packet stream with keys gets a verified status.
+- TFR geometry is tested in the latitude/longitude plane (exact enough at tens of miles; a polygon
+  crossing the antimeridian would need splitting); local-time TFRs use the US zone abbreviations and
+  an unknown zone is read as UTC and flagged. The FAA list is the published state, not the history.
+- The reentry corridor is a ground track with a width, not a footprint: no breakup model, no
+  uncertainty, no TIP. It answers "who is under the pass", and the tracking authority answers when.
 - The GitHub tree API is rate-limited to 60 calls an hour anonymously; set `GITHUB_TOKEN` for more.
 
 ## Toward an upstream contribution

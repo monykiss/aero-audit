@@ -1,0 +1,104 @@
+{
+ "image": "apron_hohn.jpg",
+ "width": 1920,
+ "height": 1440,
+ "note": "approximate centres of the twelve parked C-160 transports, annotated by eye",
+ "detections": [
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.3255,
+   "cy": 0.4132,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.3542,
+   "cy": 0.4236,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.3828,
+   "cy": 0.434,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.4141,
+   "cy": 0.4444,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.4453,
+   "cy": 0.4549,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.4766,
+   "cy": 0.4653,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.5026,
+   "cy": 0.4757,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.5417,
+   "cy": 0.4861,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.5833,
+   "cy": 0.4965,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.625,
+   "cy": 0.5069,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.6641,
+   "cy": 0.5174,
+   "w": 0.0333,
+   "h": 0.0278
+  },
+  {
+   "label": "airplane",
+   "conf": 1.0,
+   "cx": 0.7005,
+   "cy": 0.5278,
+   "w": 0.0333,
+   "h": 0.0278
+  }
+ ]
+}

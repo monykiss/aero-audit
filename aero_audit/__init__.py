@@ -1,3 +1,3 @@
 """aero-audit: AI/ML and computer-vision auditing toolkit for aviation ops and ADS-B security."""
 
-__version__ = "0.8.0"
+__version__ = "1.0.0"
