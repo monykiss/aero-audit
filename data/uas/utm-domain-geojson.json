@@ -1,0 +1,114 @@
+{
+ "info": {
+  "description": "UTM geogrpahy model (swagger domain)",
+  "version": "v4",
+  "title": "UTM Geography Model"
+ },
+ "definitions": {
+  "Point": {
+   "type": "object",
+   "description": "GeoJSon Point, limited to 2D.",
+   "externalDocs": {
+    "url": "https://tools.ietf.org/html/rfc7946#section-3.1.2"
+   },
+   "properties": {
+    "type": {
+     "description": "The type of Geometry. In this case, must be 'Point' per GeoJSON spec.\n",
+     "type": "string",
+     "enum": [
+      "Point"
+     ]
+    },
+    "coordinates": {
+     "type": "array",
+     "maxItems": 2,
+     "minItems": 2,
+     "items": {
+      "type": "number",
+      "format": "double"
+     },
+     "example": [
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "LineString": {
+   "type": "object",
+   "required": [
+    "type",
+    "coordinates"
+   ],
+   "description": "GeoJSon LineString. Positions all 2D.",
+   "externalDocs": {
+    "url": "https://tools.ietf.org/html/rfc7946#section-3.1.4"
+   },
+   "properties": {
+    "type": {
+     "description": "The type of Geometry. In this case, must be 'LineString' per GeoJSON spec. LineString can have 4 to 30 points.\n",
+     "type": "string",
+     "enum": [
+      "LineString"
+     ]
+    },
+    "coordinates": {
+     "type": "array",
+     "maxItems": 30,
+     "minItems": 4,
+     "items": {
+      "type": "array",
+      "maxItems": 2,
+      "minItems": 2,
+      "items": {
+       "type": "number",
+       "format": "double"
+      }
+     }
+    }
+   }
+  },
+  "Polygon": {
+   "type": "object",
+   "required": [
+    "type",
+    "coordinates"
+   ],
+   "description": "GeoJSon Polygon. Positions all 2D.",
+   "externalDocs": {
+    "url": "https://tools.ietf.org/html/rfc7946#section-3.1.6"
+   },
+   "properties": {
+    "type": {
+     "description": "The type of Geometry. In this case, must be 'Polygon' per GeoJSON\nspec.  Note that the \"coordinates\" member is validated to be be an\narray of size one. This implies there are no interior rings allowed\ncurrently.\n",
+     "type": "string",
+     "enum": [
+      "Polygon"
+     ]
+    },
+    "coordinates": {
+     "type": "array",
+     "description": "The number of polygons allowed.  Currently 1, implying no interior rings.  If this number is changes, the maxItems should be considered.\nFrom RFC7946: o  For type \"Polygon\", the \"coordinates\" member MUST be an array of linear ring coordinate arrays.\no  For Polygons with more than one of these rings, the first MUST be the exterior ring, and any others MUST be interior rings.  The exterior ring bounds the surface, and the interior rings (if present) bound holes within the surface.\nAgain, note we only allow a single set of coordinates, implying no interior rings.",
+     "minItems": 1,
+     "maxItems": 1,
+     "items": {
+      "type": "array",
+      "description": "The number of vertices in this polygon. From RFC7946:\n  o  A linear ring is a closed LineString with four or more positions.\n\n  o  The first and last positions are equivalent, and they MUST contain\n  identical values; their representation SHOULD also be identical.\n\n  o  A linear ring is the boundary of a surface or the boundary of a\n  hole in a surface.\n\n  o  A linear ring MUST follow the right-hand rule with respect to the\n  area it bounds, i.e., exterior rings are counterclockwise, and\n  holes are clockwise.  (also in the spec:  parsers SHOULD NOT reject\n  Polygons that do not follow the right-hand rule.)\n\n  https://tools.ietf.org/html/rfc7946#section-3.1.6",
+      "minItems": 4,
+      "maxItems": 100,
+      "items": {
+       "type": "array",
+       "description": "The actual coordinates for a vertex of the linear ring.  Note that UTM does not allow additional elements other than long and lat in this array.",
+       "maxItems": 2,
+       "minItems": 2,
+       "items": {
+        "type": "number",
+        "format": "double"
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "enroute_positions_id": "8f1c2b6e-3d4a-4e5f-9a1b-2c3d4e5f6a7b",
+ "altitude_gps": 120.5,
+ "altitude_num_gps_satellites": 9,
+ "hdop_gps": 1.2,
+ "location": {
+  "type": "Point",
+  "coordinates": [
+   -74.0,
+   40.7
+  ]
+ },
+ "time_measured": "2026-09-17T12:00:00.000Z",
+ "time_sent": "2026-09-17T12:00:01.000Z",
+ "track_bearing": "east",
+ "track_bearing_reference": "TRUE_NORTH",
+ "track_bearing_uom": "DEG",
+ "track_ground_speed": 12.0,
+ "track_ground_speed_units": "KT",
+ "uss_name": "aero-audit-test",
+ "vdop_gps": 1.5
+}

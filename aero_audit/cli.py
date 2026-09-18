@@ -15,6 +15,7 @@ from rich.table import Table
 from . import __version__
 from .audit import AuditEngine, write_reports
 from .audit.findings import SEVERITY_ORDER
+from .audit.generic_report import write_generic
 from .config import REGIONS, Region, bbox_region, get_region, parse_regions, settings
 from .ingest import PROVIDERS, iter_recording, make_provider
 from .ingest.metar import fetch_metars, summarize_metar
@@ -532,6 +533,58 @@ def config_init(out: Path = typer.Option(Path("aero.toml"))) -> None:
     con.print(f"Wrote {out}")
 
 
+@data_app.command("catalog")
+def data_crisis_fetch(events: list[str] | None = typer.Option(None, help="NWS event names (default: flood, flash flood, tornado, hurricane, red flag warnings)"),
+                      area: str | None = typer.Option(None, help="State code, e.g. IN"), study: bool = typer.Option(True, help="Run ST-11 (airports inside the extents) on the result")) -> None:
+    """Live crisis extents from the NWS alerts API (keyless, public domain) as GeoJSON with provenance; then the airports-in-extent study."""
+    from .ingest import nws_alerts
+
+    p = asyncio.run(nws_alerts.fetch(tuple(events) if events else nws_alerts.DEFAULT_EVENTS, area=area))
+    s = nws_alerts.summary(p)
+    con.print(f"{s['features']} extent(s) with geometry ({s['by_event']}), {s['without_geometry']} zone-only alerts skipped -> {p}")
+    if study and s["features"]:
+        from .governance import run_study
+
+        rec = run_study("ST-11", Path("reports/studies"), geojson=p)
+        con.print(f"ST-11: {json.dumps({k: v for k, v in rec['result'].items() if k not in ('airports',)}, default=str)[:400]}")
+        con.print(f"Result: {rec['files']['md']}")
+
+
+data_app.command("crisis-fetch")(data_crisis_fetch)
+
+
+def data_catalog(action: str = typer.Argument("build", help="build | search | reconcile"), q: str | None = typer.Option(None), collection: str | None = typer.Option(None),
+                 path: Path = typer.Option(Path("data/app/catalog.json"))) -> None:
+    """CMR-style data catalogue: every recording, report, study, asset, element set, CDM and model as a granule with hash, time bounds and provenance."""
+    from .governance.catalog import build_catalog, load_catalog, reconcile, save_catalog, search
+
+    if action == "build":
+        cat = build_catalog(".")
+        save_catalog(cat, path)
+        t = Table("collection", "granules", "MB")
+        for name, c in cat["collections"].items():
+            t.add_row(name, str(c["count"]), f"{c['bytes'] / 1e6:.1f}")
+        con.print(t)
+        con.print(f"{cat['granules_total']} granules, {cat['bytes_total'] / 1e9:.2f} GB -> {path}")
+    elif action == "search":
+        cat = load_catalog(path) or build_catalog(".")
+        t = Table("collection", "granule", "MB", "time", "provenance")
+        for g in search(cat, q, collection)[:60]:
+            t.add_row(g["collection"], g["id"][:70], f"{g['bytes'] / 1e6:.2f}", str(g.get("time_start", ""))[:10], "yes" if g.get("provenance") else "")
+        con.print(t)
+    elif action == "reconcile":
+        old = load_catalog(path)
+        new = build_catalog(".")
+        r = reconcile(old, new)
+        con.print(f"since {r['previous']}: {len(r['added'])} added, {len(r['removed'])} removed, {len(r['changed'])} changed; drift={r['drift']}")
+        for k in ("added", "removed", "changed"):
+            for g in r[k][:20]:
+                con.print(f"  {k:<8} {g}")
+        save_catalog(new, path)
+    else:
+        raise typer.BadParameter("action must be build, search or reconcile")
+
+
 @data_app.command("prune")
 def data_prune(
     days: int = typer.Option(30, help="Delete recordings older than this"),
@@ -749,6 +802,66 @@ def demo(
 
 
 @app.command()
+def accounts(probe: bool = typer.Option(False, help="One harmless read per service, authenticated where credentials exist; values never printed")) -> None:
+    """External services: what each unlocks, its keyless fallback, where to sign up, and whether it is configured (values never printed)."""
+    from .integrations import missing, status
+
+    t = Table("service", "configured", "env", "unlocks", "without it", "sign up")
+    for i in status():
+        conf = "[green]yes" if i["configured"] and i["required"] else ("[cyan]keyless" if not i["required"] else "[yellow]no")
+        t.add_row(i["name"], conf, " ".join(i["env"] + i["optional_env"]), i["unlocks"][:70], i["keyless"][:50], i["signup"][:60])
+    con.print(t)
+    if probe:
+        from .integrations import probe as run_probe
+
+        pt = Table("service", "probe", "detail")
+        for r in run_probe():
+            pt.add_row(r["name"], "[green]OK" if r["ok"] else ("[yellow]skip" if r["ok"] is None else "[red]FAIL"), r["detail"])
+        con.print(pt)
+    miss = missing()
+    if miss:
+        con.print("Not configured: " + ", ".join(miss) + ". Copy .env.example to .env, fill the lines, `source .env`, then `aero accounts --probe`.")
+    con.print("Set variables in a git-ignored .env (see docs/ACCOUNTS.md); never on the command line.")
+
+
+@app.command("accounts-setup")
+def accounts_setup(service: str = typer.Argument("spacetrack", help="spacetrack | opensky | nasa_api | github"),
+                   env_file: Path = typer.Option(Path(".env"), help="Git-ignored env file to write (mode 0600)"),
+                   probe: bool = typer.Option(True, "--probe/--no-probe", help="Verify the credentials with one harmless read afterwards")) -> None:
+    """Prompt for a service's credentials in THIS terminal (hidden input, never echoed, never logged) and write them to .env.
+
+    The tool never creates accounts or fills web forms; you type here, the file stays on this machine."""
+    import os
+    import sys
+
+    from .integrations import INTEGRATIONS, SETUP_FIELDS, write_env
+    from .integrations import probe as run_probe
+
+    if service not in SETUP_FIELDS:
+        raise typer.BadParameter(f"unknown service {service}; choose from {', '.join(SETUP_FIELDS)}")
+    if not sys.stdin.isatty() and not os.getenv("AERO_SETUP_ALLOW_PIPE"):
+        raise typer.BadParameter("run this in an interactive terminal: credentials are typed, never passed on a command line or through a pipe")
+    integ = INTEGRATIONS[service]
+    con.print(f"[bold]{integ.name}[/]: {integ.unlocks}\nSign up: {integ.signup}\nValues are hidden and go only to {env_file} (mode 0600, git-ignored).")
+    values: dict[str, str] = {}
+    for var, prompt, secret in SETUP_FIELDS[service]:
+        v = typer.prompt(prompt, hide_input=secret, confirmation_prompt=secret).strip()
+        if not v:
+            raise typer.BadParameter(f"{var} cannot be empty")
+        values[var] = v
+    p = write_env(values, env_file)
+    for k, v in values.items():
+        os.environ[k] = v  # so the probe below sees them; the shell needs `source .env`
+    con.print(f"Wrote {', '.join(values)} to {p}. Run `source {p}` in your shell (or restart `aero app`).")
+    if probe:
+        rows = {r["key"]: r for r in run_probe()}
+        r = rows[service]
+        con.print(("[green]OK[/] " if r["ok"] else "[red]FAIL[/] ") + r["detail"])
+        if not r["ok"]:
+            con.print("Space-Track approves new accounts by hand; if you registered today, try again tomorrow." if service == "spacetrack" else "Check the values and try again.")
+
+
+@app.command()
 def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the public feeds")) -> None:
     """Check this machine: Python, dependencies, samples, model integrity, ports, feeds, audit chain."""
     import importlib
@@ -803,6 +916,22 @@ def doctor(net: bool = typer.Option(True, "--net/--no-net", help="Probe the publ
     ok("thresholds", f"{n_over} override(s) in {tuning.DEFAULT_PATH}" if n_over else "defaults (no aero.toml)")
     creds = bool(os.getenv("OPENSKY_CLIENT_ID")) and bool(os.getenv("OPENSKY_CLIENT_SECRET"))
     ok("secrets", "OpenSky credentials present in the environment (values never printed)" if creds else "no OpenSky credentials (anonymous quota applies); .env is git-ignored")
+    from .integrations import INTEGRATIONS, missing
+
+    miss = missing()
+    for mod, why in (("sgp4", "orbital screening and element history"), ("cv2", "frames, renders, scene classifier (optional)")):
+        try:
+            importlib.import_module(mod)
+            ok(f"space: {mod}", why)
+        except ImportError:
+            (warn if mod == "cv2" else fail)(f"space: {mod}", f"missing; needed for {why}")
+    els = sorted(Path("data/space/elements").glob("*.tle")) if Path("data/space/elements").is_dir() else []
+    ok("space: elements", f"{len(els)} cached set file(s), newest {((time.time() - els[-1].stat().st_mtime) / 3600):.1f} h old" if els else "none cached; `aero space conjunctions` fetches CelesTrak keyless")
+    ledger = Path("data/space/cdm/ledger.jsonl")
+    ok("space: cdm ledger", f"{sum(1 for _ in ledger.open())} row(s)" if ledger.is_file() else "empty; drop CDMs in data/space/cdm/inbox or pull Space-Track")
+    samples = [Path("data/samples") / n for n in ("swpc_scales_sample.json", "ll2_launches_sample.json", "synthetic_mission.json", "synthetic_conjunction.cdm")]
+    (ok if all(x.is_file() for x in samples) else fail)("space: samples", "space weather, launches, mission, CDM samples present" if all(x.is_file() for x in samples) else "missing: " + ", ".join(x.name for x in samples if not x.is_file()))
+    (warn if miss else ok)("integrations", f"{len(INTEGRATIONS) - len(miss)}/{len(INTEGRATIONS)} configured or keyless; missing: {', '.join(miss)} (see `aero accounts`)" if miss else "every integration configured or keyless")
     for d in ("data/recordings", "data/app", "reports", "logs", "models"):
         try:
             Path(d).mkdir(parents=True, exist_ok=True)
@@ -924,6 +1053,878 @@ def log_verify_report(manifest: Path = typer.Argument(..., help="reports/<name>.
     con.print("[green]all files match the manifest")
 
 
+# ---- space intake (NASA open assets, launch footage, telemetry) ---------------------------------
+space_app = typer.Typer(help="NASA open assets and launch footage: catalogue, verified download, frames, captions, telemetry audit.")
+app.add_typer(space_app, name="space")
+
+
+@space_app.command("catalog")
+def space_catalog(
+    ref: str = typer.Option("master"),
+    out: Path = typer.Option(Path("data/space/nasa3d_catalog.json")),
+    kind: str | None = typer.Option(None, help="model | image | archive | doc | other"),
+    subject: str | None = typer.Option(None, help="Regex on the subject folder or path, e.g. 'ISS|Orion'"),
+    limit: int = typer.Option(25),
+) -> None:
+    """List nasa/NASA-3D-Resources (1,500+ files, 5 GB) without cloning it; write a catalogue with git blob ids."""
+    from .space.nasa3d import fetch_catalog, save_catalog
+
+    cat = asyncio.run(fetch_catalog(ref))
+    path = save_catalog(cat, out)
+    s = cat.summary()
+    con.print(f"{s['assets']} assets, {s['bytes'] / 1e9:.2f} GB, {s['subjects']} subjects; by kind {s['by_kind']}")
+    con.print(f"Catalogue: [bold]{path}[/]  (licence: {cat.licence[:60]}...)")
+    t = Table("kind", "size", "subject", "file", "blob sha1")
+    for a in cat.filter(kind, subject)[:limit]:
+        t.add_row(a.kind, f"{a.size / 1e6:.1f} MB", a.subject[:40], a.name[:48], a.sha[:10])
+    con.print(t)
+
+
+@space_app.command("fetch")
+def space_fetch(
+    subject: str = typer.Argument(..., help="Regex on the subject folder or path"),
+    kind: str | None = typer.Option("image", help="model | image | archive | doc; omit for all"),
+    max_mb: float = typer.Option(50.0, help="Skip files larger than this"),
+    limit: int = typer.Option(5),
+    catalog: Path = typer.Option(Path("data/space/nasa3d_catalog.json")),
+    dest: Path = typer.Option(Path("data/space/nasa3d")),
+) -> None:
+    """Download matching assets from the catalogue; every file is verified against its git blob id."""
+    from .space.nasa3d import download, load_catalog
+
+    cat = load_catalog(catalog)
+    picks = cat.filter(kind or None, subject, max_bytes=int(max_mb * 1e6))[:limit]
+    if not picks:
+        raise typer.BadParameter("nothing matched; run `aero space catalog` first or loosen the filter")
+    for a in picks:
+        try:
+            p = asyncio.run(download(a, dest, cat.ref))
+            con.print(f"[green]ok[/] {a.path} ({a.size / 1e6:.1f} MB) -> {p}")
+        except (ValueError, PermissionError) as e:
+            con.print(f"[red]refused[/] {a.path}: {e}")
+
+
+@space_app.command("images")
+def space_images(
+    query: str = typer.Argument(..., help="Search text, e.g. 'Artemis launch'"),
+    media: str | None = typer.Option(None, help="image | video | audio"),
+    year_start: int | None = typer.Option(None),
+    year_end: int | None = typer.Option(None),
+    limit: int = typer.Option(10),
+    get: int | None = typer.Option(None, help="Download this result number"),
+    variant: str = typer.Option("medium", help="orig | large | medium | small | mobile | thumb | captions | metadata"),
+    dest: Path = typer.Option(Path("data/space/nasa_media")),
+) -> None:
+    """Search the NASA Image and Video Library; optionally download one rendition with a provenance sidecar."""
+    from .space.nasa_images import download, search
+
+    items, total = asyncio.run(search(query, media, year_start, year_end, limit))
+    con.print(f"{total} hits for '{query}'{' (' + media + ')' if media else ''}; showing {len(items)}")
+    t = Table("#", "nasa_id", "type", "date", "centre", "title")
+    for i, it in enumerate(items, 1):
+        t.add_row(str(i), it.nasa_id[:44], it.media_type, it.date_created[:10], it.center or "", it.title[:60] + (" [c]" if it.copyright else ""))
+    con.print(t)
+    if get:
+        if not 1 <= get <= len(items):
+            raise typer.BadParameter(f"--get must be 1..{len(items)}")
+        it = items[get - 1]
+        if it.copyright:
+            con.print(f"[yellow]note: this item carries a copyright line: {it.copyright}")
+        p = asyncio.run(download(it, variant, dest))
+        con.print(f"[green]saved[/] {p} (+ provenance sidecar, manifest updated)")
+
+
+@space_app.command("frames")
+def space_frames(
+    video: Path = typer.Argument(..., help="Local video file"),
+    every: float = typer.Option(1.0, help="Seconds between frames"),
+    max_frames: int = typer.Option(600),
+    start: float = typer.Option(0.0),
+    end: float | None = typer.Option(None),
+    out: Path | None = typer.Option(None),
+    detect: bool = typer.Option(False, help="Run the tiled detector on each frame (needs the [vision] extra)"),
+    weights: str = typer.Option("yolov8n.pt"),
+) -> None:
+    """Extract frames with a hashed manifest; optionally detect objects on each frame."""
+    from .space.footage import detect_frames, extract_frames
+
+    m = extract_frames(video, out, every, max_frames, start, end)
+    con.print(f"{len(m.frames)} frames from {video.name} ({m.fps:.2f} fps) -> {Path(m.frames[0]['file']).parent if m.frames else out}")
+    if detect and m.frames:
+        res = detect_frames(m, weights)
+        labels: dict[str, int] = {}
+        for r in res:
+            for lab in r["labels"]:
+                labels[lab] = labels.get(lab, 0) + 1
+        con.print(f"frames with detections: {sum(1 for r in res if r['detections'])}/{len(res)}; labels {labels}")
+        Path(m.frames[0]["file"]).parent.joinpath("detections.json").write_text(json.dumps(res, indent=1))
+
+
+@space_app.command("captions")
+def space_captions(srt: Path = typer.Argument(..., help="SRT caption file (NASA videos ship one)")) -> None:
+    """Parse captions into a launch-event timeline (liftoff, max-Q, MECO, separation, SECO, landing)."""
+    from .space.footage import events_from_captions, parse_srt, timeline_summary
+
+    caps = parse_srt(srt.read_text(errors="replace"))
+    summary = timeline_summary(events_from_captions(caps))
+    con.print(f"{len(caps)} captions; {len(summary['events'])} milestones; gaps {summary['gaps']}")
+    t = Table("t (s)", "event", "caption")
+    for e in summary["events"]:
+        t.add_row(f"{e['t_s']:.1f}", e["kind"], e["text"][:80])
+    con.print(t)
+
+
+@space_app.command("conjunctions")
+def space_conjunctions(
+    group: str | None = typer.Option("stations", help="CelesTrak group to fetch (stations, active, starlink, gps-ops, ...)"),
+    tle: Path | None = typer.Option(None, help="Local TLE file instead of fetching"),
+    hours: float = typer.Option(24.0),
+    threshold_km: float = typer.Option(10.0),
+    max_sets: int = typer.Option(150, help="Cap the pairwise screen (O(n^2))"),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Fetch elements (keyless, CelesTrak), propagate with SGP4, screen close approaches, flag stale sets (ORB-001..003)."""
+    from .space.orbital import fetch_group, findings, parse_tle, screen
+
+    path = tle or asyncio.run(fetch_group(group or "stations"))
+    sets = parse_tle(Path(path).read_text())
+    con.print(f"{len(sets)} element sets from {path}")
+    res = screen(sets, None, hours, threshold_km, max_sets=max_sets)
+    fs = findings(res, sets[:max_sets], stream=Path(path).stem)
+    from .space import satcat as sc
+
+    cat = sc.load()
+    if cat:
+        fs += sc.findings_for_elements([s.norad_id for s in sets[:max_sets]], cat, stream=Path(path).stem)
+        res["catalogue"] = {a["a_norad"]: sc.enrich([a["a_norad"]], cat)[a["a_norad"]] for a in res["approaches"][:50]} | {a["b_norad"]: sc.enrich([a["b_norad"]], cat)[a["b_norad"]] for a in res["approaches"][:50]}
+    con.print(f"screened {res['pairs']} pairs over {hours:g} h: {len(res['approaches'])} approaches under {threshold_km:g} km "
+              f"({len(res['co_moving'])} co-moving pairs set aside); {sum(1 for f in fs if f.rule_id == 'ORB-001')} stale sets; {len(res['propagation_errors'])} propagation errors")
+    t = Table("rule", "sev", "object", "detail")
+    for f in fs[:40]:
+        t.add_row(f.rule_id, f.severity.value, (f.callsign or "")[:24], f.title[:70])
+    con.print(t)
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"conjunctions_{(group or Path(path).stem)}", "screen", res, fs, inputs={"elements": path})["json"]
+    con.print(f"Report: {jp}  ({res['covariance']})")
+
+
+@space_app.command("cdm")
+def space_cdm(
+    path: Path = typer.Argument(..., help="CCSDS Conjunction Data Message (KVN)"),
+    hbr_m: float = typer.Option(20.0, help="Combined hard-body radius in metres"),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Assess a CDM: probability of collision from states and covariances (2D short-encounter), ORB-004/005 findings."""
+    from .space.cdm import assess, parse_cdm
+
+    cdm = parse_cdm(path.read_text())
+    res, fs = assess(cdm, hbr_m)
+    if "pc" in res:
+        pc = res["pc"]
+        con.print(f"{cdm.message_id or path.name}: {' vs '.join(o.name or o.designator for o in cdm.objects)}  TCA {cdm.tca}")
+        con.print(f"Pc = [bold]{pc['pc']:.3e}[/]  miss {pc['miss_m']:.1f} m (stated {pc['stated_miss_m']})  rel speed {pc['relative_speed_ms']:.0f} m/s  "
+                  f"in-plane sigmas {pc['sigma_plane_m'][0]:.0f}/{pc['sigma_plane_m'][1]:.0f} m  HBR {hbr_m:g} m")
+    else:
+        con.print(f"[red]{res.get('error')}")
+    for f in fs:
+        con.print(f"  [{f.severity.value}] {f.rule_id} {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"cdm_{(cdm.message_id or path.stem).replace('/', '_')}", "assessment", res, fs, inputs={"cdm": path})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("debris")
+def space_debris(mission: Path = typer.Argument(..., help="Mission description JSON (see data/samples/synthetic_mission.json)"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Debris-mitigation checklist (NASA-STD-8719.14, ISO 24113, FCC 5-year rule): DEB-001..008 with a lifetime estimate."""
+    from .space.debris import Mission, checklist
+
+    m = Mission.from_json(mission)
+    summary, fs = checklist(m)
+    t = Table("rule", "requirement", "status", "detail")
+    for r in summary["rows"]:
+        t.add_row(r["rule"], r["requirement"], {"pass": "[green]pass", "fail": "[red]FAIL", "unknown": "[yellow]unknown"}[r["status"]], r["detail"][:90])
+    con.print(t)
+    con.print(f"{summary['mission']} ({summary['regime']}): {summary['passed']} pass, {summary['failed']} fail, {summary['unknown']} unknown; "
+              f"estimated lifetime {summary['estimated_lifetime_years']} y")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"debris_{m.name}", "summary", summary, fs, inputs={"mission": mission})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("cdm-inbox")
+def space_cdm_inbox(inbox: Path = typer.Option(Path("data/space/cdm/inbox")), ledger: Path = typer.Option(Path("data/space/cdm/ledger.jsonl")),
+                    hbr_m: float = typer.Option(20.0)) -> None:
+    """Assess every new CDM (KVN or XML) in the inbox, append to the ledger, and show conjunction events with their Pc trend."""
+    from .space.cdm_inbox import events, process_inbox
+
+    r = process_inbox(inbox, ledger, hbr_m)
+    con.print(f"processed {len(r['processed'])} new, skipped {r['skipped_duplicates']} duplicates, {len(r['errors'])} unreadable")
+    for e in r["errors"]:
+        con.print(f"  [red]{e['file']}: {e['error']}")
+    t = Table("pair", "TCA", "h to TCA", "msgs", "latest Pc", "max Pc", "trend", "latest findings")
+    for ev in events(ledger)[:30]:
+        t.add_row(ev["pair"], (ev["tca"] or "")[:19], str(ev["hours_to_tca"]), str(ev["messages"]), f"{ev['latest_pc']:.2e}" if ev["latest_pc"] is not None else "-",
+                  f"{ev['max_pc']:.2e}" if ev["max_pc"] is not None else "-", ev["trend"], ", ".join(f["rule"] for f in ev["latest_findings"]) or "-")
+    con.print(t)
+
+
+@space_app.command("spacetrack")
+def space_spacetrack(days: int = typer.Option(7), min_pc: float = typer.Option(1e-7), ledger: Path = typer.Option(Path("data/space/cdm/ledger.jsonl"))) -> None:
+    """Pull public conjunction summaries from Space-Track (SPACETRACK_USER / SPACETRACK_PASS in the environment) into the ledger."""
+    from .space.cdm_inbox import record_summary
+    from .space.spacetrack import SpaceTrack, SpaceTrackError
+
+    try:
+        rows = SpaceTrack().cdm_public(days, min_pc)
+    except SpaceTrackError as e:
+        raise typer.BadParameter(str(e)) from e
+    n = record_summary(rows, ledger)
+    con.print(f"{len(rows)} public conjunctions in the last {days} days above Pc {min_pc:g}; {n} new ledger rows")
+
+
+@space_app.command("dataset")
+def space_dataset(
+    per_class: int = typer.Option(30), dest: Path = typer.Option(Path("data/space/dataset")),
+    nasa3d_catalog: Path | None = typer.Option(None, help="Add NASA-3D model previews from this catalogue"),
+    library: bool = typer.Option(True, "--library/--no-library", help="Search the NASA image library for the default classes"),
+) -> None:
+    """Build a labelled, hashed, attributed image dataset (NASA library + NASA-3D previews) with deterministic splits."""
+    from .space.dataset import (
+        DEFAULT_CLASSES,
+        add_nasa3d_previews,
+        build_from_library,
+        to_classify_layout,
+        write_manifest,
+    )
+
+    items = []
+    if library:
+        items += asyncio.run(build_from_library(DEFAULT_CLASSES, per_class, dest))
+    if nasa3d_catalog:
+        items += asyncio.run(add_nasa3d_previews(nasa3d_catalog, dest))
+    if not items:
+        raise typer.BadParameter("no images collected: enable --library and/or pass --nasa3d-catalog")
+    mp = write_manifest(items, dest, DEFAULT_CLASSES)
+    layout = to_classify_layout(mp)
+    counts: dict[str, int] = {}
+    for it in items:
+        counts[it["label"]] = counts.get(it["label"], 0) + 1
+    con.print(f"{len(items)} items {counts} -> {mp}; classification layout at {layout}")
+
+
+@space_app.command("classify-train")
+def space_classify_train(manifest: Path = typer.Argument(Path("data/space/dataset/manifest.json")), out: Path = typer.Option(Path("models/scene_classifier.joblib"))) -> None:
+    """Train the scene classifier on a dataset manifest; writes the model, its card and a registry entry."""
+    from .space.classifier import train
+
+    stats = train(manifest, out)
+    con.print(f"classes {stats['classes']}; {stats['n_train']} train / {stats['n_val']} val; accuracy [bold]{stats['accuracy']:.1%}[/]; sha256 {stats['sha256'][:12]}")
+    for k, v in stats["per_class"].items():
+        con.print(f"  {k}: P {v['precision']} R {v['recall']} n={v['support']}")
+
+
+@space_app.command("classify")
+def space_classify(paths: list[Path] = typer.Argument(..., help="Images, or one frames.manifest.json"), model: Path = typer.Option(Path("models/scene_classifier.joblib")),
+                   allow_unverified: bool = typer.Option(False)) -> None:
+    """Classify images or extracted frames with the registered scene classifier."""
+    from .space.classifier import classify_frames, load, predict
+
+    m = load(model, allow_unverified)
+    if len(paths) == 1 and paths[0].name.endswith("frames.manifest.json"):
+        rows = classify_frames(json.loads(paths[0].read_text()), m)
+        for r in rows:
+            con.print(f"  t={r['t_s']:8.2f}s  {r['label']:<10} {r['proba']:.2f}")
+        return
+    for r in predict(m, [str(p) for p in paths]):
+        con.print(f"  {r['label']:<10} {r['proba']:.2f}  {r['path']}")
+
+
+@space_app.command("weather")
+def space_weather_cmd(file: Path | None = typer.Option(None, help="Cached or sample SWPC product instead of fetching (e.g. data/samples/swpc_scales_sample.json)"),
+                      recording: Path | None = typer.Option(None, help="Recording whose high-latitude traffic to list as exposed"),
+                      lat_min: float = typer.Option(60.0, help="Poleward of this latitude counts as exposed"), out: Path = typer.Option(Path("reports")),
+                      donki: bool = typer.Option(False, help="Cross-check with NASA DONKI notifications (NASA_API_KEY or DEMO_KEY)")) -> None:
+    """NOAA SWPC scales and Kp (keyless) mapped to ICAO advisory conditions (SWX-001..004); optionally the flights exposed (SWX-005) and a DONKI cross-check."""
+    from .space import spaceweather
+
+    path = file or asyncio.run(spaceweather.fetch())
+    summary, fs = spaceweather.assess(json.loads(Path(path).read_text()))
+    if donki:
+        from .space import donki as dk
+
+        dp = asyncio.run(dk.fetch())
+        summary["donki"] = dk.crosscheck(summary, json.loads(dp.read_text())["notifications"])
+        con.print("DONKI: " + " · ".join(f"{k}: {v['agreement']} ({v['donki_notifications']} notif.)" for k, v in summary["donki"]["effects"].items()))
+    if recording:
+        exp, fs2 = spaceweather.exposed_flights(recording, summary["icao_advisory_conditions"], lat_min)
+        summary["exposed"] = exp
+        fs += fs2
+    con.print(f"product {summary['product_time']}: R{summary['scales_now']['R']} S{summary['scales_now']['S']} G{summary['scales_now']['G']} · Kp {summary['kp']} · "
+              f"ICAO conditions {summary['icao_advisory_conditions']}" + (f" · exposed aircraft {summary['exposed']['aircraft']}" if recording else ""))
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, "space_weather", "summary", summary, fs, inputs={"product": path, "recording": recording})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("launches")
+def space_launches_cmd(mode: str = typer.Option("upcoming", help="upcoming | previous"), limit: int = typer.Option(20),
+                       file: Path | None = typer.Option(None, help="Cached or sample launch file instead of fetching (e.g. data/samples/ll2_launches_sample.json)"),
+                       recording: Path | None = typer.Option(None, help="Recording to join: aircraft inside the hazard radius during each window"),
+                       hazard_nm: float = typer.Option(50.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """Launch windows and pads from Launch Library 2 (keyless, 15/h); joined to a recording they give LCH-001..003."""
+    from .space import launches
+
+    path = file or asyncio.run(launches.fetch(mode, limit))
+    payload = json.loads(Path(path).read_text())
+    rows = payload.get("launches", [])
+    t = Table("launch", "provider", "status", "window start", "pad", "location")
+    for r in rows[:20]:
+        t.add_row((r.get("name") or "")[:40], (r.get("provider") or "")[:20], str(r.get("status")), str(r.get("window_start")), str(r.get("pad"))[:22], str(r.get("location"))[:30])
+    con.print(t)
+    if recording:
+        summary, fs = launches.join_traffic(payload, recording, hazard_nm)
+        con.print(f"{summary['overlapping']} window(s) overlap the recording; findings {len(fs)}")
+        for f in fs:
+            con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+        out.mkdir(parents=True, exist_ok=True)
+        jp = write_generic(out, "launches", "summary", summary, fs, inputs={"launches": path, "recording": recording})["json"]
+        con.print(f"Report: {jp}")
+
+
+@space_app.command("watch")
+def space_watch(schedule: str = typer.Option("cdm_inbox=600,space_weather=900,launches=3600", help="job=seconds,... (jobs: cdm_inbox spacetrack_pull conjunctions space_weather launches catalog_build); spacetrack_pull=3600 is added when credentials exist"),
+                offline: bool = typer.Option(False, help="Skip network jobs"), once: bool = typer.Option(False, help="Run every job once and exit")) -> None:
+    """Headless scheduled intake without the web app: the same job registry, the same reports, one log line per run."""
+    import time as _time
+
+    from .integrations import INTEGRATIONS
+    from .web.jobs import JobManager
+    from .web.schedule import Scheduler, parse_schedule
+    from .web.space_jobs import REGISTRY
+
+    if INTEGRATIONS["spacetrack"].configured() and "spacetrack_pull" not in schedule:
+        schedule += ",spacetrack_pull=3600"
+    jm = JobManager(REGISTRY, persist=Path("data/app/jobs.json"))
+    sched = Scheduler(lambda t, p: jm.submit(t, p), set(REGISTRY), parse_schedule(schedule), offline=offline)
+    if sched.unknown:
+        raise typer.BadParameter(f"unknown job(s): {', '.join(sched.unknown)}")
+    con.print(f"watching: {sched.schedule} (offline={offline}); Ctrl-C to stop")
+    try:
+        while True:
+            for name in sched.tick(_time.time() + (1e9 if once else 0.0)):
+                con.print(f"{_stamp()} submitted {name}")
+            if once:
+                while any(j.status in ("queued", "running") for j in jm.jobs.values()):
+                    _time.sleep(0.5)
+                for j in jm.jobs.values():
+                    con.print(f"  {j.type}: {j.status} {j.error or json.dumps(j.result, default=str)[:160]}")
+                break
+            _time.sleep(5)
+    except KeyboardInterrupt:
+        con.print("stopped")
+
+
+@space_app.command("render")
+def space_render(model: Path = typer.Argument(..., help="Model file: .obj, .stl, .glb, .3ds or .lwo"), label: str | None = typer.Option(None, help="Class label (default: file stem)"),
+                 n_yaw: int = typer.Option(12), size: int = typer.Option(256), dest: Path = typer.Option(Path("data/space/renders")),
+                 manifest: Path | None = typer.Option(None, help="Append the renders as items to this dataset manifest")) -> None:
+    """Multi-view silhouette renders of a model (STL, GLB, 3DS, LightWave, OBJ; numpy z-buffer) for training data, with a manifest and optional dataset append."""
+    from .space import render
+    from .space.dataset import load_manifest, write_manifest
+
+    m = render.render_views(model, dest, label, size, n_yaw)
+    con.print(f"{len(m['views'])} views of {m['label']} ({m['vertices']} vertices, {m['triangles']} triangles) under {Path(m['views'][0]['file']).parent}")
+    if manifest:
+        items = render.dataset_items(m)
+        old = load_manifest(manifest)["items"] if manifest.is_file() else []
+        mp = write_manifest(old + items, manifest.parent)
+        con.print(f"Manifest: {mp} (+{len(items)} items)")
+
+
+@space_app.command("maneuvers")
+def space_maneuvers(files: list[Path] | None = typer.Argument(None, help="Element files (default: every cached .tle)"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Element history per object: manoeuvre-scale changes (ORB-006) and imminent decay (ORB-007) from cached element sets."""
+    from .space import maneuvers
+
+    summary, fs = maneuvers.analyse(files or None)
+    con.print(f"{summary['objects']} objects from {len(summary['files'])} file(s), {summary['with_history']} with history: {len(summary['changes'])} changes, {len(summary['decaying'])} decaying")
+    for f in fs[:30]:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, "maneuvers", "summary", summary, fs, inputs={f"elements{i}": f for i, f in enumerate(files or [])})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("demo")
+def space_demo(out: Path = typer.Option(Path("reports")), recording: Path | None = typer.Option(None), max_batches: int | None = typer.Option(None),
+               docs: bool = typer.Option(True, help="Also rebuild docs/generated and the data catalogue")) -> None:
+    """Every space and UAS analysis on the bundled samples, offline, each with a report and manifest; then the SPACE and UAS pages have data."""
+    from .space.demo import run
+
+    rows = run(out, recording, max_batches)
+    t = Table("step", "findings", "rules", "report")
+    for r in rows:
+        t.add_row(r["step"], str(r["findings"]), ", ".join(r["rules"])[:40], r["report"])
+    con.print(t)
+    if docs:
+        from .docs_build import build
+        from .governance import catalog
+
+        build()
+        catalog.save_catalog(catalog.build_catalog("."))
+        con.print("docs/generated rebuilt; data catalogue saved")
+    con.print("Open the pages: aero app  (SPACE, UAS, GOV)")
+
+
+@space_app.command("satcat")
+def space_satcat(norad: list[int] | None = typer.Option(None, help="NORAD ids to look up"), decays_days: float = typer.Option(30.0, help="List objects decayed within this many days"),
+                 refresh: bool = typer.Option(False, help="Fetch the catalogue even if a fresh one is cached"), out: Path = typer.Option(Path("reports"))) -> None:
+    """CelesTrak SATCAT (keyless): identity, owner, type, orbit and decay dates; the open replacement for Space-Track lookups and decay messages."""
+    from .space import satcat as sc
+
+    p = sc.latest()
+    if refresh or p is None or (time.time() - p.stat().st_mtime) > sc.MAX_AGE_S:
+        p = asyncio.run(sc.fetch())
+    cat = sc.load(p)
+    s = sc.summary(cat)
+    con.print(f"{s['objects']} objects ({s['on_orbit']} on orbit, {s['decayed']} decayed) from {p.name}, {s['age_h']} h old")
+    if norad:
+        t = Table("norad", "name", "type", "owner", "perigee km", "apogee km", "decay date")
+        for n, r in sc.enrich(norad, cat).items():
+            t.add_row(str(n), str(r.get("name")), str(r.get("type")), str(r.get("owner")), str(r.get("perigee_km")), str(r.get("apogee_km")), str(r.get("decay_date")))
+        con.print(t)
+    rd = sc.recent_decays(decays_days, cat)
+    con.print(f"{len(rd)} object(s) decayed in the last {decays_days:g} days")
+    t = Table("norad", "name", "type", "owner", "decay date")
+    for r in rd[:20]:
+        t.add_row(str(r["norad"]), str(r["name"])[:30], str(r["type"]), str(r["owner"]), str(r["decay_date"]))
+    con.print(t)
+    jp = write_generic(out, "satcat", "summary", {**s, "recent_decays": rd[:200], "lookups": sc.enrich(norad or [], cat)}, [], inputs={"satcat": p})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("live-check")
+def space_live_check(group: str = typer.Option("stations", help="CelesTrak group for the screen step"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Every keyless space path end to end, live: elements -> screen, SATCAT -> identity/decays, SWPC -> conditions, Launch Library, DONKI. No account involved."""
+    from .space.livecheck import run
+
+    res = run(group=group)
+    t = Table("step", "ok", "s", "result")
+    for r in res["steps"]:
+        detail = r.get("error") or ", ".join(f"{k}={v}" for k, v in r.items() if k not in ("step", "ok", "seconds", "file", "keyless"))
+        t.add_row(r["step"], "[green]yes" if r["ok"] else "[red]NO", str(r["seconds"]), detail[:100])
+    con.print(t)
+    con.print(f"{res['passed']}/{res['total']} keyless paths worked; Space-Track used: {res['spacetrack_used']}")
+    jp = write_generic(out, "live_check", "summary", res, [])["json"]
+    con.print(f"Report: {jp}")
+    if res["passed"] < res["total"]:
+        raise typer.Exit(code=1)
+
+
+@space_app.command("classify-eval")
+def space_classify_eval(manifest: Path = typer.Argument(Path("data/space/dataset_holdout/manifest.json"), help="Manifest to evaluate on (a hold-out from other queries)"),
+                        model: str = typer.Option("both", help="histogram | yolo | both"), split: str | None = typer.Option(None, help="val | train | all (default all)"),
+                        out: Path = typer.Option(Path("reports"))) -> None:
+    """Evaluate the registered scene classifiers on a manifest they were not trained on: accuracy, per-class precision/recall, confusion."""
+    from .space import classifier as clf
+
+    rows = []
+    which = ("histogram", "yolo") if model == "both" else (model,)
+    for name in which:
+        try:
+            m = clf.load() if name == "histogram" else clf.load_yolo()
+        except (FileNotFoundError, RuntimeError, clf.ModelIntegrityError) as e:
+            con.print(f"[yellow]{name}: {e}")
+            continue
+        ev = clf.evaluate(manifest, m, None if split in (None, "all") else split)
+        rows.append({"model": name, **ev})
+        con.print(f"{name}: accuracy {ev['accuracy']:.1%} on {ev['n']} images; per class " + "; ".join(f"{k} P {v['precision']} R {v['recall']} (n={v['support']})" for k, v in ev["per_class"].items()))
+    if not rows:
+        raise typer.Exit(code=1)
+    jp = write_generic(out, "classify_eval", "summary", {"models": rows}, [], inputs={"manifest": manifest})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("telemetry-audit")
+def space_telemetry(
+    csv_path: Path = typer.Argument(..., help="CSV with t_s, speed_mps|speed_kmh, altitude_km|altitude_m"),
+    name: str | None = typer.Option(None),
+    out: Path = typer.Option(Path("reports")),
+) -> None:
+    """Physics checks on a launch telemetry stream (SPC-001..005); writes JSON and Markdown reports."""
+    from .space.telemetry import audit_telemetry, load_any, summarize
+
+    pts = load_any(csv_path)
+    findings = audit_telemetry(pts, stream=csv_path.stem)
+    s = summarize(pts, findings)
+    con.print(f"{s['samples']} samples, max {s['max_speed_mps']} m/s, {s['max_altitude_km']} km; findings {s['findings']} {s['by_rule']}")
+    for f in findings:
+        con.print(f"  [{f.severity.value}] {f.rule_id} t={f.ts}s {f.title}")
+    paths = write_generic(out, f"{name or csv_path.stem}_telemetry", "summary", summarize(pts, findings), findings, inputs={"telemetry": csv_path})
+    con.print(f"Reports: {paths['md']}, {paths['json']} (manifest {paths['manifest'].name})")
+
+
+# ---- governance: the bird's-eye view ----------------------------------------------------------
+gov_app = typer.Typer(help="Holistic governance: domains, standards, controls with evidence, unified register, studies, posture.")
+app.add_typer(gov_app, name="gov")
+
+
+@gov_app.command("domains")
+def gov_domains() -> None:
+    """Air and space domains with status, rules, standards and upstream projects adopted."""
+    from .governance import DOMAINS, coverage
+
+    cov = coverage()["by_domain"]
+    t = Table("domain", "status", "rules", "impl / partial / planned", "data sources", "adopts")
+    for d in DOMAINS.values():
+        k = cov[d.key]
+        t.add_row(d.key, d.status, ",".join(d.rule_prefixes) or "-", f"{k['implemented']} / {k['partial']} / {k['planned']}", "; ".join(d.data_sources)[:60], ", ".join(d.upstream)[:60])
+    con.print(t)
+
+
+@gov_app.command("standards")
+def gov_standards(area: str | None = typer.Option(None, help="air | space | cyber | software | data")) -> None:
+    """Standards library with the number of controls mapped to each."""
+    from .governance import STANDARDS, coverage
+
+    cov = coverage()["by_standard"]
+    t = Table("id", "standard", "body", "area", "impl / partial / planned")
+    for s in STANDARDS.values():
+        if area and s.area != area:
+            continue
+        v = cov[s.id]
+        t.add_row(s.id, s.title[:60], s.body, s.area, f"{v['implemented']} / {v['partial']} / {v['planned']}")
+    con.print(t)
+
+
+@gov_app.command("controls")
+def gov_controls(pillar: str | None = typer.Option(None), status: str | None = typer.Option(None), check: bool = typer.Option(False, help="Verify file-backed evidence exists")) -> None:
+    """Controls with typed evidence; --check verifies that referenced files exist."""
+    from .governance import CONTROLS, implementation_index
+    from .governance.controls import evidence_present, validate
+
+    problems = validate()
+    t = Table("id", "pillar", "control", "status", "domains", "evidence")
+    for c in CONTROLS.values():
+        if (pillar and c.pillar != pillar) or (status and c.status != status):
+            continue
+        ev = "; ".join(c.evidence)[:70]
+        if check:
+            missing = [e for e, ok in evidence_present(c).items() if not ok]
+            ev = ("[red]missing: " + ", ".join(missing)) if missing else "[green]all present"
+        t.add_row(c.id, c.pillar, c.title[:52], c.status, ",".join(c.domains)[:36], ev)
+    con.print(t)
+    con.print(f"implementation index {implementation_index():.0%}; library {'clean' if not problems else 'PROBLEMS: ' + '; '.join(problems)}")
+    if problems:
+        raise typer.Exit(1)
+
+
+@gov_app.command("risks")
+def gov_risks(recording: list[Path] | None = typer.Argument(None, help="Recordings whose audits adjust the air rows")) -> None:
+    """Unified air and space register (residual from evidence for air, from control status elsewhere)."""
+    from .governance import unified_register
+    from .governance.register import by_rating
+    from .risk.register import merge_summaries
+
+    summary = None
+    if recording:
+        summaries = []
+        for rp in recording:
+            eng = AuditEngine()
+            for b in iter_recording(rp):
+                eng.process_batch(b)
+            summaries.append(eng.summary())
+        summary = merge_summaries(summaries)
+    rows = unified_register(summary)
+    t = Table("id", "domain", "risk", "L", "I", "inherent", "residual", "controls / evidence")
+    for r in rows:
+        color = {"critical": "red", "high": "yellow", "medium": "cyan", "low": "green"}[r["residual_rating"]]
+        t.add_row(r["id"], r["domain"], r["title"][:56], str(r["L"]), str(r["I"]), f"{r['score']} {r['rating']}", f"[{color}]{r['residual']} {r['residual_rating']}",
+                  ", ".join(r.get("controls") or r.get("evidence") or [])[:40])
+    con.print(t)
+    con.print(f"by residual rating: {by_rating(rows)}  (basis: {'session evidence' if summary else 'baseline'})")
+
+
+@gov_app.command("studies")
+def gov_studies() -> None:
+    """Study registry: runnable now, needs network, or planned with the upstream method named."""
+    from .governance import STUDIES
+    from .governance.studies import latest_results
+
+    latest = latest_results()
+    t = Table("id", "study", "domain", "status", "inputs", "last result")
+    for s in STUDIES.values():
+        t.add_row(s.id, s.title[:50], s.domain, s.status, ", ".join(s.inputs)[:40], Path(latest[s.id]["file"]).name if s.id in latest else "-")
+    con.print(t)
+
+
+@gov_app.command("run-study")
+def gov_run_study(
+    study_id: str = typer.Argument(..., help="e.g. ST-01"),
+    recording: Path | None = typer.Option(None),
+    csv_path: Path | None = typer.Option(None, "--csv"),
+    catalog: Path | None = typer.Option(None),
+    geojson: Path | None = typer.Option(None, help="Crisis extent (GeoJSON) for ST-11"),
+    tle: list[Path] | None = typer.Option(None, help="TLE file for ST-06; repeat for ST-20 element history"),
+    cdm_path: Path | None = typer.Option(None, "--cdm", help="CDM file for ST-12"),
+    mission: Path | None = typer.Option(None, help="Mission JSON for ST-13"),
+    scales: Path | None = typer.Option(None, help="SWPC product file for ST-17 (default: the bundled sample)"),
+    launches: Path | None = typer.Option(None, help="Launch file for ST-18 (default: the bundled sample)"),
+    spec: Path | None = typer.Option(None, help="OpenAPI/Swagger document for ST-09"),
+    sample: Path | None = typer.Option(None, help="Captured exchange (JSON) for ST-09"),
+    schema: str | None = typer.Option(None, help="Schema name for ST-09"),
+    out: Path = typer.Option(Path("reports/studies")),
+) -> None:
+    """Run a study with provenance; results in reports/studies/."""
+    from .governance import run_study
+
+    params: dict[str, object] = {}
+    if recording:
+        params["recording"] = recording
+    if csv_path:
+        params["csv"] = csv_path
+    if catalog:
+        params["catalog"] = catalog
+    if geojson:
+        params["geojson"] = geojson
+    if tle:
+        params["tle"] = tle[0]
+        if len(tle) > 1:
+            params["files"] = tle
+    if cdm_path:
+        params["cdm"] = cdm_path
+    if mission:
+        params["mission"] = mission
+    if scales:
+        params["scales"] = scales
+    if launches:
+        params["launches"] = launches
+    if spec:
+        params["spec"] = spec
+    if sample:
+        params["sample"] = sample
+    if schema:
+        params["schema"] = schema
+    try:
+        rec = run_study(study_id.upper(), out, **params)
+    except (KeyError, RuntimeError, FileNotFoundError, TypeError) as e:
+        raise typer.BadParameter(str(e)) from e
+    res = rec["result"]
+    con.print(json.dumps({k: v for k, v in res.items() if k not in ("operators", "findings_detail", "top_subjects", "by_airport")}, indent=1, default=str)[:2500])
+    con.print(f"Result: [bold]{rec['files']['md']}[/] ({rec['duration_s']} s)")
+
+
+@gov_app.command("traceability")
+def gov_traceability(out: Path | None = typer.Option(None, help="Write the Markdown here"), gaps_only: bool = typer.Option(False)) -> None:
+    """Bidirectional traceability: controls to standards, rules, modules, tests and studies, and back; gaps first."""
+    from .governance import traceability as tr
+
+    cov = tr.coverage()
+    con.print("coverage: " + " · ".join(f"{k} {v:.0%}" for k, v in cov.items()))
+    for k, v in tr.gaps().items():
+        con.print(f"  {k}: {', '.join(v) if v else '[green]none'}")
+    if out and not gaps_only:
+        out.write_text(tr.render_markdown())
+        con.print(f"Wrote {out}")
+
+
+@gov_app.command("publish-check")
+def gov_publish_check(strict: bool = typer.Option(False, help="Exit non-zero when anything fails, including the upstream licence item")) -> None:
+    """Publication readiness for the private branch (P-08): private files, secrets, attribution, docs drift, library, traceability, deps, changelog, README."""
+    from .governance.publish import checks, summary
+
+    rows = checks(".")
+    t = Table("check", "ok", "detail")
+    for r in rows:
+        t.add_row(f"{r['id']} {r['title']}", "[green]yes" if r["ok"] else "[red]NO", r["detail"][:90])
+    con.print(t)
+    s = summary(rows)
+    con.print(f"{s['passed']}/{s['total']} pass" + ("; ready" if s["ready"] else ("; only the upstream licence question remains" if s["blocking_on_user"] else "; failing: " + ", ".join(s["failed"]))))
+    if (strict and not s["ready"]) or (not strict and not (s["ready"] or s["blocking_on_user"])):
+        raise typer.Exit(code=1)
+
+
+@gov_app.command("digest")
+def gov_digest(days: float = typer.Option(7.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """One brief from every report of the last N days: counts by kind, findings by rule and severity, worst findings, posture, live check, jobs, publication gate."""
+    from .governance import digest
+
+    paths = digest.write(days, out)
+    d = json.loads(paths["json"].read_text())["summary"]
+    con.print(f"{d['reports']} reports over {days:g} days; findings by severity {d['findings_by_severity']}; worst: " + "; ".join(f"{f['rule_id']} ({f['severity']})" for f in d["worst"][:5]))
+    con.print(f"Digest: {paths['md']} (manifest {paths['manifest'].name})")
+
+
+@gov_app.command("assurance")
+def gov_assurance(out: Path | None = typer.Option(None, help="Write the Markdown to this path")) -> None:
+    """NPR 7150.2 classification per component, the SLIM repository checklist evaluated on this tree, SDLS expectations."""
+    from .governance.assurance import classification, render_markdown, slim_checklist
+
+    t = Table("component", "class", "safety", "paths")
+    for r in classification():
+        t.add_row(r["component"], r["class"], "yes" if r["safety_related"] else "no", r["path"][:50])
+    con.print(t)
+    s = slim_checklist(".")
+    con.print(f"SLIM checklist {s['passed']}/{s['total']} ({s['score']:.0%}); missing: {', '.join(r['id'] + ' ' + r['title'] for r in s['rows'] if not r['ok']) or 'none'}")
+    if out:
+        out.write_text(render_markdown("."))
+        con.print(f"wrote {out}")
+
+
+@gov_app.command("posture")
+def gov_posture(
+    recording: list[Path] | None = typer.Argument(None, help="Recordings whose audits provide session evidence"),
+    as_json: bool = typer.Option(False, "--json"),
+    out: Path | None = typer.Option(None, help="Write the Markdown posture report here"),
+) -> None:
+    """The bird's-eye view: governance index, domains, pillars, unified risks, studies, evidence on disk."""
+    from .governance import posture, render_posture
+    from .risk.register import merge_summaries
+
+    summary = None
+    if recording:
+        summaries = []
+        for rp in recording:
+            eng = AuditEngine()
+            for b in iter_recording(rp):
+                eng.process_batch(b)
+            summaries.append(eng.summary())
+        summary = merge_summaries(summaries)
+    p = posture(summary)
+    if as_json:
+        con.print(json.dumps(p, indent=1, default=str))
+        return
+    c = p["components"]
+    con.print(f"[bold]Governance index {p['governance_index']:.0%}[/]  controls {c['controls_implementation']:.0%} · standards {c['standards_coverage']:.0%} · "
+              f"risk low/medium {c['risk_share_low_or_medium']:.0%} · studies runnable {c['studies_runnable_share']:.0%} · evidence freshness {c['evidence_freshness']:.0%}  ({p['evidence_basis']})")
+    t = Table("domain", "status", "rules", "impl / partial / planned")
+    for d in p["domains"]:
+        k = d["controls"]
+        t.add_row(d["name"], d["status"], str(d["rules"]), f"{k['implemented']} / {k['partial']} / {k['planned']}")
+    con.print(t)
+    con.print(f"residual risks: {p['risks']['by_residual']}; top: " + "; ".join(f"{r['id']} {r['rating']} ({r['residual']})" for r in p["risks"]["top_residual"]))
+    f = p["freshness"]
+    con.print(f"evidence: chain {'ok' if f['audit_chain_ok'] else 'absent/broken'} · model verified {f['model_verified']} · latest report {f['latest_report_age_h']} h · "
+              f"evaluation {f['evaluation_age_days']} d · study results {f['study_results']}")
+    if p["evidence"]["missing"]:
+        con.print(f"[yellow]evidence claimed but not on disk: {', '.join(p['evidence']['missing'])}")
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(render_posture(p))
+        con.print(f"wrote {out}")
+# ---- UAS: well-clear metrics, encounters, UTM contracts ------------------------------------------
+uas_app = typer.Typer(help="UAS integration: DO-365 / DAIDALUS well-clear metrics on recordings, encounter rates, UTM contract checks.")
+app.add_typer(uas_app, name="uas")
+
+
+@uas_app.command("wellclear")
+def uas_wellclear(recording: Path = typer.Argument(..., help="Recording (.jsonl / .jsonl.gz)"), max_batches: int | None = typer.Option(None),
+                  out: Path = typer.Option(Path("reports"))) -> None:
+    """Encounters from a recording scored with the well-clear definitions: violations per flight hour, NMAC-proximate pairs, alert lead time."""
+    from .uas import extract_encounters, summarize_encounters
+
+    ex = extract_encounters(recording, max_batches=max_batches)
+    summary, fs = summarize_encounters(ex)
+    con.print(f"{summary['aircraft_airborne']} airborne aircraft, {summary['flight_hours']} flight hours, {summary['encounter_pairs']} encounter pairs; "
+              f"violations {summary['violations']} ({summary['violations_per_flight_hour']}/fh), NMAC-proximate {summary['nmac_proximate']}, "
+              f"pairs alerted {summary['pairs_with_alert']}, median lead {summary['median_lead_time_s']} s")
+    t = Table("pair", "region", "min range ft", "min dz ft", "min HMD ft", "alert", "violation", "lead s")
+    for r in summary["pairs"][:25]:
+        t.add_row(r["callsigns"][:28], r["region"], f"{r['min_range_ft']:.0f}", f"{r['min_dz_ft']:.0f}", f"{r['min_hmd_ft']:.0f}", str(r["max_alert"]),
+                  "[red]yes" if r["violation"] else "no", str(r["lead_time_s"]))
+    con.print(t)
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"wellclear_{recording.stem.split('.')[0]}", "summary", summary, fs, inputs={"recording": recording})["json"]
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("risk")
+def uas_risk_cmd(recording: Path = typer.Argument(..., help="Recording (.jsonl / .jsonl.gz)"), max_batches: int | None = typer.Option(None), out: Path = typer.Option(Path("reports"))) -> None:
+    """Airspace density classes per altitude band and the observed DAA risk ratio (DAA-003/004)."""
+    from .uas import risk
+
+    summary, fs = risk.assess(recording, max_batches=max_batches)
+    rr = summary["risk_ratio"]
+    con.print(f"{summary['flight_hours']} flight hours; encounters {rr['encounters']}, NMAC-proximate {rr['nmac_proximate']}, unresolvable {rr['unresolvable']}; risk ratio {rr['risk_ratio']} (limit {rr['limit']})")
+    t = Table("band ft", "aircraft-hours", "cells", "sparse", "moderate", "dense", "very dense")
+    for band, v in summary["density"]["bands"].items():
+        c = v["classes"]
+        t.add_row(band, str(v["aircraft_hours"]), str(v["cells"]), str(c.get("sparse", 0)), str(c.get("moderate", 0)), str(c.get("dense", 0)), str(c.get("very-dense", 0)))
+    con.print(t)
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"uas_risk_{recording.stem.split('.')[0]}", "summary", summary, fs, inputs={"recording": recording})["json"]
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("encounter-model")
+def uas_encounter_model(recording: Path = typer.Argument(...), n: int = typer.Option(2000, help="Simulated encounters"), horizon_s: float = typer.Option(25.0),
+                        seed: int = typer.Option(0), max_batches: int | None = typer.Option(None), out: Path = typer.Option(Path("reports"))) -> None:
+    """Fit an encounter model from the recording's encounters and estimate NMAC probability with and without an alerting horizon (Monte Carlo)."""
+    from .uas import encounter_model as em
+
+    res = em.fit_and_simulate(recording, n, horizon_s, seed, max_batches)
+    m, sm = res["model"], res["simulation"]
+    con.print(f"fitted from {m['n']} pairs over {m['flight_hours']} fh (range p10/50/90 {m['range_ft_q']} ft); simulated {sm['n']}: "
+              f"P(NMAC) {sm['p_nmac_unmitigated']} unmitigated, {sm['p_nmac_mitigated']} with a {horizon_s:g} s horizon; model risk ratio {sm['risk_ratio']}")
+    if sm["rates"]:
+        con.print(f"per flight hour: encounters {sm['rates']['encounters_per_fh']}, NMAC {sm['rates']['nmac_per_fh_unmitigated']} -> {sm['rates']['nmac_per_fh_mitigated']}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, f"encounter_model_{recording.stem.split('.')[0]}", "summary", res, [], inputs={"recording": recording})["json"]
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("trend")
+def uas_trend(folder: Path = typer.Argument(Path("data/recordings"), help="Directory of recordings (or pass files with --file)"), pattern: str = typer.Option("*"),
+              file: list[Path] | None = typer.Option(None, help="Explicit recordings instead of a directory scan"), max_batches: int | None = typer.Option(None),
+              out: Path = typer.Option(Path("reports"))) -> None:
+    """Well-clear and NMAC-proximate rates per recording, ordered in time, with the slope of the violation rate (DAA-005 when rising)."""
+    from .uas import trend as tr
+
+    recs = [Path(f) for f in file] if file else tr.find_recordings(folder, pattern)
+    if not recs:
+        raise typer.BadParameter("no recordings found")
+    summary, fs = tr.trend(recs, max_batches)
+    t = Table("recording", "flight h", "pairs", "violations", "viol/fh", "NMAC/fh", "lead s", "dense low cells")
+    for r in summary["rows"]:
+        t.add_row(r["recording"][:36], str(r["flight_hours"]), str(r["encounter_pairs"]), str(r["violations"]), str(r["violations_per_fh"]), str(r["nmac_per_fh"]), str(r["median_lead_s"]), str(r["dense_low_cells"]))
+    con.print(t)
+    con.print(f"{summary['recordings']} recordings over {summary['span_days']} days; slope {summary['slope_violations_per_fh_per_day']} violations/fh per day")
+    for f in fs:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    jp = write_generic(out, "uas_trend", "summary", summary, fs, inputs={f"recording{i}": r for i, r in enumerate(recs)})["json"]
+    con.print(f"Report: {jp}")
+
+
+@uas_app.command("utm-fetch")
+def uas_utm_fetch(dest: Path = typer.Option(Path("data/uas"))) -> None:
+    """Download NASA's UTM API contracts (utm-apis, keyless) as JSON so `utm-check` and ST-09 run against the real documents."""
+    from .uas.utm import fetch_domains
+
+    paths = asyncio.run(fetch_domains(dest))
+    con.print(f"{len(paths)} contract(s) under {dest}: " + ", ".join(p.name for p in paths))
+
+
+@uas_app.command("utm-check")
+def uas_utm_check(spec: Path = typer.Argument(..., help="OpenAPI document (JSON)"), sample: list[Path] = typer.Argument(..., help="JSON samples to validate"),
+                  schema: str | None = typer.Option(None, help="Component schema name"), path: str | None = typer.Option(None, help="Endpoint path for a response schema"),
+                  method: str = typer.Option("get"), status: str = typer.Option("200")) -> None:
+    """Validate captured exchanges against an OpenAPI contract (NASA utm-apis or this app's own document)."""
+    from .uas.utm import check_samples, load_document
+
+    doc = load_document(spec)
+    samples = [(p.name, json.loads(p.read_text())) for p in sample]
+    rep = check_samples(doc, samples, schema, path, method, status)
+    con.print(f"{rep['schema']}: {rep['conformant']}/{rep['samples']} conformant")
+    for r in rep["rows"]:
+        con.print(f"  {'[green]ok  ' if r['ok'] else '[red]FAIL'}[/] {r['sample']}" + ("" if r["ok"] else ": " + "; ".join(r["problems"][:5])))
+    if rep["conformant"] != rep["samples"]:
+        raise typer.Exit(1)
+
+
 # ---- observability -------------------------------------------------------------------------------
 obs_app = typer.Typer(help="Metrics, probes and structured logs of a running app, or the local log file.")
 app.add_typer(obs_app, name="obs")
@@ -1008,13 +2009,29 @@ def bench(
     recording: Path | None = typer.Option(None, help="Recording (default: the largest bundled sample)"),
     rounds: int = typer.Option(3),
     model: Path | None = typer.Option(None, help="Model to include (verified against the registry)"),
+    suite: str = typer.Option("engine", help="engine | space | all: the rules engine, or the space/UAS hot paths (encounters, projection, rasteriser, screen, catalogue)"),
     out: Path = typer.Option(Path("reports")),
 ) -> None:
-    """Throughput of the rules engine on a recording: batches/s, state vectors/s, per-batch p50/p95. Writes reports/bench_*.json."""
+    """Throughput of the rules engine on a recording (batches/s, state vectors/s, per-batch p50/p95) and, with --suite space, the
+    space and UAS hot paths. Writes reports/bench_*.json."""
     import statistics
 
     from .provenance import build as build_prov
 
+    if suite in ("space", "all"):
+        from .bench_space import run_suite
+
+        rows = run_suite(recording or _demo_recording(), rounds)
+        t = Table("case", "input", "best s", "median s", "rate")
+        for r in rows:
+            t.add_row(r["case"], r["input"], f"{r['best_s']:.3f}", f"{r['median_s']:.3f}", r["rate"])
+        con.print(t)
+        out.mkdir(parents=True, exist_ok=True)
+        jp = out / f"bench_space_{_stamp()}.json"
+        jp.write_text(json.dumps({"suite": "space", "rounds": rounds, "cases": rows}, indent=1, default=str))
+        con.print(f"Wrote {jp}")
+        if suite == "space":
+            return
     rec = recording or _demo_recording()
     if rec is None:
         raise typer.BadParameter("no recording; pass --recording")

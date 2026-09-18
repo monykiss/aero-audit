@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Scheduled space intake without the web app. Install:
+       cp ops/launchd/org.aero-audit.watch.plist ~/Library/LaunchAgents/
+       edit the two /Users/you paths below, then: launchctl load ~/Library/LaunchAgents/org.aero-audit.watch.plist
+     Logs go to logs/watch.out.log and logs/watch.err.log; the jobs themselves write reports/ and data/space/ with manifests.
+     Credentials, if any, come from .env sourced by the shell wrapper; nothing is on this command line. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>org.aero-audit.watch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd /Users/you/Desktop/AERO &amp;&amp; [ -f .env ] &amp;&amp; source .env; exec .venv/bin/aero space watch --schedule cdm_inbox=600,space_weather=900,launches=3600,satcat=86400,conjunctions=21600,catalog_build=3600,digest=86400</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/you/Desktop/AERO</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/you/Desktop/AERO/logs/watch.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/you/Desktop/AERO/logs/watch.err.log</string>
+  <key>ProcessType</key><string>Background</string>
+  <key>Nice</key><integer>10</integer>
+</dict>
+</plist>
