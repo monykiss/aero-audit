@@ -64,6 +64,17 @@ All notable changes to aero-audit. Dates are UTC.
   conjunction screen (SatrecArray + broadcasted distances), catalogue hash cache, memoised page summaries; scalar references
   kept and proven equivalent in tests/test_perf_equivalence.py; `aero bench --suite space`; docs/PERFORMANCE.md.
 
+## 0.6.1 - 2026-09-18 - fuzzed, hardened
+
+- Fuzzing: `fuzz/fuzz_targets.py` (atheris) covers recording replay, the rules engine's state vectors, request path
+  confinement and report manifests; a CI job fuzzes each target on every push and the suite smoke-tests the harness.
+- Fixed, found by the fuzzer on its first runs: a report manifest that is not a JSON object (or has malformed file
+  entries) is reported as invalid instead of raising; a request path whose home expansion fails (`~nobody/x`) is refused
+  instead of raising.
+- The demo tour's stop() waits for its thread, so a step already sleeping cannot inject after the caller has moved on.
+- Supply chain: `pip-audit` pinned in CI and release workflows; SECURITY.md carries the advisory URL, a 7-day
+  acknowledgement and 90-day fix window, supported versions and the fuzzing note. First release signed with Sigstore.
+
 ## 0.6.0 - 2026-09-15 - contract, evidence, release engineering
 
 - API contract: OpenAPI 3.1 generated from the router at `/api/v1/openapi.json` and rendered to

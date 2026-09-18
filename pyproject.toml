@@ -1,6 +1,6 @@
 [project]
 name = "aero-audit"
-version = "0.6.0"
+version = "0.6.1"
 description = "AI/ML + computer-vision auditing toolkit for aviation operations and ADS-B security, with a hardened local app"
 readme = "README.md"
 requires-python = ">=3.12"
