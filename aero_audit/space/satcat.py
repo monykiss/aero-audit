@@ -75,7 +75,7 @@ def load(path: str | Path | None = None) -> dict[int, dict[str, Any]]:
         except (KeyError, ValueError):
             continue
         out[nid] = {"name": row.get("OBJECT_NAME"), "intl": row.get("OBJECT_ID"), "type": row.get("OBJECT_TYPE"), "status": row.get("OPS_STATUS_CODE"), "owner": row.get("OWNER"),
-                    "launch_date": row.get("LAUNCH_DATE"), "decay_date": row.get("DECAY_DATE") or None, "period_min": _f(row.get("PERIOD")), "inclination_deg": _f(row.get("INCLINATION")),
+                    "launch_date": row.get("LAUNCH_DATE"), "launch_site": row.get("LAUNCH_SITE"), "decay_date": row.get("DECAY_DATE") or None, "period_min": _f(row.get("PERIOD")), "inclination_deg": _f(row.get("INCLINATION")),
                     "apogee_km": _f(row.get("APOGEE")), "perigee_km": _f(row.get("PERIGEE")), "rcs_m2": _f(row.get("RCS")), "orbit_type": row.get("ORBIT_TYPE")}
     return out
 

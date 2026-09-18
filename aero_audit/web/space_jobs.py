@@ -14,7 +14,7 @@ from .. import observability as obs
 from .jobs import Job
 
 REPORTS = Path("reports")
-SPACE_ROOTS = ("data/space", "data/samples")
+SPACE_ROOTS = ("data/space", "data/samples", "data/airspace")
 JSON_SUFFIXES = (".json",)
 ELEMENT_SUFFIXES = (".tle", ".txt")
 
@@ -256,7 +256,65 @@ def catalog_build(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     return {"granules": cat["granules_total"], "drift": bool(rec and rec.get("drift")), "added": len(rec["added"]) if rec else None, "removed": len(rec["removed"]) if rec else None}
 
 
-REGISTRY = {"cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
+def tfr(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    import asyncio
+
+    from ..ingest import tfr as tfr_mod
+    from ..space import airspace
+    from ..space import launches as ll
+
+    err = None
+    if p.get("file"):
+        path = _confine(p["file"], JSON_SUFFIXES)
+    else:
+        path, err = _fetch_or_cached(job, lambda: asyncio.run(tfr_mod.fetch(None if p.get("all_types") else tfr_mod.SPACE_TYPES)), tfr_mod.latest, "tfr")
+    payload = tfr_mod.load(path)
+    summary: dict[str, Any] = {"product": tfr_mod.summary(path), "degraded": err is not None, "fetch_error": err}
+    fs: list[Any] = []
+    if p.get("recording"):
+        s2, f2 = airspace.join_traffic(payload, _recording_path(p["recording"]))
+        summary["traffic"] = s2
+        fs += f2
+    lp = _confine(p["launches"], JSON_SUFFIXES) if p.get("launches") else ll.latest()
+    if lp:
+        s3, f3 = airspace.join_launches(payload, json.loads(Path(lp).read_text()))
+        summary["launches"] = s3
+        fs += f3
+    job.say(f"{summary['product']['features']} TFR(s), {summary['product']['with_geometry']} with geometry; findings {len(fs)}")
+    return {"file": str(path), "degraded": err is not None, "features": summary["product"]["features"], **_write_report("tfr", summary, fs, {"tfr": path, "recording": p.get("recording"), "launches": lp})}
+
+
+def reentry(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from datetime import UTC, datetime
+
+    from ..space import reentry as rn
+
+    files = [_confine(f, ELEMENT_SUFFIXES) for f in p.get("files") or []] or None
+    rec = _recording_path(p["recording"]) if p.get("recording") else None
+    start = datetime.fromisoformat(str(p["start"])).astimezone(UTC) if p.get("start") else None
+    summary, fs = rn.analyse(files, rec, start, float(p.get("hours") or rn.HOURS), float(p.get("step_s") or rn.STEP_S), float(p.get("width_nm") or rn.WIDTH_NM))
+    job.say(f"{summary['objects']} decaying object(s); {summary['with_airports_under']} with airports under, {summary['with_aircraft_under']} with aircraft under")
+    return {"objects": summary["objects"], **_write_report("reentry", summary, fs, {"recording": p.get("recording"), **{f"elements_{i}": f for i, f in enumerate(files or [])}})}
+
+
+def mission(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from ..space import mission as ms
+
+    inputs = ms.load_inputs(_confine(p["file"], JSON_SUFFIXES) if p.get("file") else None, _confine(p["tfr"], JSON_SUFFIXES) if p.get("tfr") else None,
+                            _confine(p["scales"], JSON_SUFFIXES) if p.get("scales") else None)
+    if not inputs["launches"]:
+        raise FileNotFoundError("no launch file given and none cached; run the launches job first")
+    row = ms.find_launch(inputs["launches"], str(p.get("launch") or ""))
+    if row is None:
+        raise KeyError(f"no launch matches {p.get('launch')!r}")
+    rec = _recording_path(p["recording"]) if p.get("recording") else None
+    d, fs = ms.dossier(row, rec, inputs["tfr"], inputs["swx"], inputs["satcat"] or None, float(p.get("hazard_nm") or 50.0))
+    job.say(f"dossier for {row.get('name')}: {len(d['sections'])} sections, findings {len(fs)}")
+    slug = "".join(ch if ch.isalnum() else "_" for ch in str(row.get("id") or row.get("name") or "launch"))[:40]
+    return {"launch": row.get("name"), "sections": d["sections"], **_write_report(f"mission_{slug}", d, fs, {k: v for k, v in inputs["files"].items() if v} | {"recording": p.get("recording")})}
+
+
+REGISTRY = {"tfr": tfr, "reentry": reentry, "mission": mission, "cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
             "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model, "satcat": satcat, "digest": digest}
 
-__all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "space_weather", "spacetrack_pull", "uas_risk", "wellclear"]
+__all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "mission", "reentry", "space_weather", "spacetrack_pull", "tfr", "uas_risk", "wellclear"]

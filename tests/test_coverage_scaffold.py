@@ -44,7 +44,7 @@ def test_every_command_answers_help(path):
 def _emitted_rule_ids() -> set[str]:
     ids = set()
     for p in list(Path("aero_audit/space").glob("*.py")) + list(Path("aero_audit/uas").glob("*.py")):
-        ids |= set(re.findall(r'"((?:SPC|ORB|DEB|DAA|SWX|LCH)-\d{3})"', p.read_text()))  # literals, whether passed directly or through a variable
+        ids |= set(re.findall(r'"((?:SPC|ORB|DEB|DAA|SWX|LCH|TFR|REN)-\d{3})"', p.read_text()))  # literals, whether passed directly or through a variable
     return ids
 
 

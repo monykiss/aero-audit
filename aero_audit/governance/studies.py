@@ -9,6 +9,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -285,10 +286,62 @@ def _catalog_reconcile(**_: Any) -> dict[str, Any]:
     return {**r, "granules": new["granules_total"], "bytes": new["bytes_total"], "collections": {k: v["count"] for k, v in new["collections"].items()}}
 
 
+def _first_fix(recording: str | Path) -> datetime | None:
+    from ..ingest.replay import iter_recording
+
+    for b in iter_recording(recording):
+        ts = [sv.ts for sv in b.states if sv.ts]
+        if ts:
+            return datetime.fromtimestamp(min(ts), UTC)
+    return None
+
+
+def _tfr_join(recording: str | Path | None = None, tfr: str | Path = "data/samples/tfr_sample.json", launches: str | Path = "data/samples/ll2_launches_sample.json", **_: Any) -> dict[str, Any]:
+    import json as _json
+
+    from ..ingest import tfr as tfr_mod
+    from ..space import airspace
+
+    payload = tfr_mod.load(tfr)
+    out: dict[str, Any] = {"product": tfr_mod.summary(tfr), "findings": []}
+    if recording:
+        s, fs = airspace.join_traffic(payload, recording)
+        out["traffic"] = s["rows"]
+        out["findings"] += [f.rule_id for f in fs]
+    s2, fs2 = airspace.join_launches(payload, _json.loads(Path(launches).read_text()))
+    out["launch_coverage"] = {"launches": s2["launches"], "covered": s2["covered"], "us_uncovered_soon": s2["us_uncovered_soon"], "rows": s2["rows"]}
+    out["findings"] += [f.rule_id for f in fs2]
+    return out
+
+
+def _reentry_exposure(tle: str | Path = "data/samples/decaying_sample.tle", recording: str | Path | None = None, hours: float = 6.0, width_nm: float = 50.0, files: list[str | Path] | None = None, **_: Any) -> dict[str, Any]:
+    from ..space import reentry
+
+    start = _first_fix(recording) if recording else None
+    summary, fs = reentry.analyse(files or [tle], recording, start, float(hours), 30.0 if not recording else 10.0, float(width_nm))
+    rows = [{k: v for k, v in r.items() if k != "track"} for r in summary["rows"]]
+    return {"objects": summary["objects"], "from": summary.get("from"), "hours": hours, "width_nm": width_nm, "rows": rows, "findings": [f.rule_id for f in fs]}
+
+
+def _mission_dossier(launch: str = "wallops", launches: str | Path = "data/samples/ll2_launches_sample.json", tfr: str | Path = "data/samples/tfr_sample.json",
+                     scales: str | Path = "data/samples/swpc_scales_sample.json", recording: str | Path | None = None, hazard_nm: float = 50.0, **_: Any) -> dict[str, Any]:
+    import json as _json
+
+    from ..space import mission, satcat
+
+    ll = _json.loads(Path(launches).read_text())
+    row = mission.find_launch(ll, launch)
+    if row is None:
+        raise KeyError(f"no launch matches {launch!r} in {launches}")
+    d, fs = mission.dossier(row, recording, _json.loads(Path(tfr).read_text()), _json.loads(Path(scales).read_text()), satcat.load() or None, float(hazard_nm))
+    return {**d, "findings_detail": [f.rule_id for f in fs]}
+
+
 RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
     "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
     "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
     "cdm_assessment": _cdm_assessment, "risk_classes": _risk_classes, "space_weather": _space_weather, "launch_join": _launch_join,
+    "tfr_join": _tfr_join, "reentry_exposure": _reentry_exposure, "mission_dossier": _mission_dossier,
     "encounter_model": _encounter_model, "element_history": _element_history, "wellclear_trend": _wellclear_trend,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
@@ -349,6 +402,15 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-21", "Well-clear rate trend across recordings", "Is the well-clear violation rate per flight hour rising, falling or flat across the recordings on disk?",
           "uas-utm", "Encounter summary and low-altitude density per recording, ordered by first timestamp; least-squares slope of the violation rate; DAA-005 when rising.",
           ("recordings directory",), ("violations per flight hour per recording", "slope per day", "dense low-altitude cells"), "runnable", "wellclear_trend", ("nasa/daidalus", "mit-ll/air-risk-class")),
+    Study("ST-22", "Launch airspace compliance", "Did traffic stay out of the published space-operations restrictions, and does every imminent US launch window have one?",
+          "space-launch", "FAA TFR product (keyless; geometry, effective time, vertical limits) joined to a recording (aircraft inside while in effect, baseline outside) and to launch windows (coverage of the pad in the window).",
+          ("TFR product", "recording", "launch file"), ("aircraft inside per restriction", "restrictions overlapping the recording", "US windows without a TFR within 72 h"), "runnable", "tfr_join", ("nasa/utm-apis",)),
+    Study("ST-23", "Reentry corridor exposure", "Which airports and flights sit under the ground track of an object the element history says is decaying?",
+          "space-orbital", "Decaying objects from the element history propagated with SGP4, TEME to geodetic by the GMST rotation, corridor of +-width around the track; airports and recorded traffic within it at the time of the pass.",
+          ("element file(s)", "recording"), ("objects flagged", "airports under the corridor", "aircraft under the track", "element age"), "runnable", "reentry_exposure", ("nasa/GMAT", "Bill-Gray/find_orb")),
+    Study("ST-24", "Mission dossier", "For one launch, what did every domain see: airspace, traffic, space weather, catalogued objects and their decay?",
+          "space-launch", "Join of the launch record with the spaceport table, the TFR product, the recording, the newest space-weather product and the SATCAT by launch date and site code; one report, one manifest.",
+          ("launch file", "TFR product", "SWPC product", "recording"), ("TFRs covering the window", "aircraft inside the hazard radius and inside the TFR", "advisory conditions", "objects catalogued and decayed"), "runnable", "mission_dossier", ("nasa/openmct",)),
     Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
           "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
           ("nasa/Common-Metadata-Repository", "nasa/cumulus")),

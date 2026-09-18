@@ -12,6 +12,7 @@ SAMPLES = Path("data/samples")
 
 def run(out: str | Path = "reports", recording: str | Path | None = None, max_batches: int | None = None) -> list[dict[str, Any]]:
     from ..audit.generic_report import write_generic
+    from ..ingest.replay import iter_recording
     from ..space import debris, launches, spaceweather
     from ..space.cdm import assess as cdm_assess
     from ..space.cdm import parse_cdm
@@ -38,6 +39,29 @@ def run(out: str | Path = "reports", recording: str | Path | None = None, max_ba
     payload = json.loads((SAMPLES / "ll2_launches_sample.json").read_text())
     summary, fs = launches.join_traffic(payload, rec, 250.0, max_batches=max_batches)
     step("launches", "summary", summary, fs, {"launches": SAMPLES / "ll2_launches_sample.json", "recording": rec})
+    # the air/space seam: published space-operations airspace, reentry corridors, and the dossier of one launch
+    from datetime import UTC, datetime
+
+    from ..ingest import tfr as tfr_mod
+    from ..space import airspace, mission, reentry, satcat
+
+    tfr_payload = tfr_mod.load(SAMPLES / "tfr_sample.json")
+    t_summary, fs = airspace.join_traffic(tfr_payload, rec, max_batches=max_batches)
+    l_summary, fs2 = airspace.join_launches(tfr_payload, payload, now=datetime(2026, 9, 10, 11, 52, tzinfo=UTC).timestamp())
+    step("tfr", "summary", {"product": tfr_mod.summary(SAMPLES / "tfr_sample.json"), "traffic": t_summary, "launches": l_summary}, fs + fs2,
+         {"tfr": SAMPLES / "tfr_sample.json", "launches": SAMPLES / "ll2_launches_sample.json", "recording": rec})
+    first = None
+    for b in iter_recording(rec):
+        ts_ = [sv.ts for sv in b.states if sv.ts]
+        if ts_:
+            first = datetime.fromtimestamp(min(ts_), UTC)
+            break
+    summary, fs = reentry.analyse([SAMPLES / "decaying_sample.tle"], rec, first, 0.5, 10.0, max_batches=max_batches)
+    step("reentry", "summary", summary, fs, {"elements": SAMPLES / "decaying_sample.tle", "recording": rec})
+    launch = mission.find_launch(payload, "wallops")
+    if launch:
+        d, fs = mission.dossier(launch, rec, tfr_payload, json.loads((SAMPLES / "swpc_scales_sample.json").read_text()), satcat.load() or None, 250.0, max_batches=max_batches)
+        step("mission_sample_wallops", "dossier", d, fs, {"launches": SAMPLES / "ll2_launches_sample.json", "tfr": SAMPLES / "tfr_sample.json", "product": SAMPLES / "swpc_scales_sample.json", "recording": rec})
     ex = extract_encounters(rec, max_batches=max_batches)
     summary, fs = summarize_encounters(ex)
     step(f"wellclear_{rec.stem.split('.')[0]}", "summary", summary, fs, {"recording": rec})

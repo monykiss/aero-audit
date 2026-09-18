@@ -1505,6 +1505,107 @@ def space_satcat(norad: list[int] | None = typer.Option(None, help="NORAD ids to
     con.print(f"Report: {jp}")
 
 
+@space_app.command("tfr")
+def space_tfr(file: Path | None = typer.Option(None, help="Cached or sample TFR product instead of fetching (e.g. data/samples/tfr_sample.json)"),
+              all_types: bool = typer.Option(False, "--all-types", help="Fetch every TFR type, not only space operations"),
+              recording: Path | None = typer.Option(None, help="Recording to join: aircraft inside each space-operations TFR while it was in effect (TFR-001)"),
+              launches: Path | None = typer.Option(None, help="Launch file to join: US windows without a covering TFR (TFR-002)"),
+              out: Path = typer.Option(Path("reports"))) -> None:
+    """FAA temporary flight restrictions (keyless): space-operations geometry, times and limits; joined to a recording or a launch file they give TFR-001..003."""
+    from .ingest import tfr as tfr_mod
+    from .space import airspace
+
+    path = file or asyncio.run(tfr_mod.fetch(None if all_types else tfr_mod.SPACE_TYPES))
+    payload = tfr_mod.load(path)
+    s = tfr_mod.summary(path)
+    con.print(f"{s['features']} TFR(s), {s['with_geometry']} with geometry, from {Path(path).name}; listed by type: {s['listed_by_type']}")
+    t = Table("notam", "type", "place", "effective", "expire", "upper ft", "vertices")
+    for r in s["rows"][:25]:
+        t.add_row(str(r["notam_id"]), str(r["type"])[:18], str(r["place"])[:30], str(r["effective"]), str(r["expire"]), str(r["upper_ft"]), str(r["vertices"]))
+    con.print(t)
+    fs_all: list = []
+    summary: dict = {"product": s}
+    if recording:
+        ts_, fs = airspace.join_traffic(payload, recording)
+        summary["traffic"] = ts_
+        fs_all += fs
+        con.print(f"{ts_['overlapping']} restriction(s) overlap the recording; findings {len(fs)}")
+    if launches:
+        ls_, fs = airspace.join_launches(payload, json.loads(Path(launches).read_text()))
+        summary["launches"] = ls_
+        fs_all += fs
+        con.print(f"{ls_['covered']}/{ls_['launches']} launch(es) covered by a space-operations TFR; {ls_['us_uncovered_soon']} US window(s) within 72 h without one")
+    for f in fs_all:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, "tfr", "summary", summary, fs_all, inputs={"tfr": path, "recording": recording, "launches": launches})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("reentry")
+def space_reentry(tle: list[Path] | None = typer.Option(None, help="Element files (default: every cached CelesTrak set)"),
+                  recording: Path | None = typer.Option(None, help="Recording: aircraft under the corridor as each object passed (REN-001)"),
+                  start: str | None = typer.Option(None, help="Corridor start, ISO UTC (default: now, or the recording's first fix)"),
+                  hours: float = typer.Option(6.0), width_nm: float = typer.Option(50.0), step_s: float = typer.Option(30.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """Ground-track corridors of decaying objects (low perigee or reentry within the watch window) against airports and traffic: REN-001..003."""
+    from .space import reentry as rn
+
+    st = datetime.fromisoformat(start).astimezone(UTC) if start else None
+    if st is None and recording:
+        for b in iter_recording(recording):
+            ts_ = [sv.ts for sv in b.states if sv.ts]
+            if ts_:
+                st = datetime.fromtimestamp(min(ts_), UTC)
+                break
+    summary, fs = rn.analyse([str(x) for x in tle] if tle else None, recording, st, hours, step_s, width_nm)
+    con.print(f"{summary['objects']} decaying object(s) from {len(summary['files'])} file(s); corridor {hours:g} h x +-{width_nm:g} nm from {summary.get('from')}")
+    t = Table("norad", "name", "perigee km", "decay est. d", "age h", "airports under", "aircraft under")
+    for r in summary["rows"][:30]:
+        t.add_row(str(r["norad"]), str(r["name"])[:26], str(r["perigee_km"]), str(r["decay_days_estimate"]), str(r["age_h"]), ", ".join(a["icao"] for a in r["airports_under"][:6]) or "-", str(len(r["aircraft_under"])))
+    con.print(t)
+    for f in fs[:20]:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    jp = write_generic(out, "reentry", "summary", summary, fs, inputs={"recording": recording, **{f"elements_{i}": x for i, x in enumerate(tle or [])}})["json"]
+    con.print(f"Report: {jp}")
+
+
+@space_app.command("mission")
+def space_mission(launch: str = typer.Argument(..., help="Launch id, or a substring of its name, pad or location (e.g. wallops)"),
+                  file: Path | None = typer.Option(None, help="Launch file (default: newest cached; sample: data/samples/ll2_launches_sample.json)"),
+                  recording: Path | None = typer.Option(None, help="Recording for the traffic sections"),
+                  tfr_file: Path | None = typer.Option(None, help="TFR product (default: newest cached)"), swx_file: Path | None = typer.Option(None, help="SWPC product (default: newest cached)"),
+                  hazard_nm: float = typer.Option(50.0), out: Path = typer.Option(Path("reports"))) -> None:
+    """The mission dossier: one launch joined to its spaceport and airports, the TFRs covering its window, the traffic inside them and the hazard radius, space weather, and the objects catalogued from it."""
+    from .space import mission as ms
+
+    inputs = ms.load_inputs(file, tfr_file, swx_file)
+    if not inputs["launches"]:
+        raise typer.BadParameter("no launch file given and none cached; run `aero space launches` first or pass --file")
+    row = ms.find_launch(inputs["launches"], launch)
+    if row is None:
+        raise typer.BadParameter(f"no launch matches {launch!r}")
+    d, fs = ms.dossier(row, recording, inputs["tfr"], inputs["swx"], inputs["satcat"] or None, hazard_nm)
+    con.print(f"[bold]{row.get('name')}[/] at {row.get('pad')} ({row.get('location')}), window {row.get('window_start')} .. {row.get('window_end')}")
+    sp = d.get("spaceport")
+    con.print(f"spaceport: {sp['name']} ({sp['distance_nm']} nm)" if sp else "spaceport: none within 60 nm of the pad")
+    con.print(f"airports within {ms.AIRPORT_RADIUS_NM:g} nm: {', '.join(a['icao'] for a in d.get('airports_near', [])[:12]) or 'none in the table'}")
+    if "airspace" in d:
+        con.print(f"TFRs covering the window: {', '.join(t['notam_id'] for t in d['airspace']['tfrs_covering_window']) or 'none in the product'}")
+    if "traffic" in d:
+        con.print(f"aircraft within {hazard_nm:g} nm during the window: {d['traffic'].get('aircraft_inside_during_window')}")
+    if "space_weather" in d:
+        con.print(f"space weather (newest product): {d['space_weather']['icao_advisory_conditions']}")
+    if "objects" in d:
+        con.print(f"objects catalogued from that day{' at ' + d['objects']['site_code'] if d['objects']['site_code'] else ''}: {d['objects']['count']} ({d['objects']['decayed']} decayed)")
+    for f in fs[:20]:
+        con.print(f"  {f.rule_id} [{f.severity.value}] {f.title}")
+    out.mkdir(parents=True, exist_ok=True)
+    slug = "".join(ch if ch.isalnum() else "_" for ch in str(row.get("id") or row.get("name") or "launch"))[:40]
+    jp = write_generic(out, f"mission_{slug}", "dossier", d, fs, inputs={k: v for k, v in inputs["files"].items() if v} | {"recording": recording})["json"]
+    con.print(f"Report: {jp}")
+
+
 @space_app.command("live-check")
 def space_live_check(group: str = typer.Option("stations", help="CelesTrak group for the screen step"), out: Path = typer.Option(Path("reports"))) -> None:
     """Every keyless space path end to end, live: elements -> screen, SATCAT -> identity/decays, SWPC -> conditions, Launch Library, DONKI. No account involved."""
@@ -1672,6 +1773,8 @@ def gov_run_study(
     mission: Path | None = typer.Option(None, help="Mission JSON for ST-13"),
     scales: Path | None = typer.Option(None, help="SWPC product file for ST-17 (default: the bundled sample)"),
     launches: Path | None = typer.Option(None, help="Launch file for ST-18 (default: the bundled sample)"),
+    tfr: Path | None = typer.Option(None, help="TFR product for ST-22 / ST-24 (default: the bundled sample)"),
+    launch: str | None = typer.Option(None, help="Launch id or name substring for ST-24 (default: wallops)"),
     spec: Path | None = typer.Option(None, help="OpenAPI/Swagger document for ST-09"),
     sample: Path | None = typer.Option(None, help="Captured exchange (JSON) for ST-09"),
     schema: str | None = typer.Option(None, help="Schema name for ST-09"),
@@ -1701,6 +1804,10 @@ def gov_run_study(
         params["scales"] = scales
     if launches:
         params["launches"] = launches
+    if tfr:
+        params["tfr"] = tfr
+    if launch:
+        params["launch"] = launch
     if spec:
         params["spec"] = spec
     if sample:

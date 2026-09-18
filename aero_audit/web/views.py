@@ -110,7 +110,7 @@ def _space_summary() -> dict[str, Any]:
     clf = next((e for e in reversed(reg) if isinstance(e, dict) and "scene_classifier" in str(e.get("model_path", ""))), None) if isinstance(reg, list) else None
     feeds = []
     for name, folder, pattern in (("celestrak elements", orbital.ELEMENTS_DIR, "*.tle"), ("celestrak satcat", Path("data/space/satcat"), "satcat_*.csv"), ("noaa swpc", spaceweather.CACHE_DIR, "swpc_*.json"),
-                                  ("launch library 2", launches.CACHE_DIR, "ll2_*.json"), ("cdm inbox", cdm_inbox.INBOX, "*")):
+                                  ("launch library 2", launches.CACHE_DIR, "ll2_*.json"), ("faa tfr", Path("data/airspace"), "tfr_*.json"), ("cdm inbox", cdm_inbox.INBOX, "*")):
         files = [f for f in Path(folder).glob(pattern) if f.is_file() and not f.name.endswith(".provenance.json")] if Path(folder).is_dir() else []
         newest = max((f.stat().st_mtime for f in files), default=None)
         feeds.append({"source": name, "cached": len(files), "newest_age_h": None if newest is None else round((now - newest) / 3600, 1), "folder": str(folder)})
@@ -123,8 +123,19 @@ def _space_summary() -> dict[str, Any]:
     if scp:
         cat = sc.load(scp)
         satcat_block = {**sc.summary(cat), "recent_decays": sc.recent_decays(30.0, cat)[:15]}
+    from ..ingest import tfr as tfr_mod
+
+    tp = tfr_mod.latest()
+    tfr_block = None
+    if tp:
+        try:
+            ts_ = tfr_mod.summary(tp)
+            tfr_block = {k: ts_.get(k) for k in ("file", "fetched_at", "features", "with_geometry", "listed_total", "listed_by_type")} | {"active_now": sum(1 for f in tfr_mod.load(tp).get("features", []) if tfr_mod.active(f, now))}
+        except (OSError, ValueError):
+            tfr_block = {"file": tp.name, "error": "unreadable"}
     return {
         "generated_at": now,
+        "tfr": tfr_block,
         "satcat": satcat_block,
         "feeds": feeds,
         "degraded_last_run": degraded,
@@ -143,7 +154,7 @@ def _space_summary() -> dict[str, Any]:
                    "media_items": len(media) if isinstance(media, list) else (len(media.get("items", [])) if isinstance(media, dict) else 0),
                    "dataset_items": len(dataset.get("items", [])), "dataset_classes": dataset.get("counts"),
                    "classifier": None if not clf else {k: clf.get(k) for k in ("trained_at", "sha256", "rows")} | {"accuracy": (clf.get("evaluation") or {}).get("accuracy")}},
-        "reports": {k: _report_rows(k) for k in ("conjunctions", "cdm", "debris", "space_weather", "launches", "maneuvers")},
+        "reports": {k: _report_rows(k) for k in ("conjunctions", "cdm", "debris", "space_weather", "launches", "maneuvers", "tfr", "reentry", "mission")},
     }
 
 

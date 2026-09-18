@@ -26,6 +26,7 @@ missing column and never prints a value; `aero doctor` adds one line summarising
 | GitHub API | `GITHUB_TOKEN` (optional) | github.com/settings/tokens, fine-grained, public repositories read-only | NASA-3D-Resources tree at 5,000 requests per hour | 60 per hour anonymous |
 | NOAA Aviation Weather Center | none | none | METAR/TAF | fully keyless |
 | FAA NAS status | none | none | airport programmes and delays | fully keyless |
+| FAA TFR list | none | none | published space-operations restrictions with geometry, times and limits (`aero space tfr`, `tfr` job, mission dossier) | fully keyless |
 
 ## Two-minute path for Space-Track (the one account worth having)
 
@@ -54,7 +55,7 @@ numbers out of anything you share, including this project's public repository, u
 |---|---|---|
 | Conjunction screening | `cdm_public` summaries (originator's Pc) | CelesTrak GP elements + our SGP4 pairwise screen (`aero space conjunctions`, ORB-001..003); CDMs you receive go in the inbox (ORB-004/005). CelesTrak's SOCRATES service no longer answers (404 on every query form, checked 2026-09-16) |
 | Element history, manoeuvres | GP history queries | cached CelesTrak snapshots compared over time (`aero space maneuvers`, ORB-006/007) |
-| Decay and reentry | TIP messages | CelesTrak SATCAT decay dates (`aero space satcat`, ORB-008) plus our decay estimate (ORB-007); official reentry predictions stay with the tracking authority |
+| Decay and reentry | TIP messages | CelesTrak SATCAT decay dates (`aero space satcat`, ORB-008) plus our decay estimate (ORB-007) and the ground-track corridor over airports and traffic (`aero space reentry`, REN-001..003); official reentry predictions stay with the tracking authority |
 | Object identity, owner, type | satcat queries | CelesTrak SATCAT (70,000 objects, daily CSV) |
 
 `aero space live-check` proves it on demand: it runs every keyless client end to end (CelesTrak

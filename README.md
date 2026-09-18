@@ -221,10 +221,16 @@ scripts/run_pipeline.sh                                        # train → evalu
 ## Space and UAS in sixty seconds (this branch)
 
 ```bash
-aero space demo            # debris, CDM, space weather, launch windows, well-clear, risk classes, encounter model on the samples
+aero space demo            # debris, CDM, space weather, launch windows, TFRs, reentry corridor, mission dossier, well-clear, risk classes, encounter model on the samples
+aero space mission wallops --file data/samples/ll2_launches_sample.json --recording data/samples/adsblol_nyc_20260910T115129Z.jsonl.gz   # one launch, every domain
 aero app                   # then SPACE and UAS in the left nav, or type SPACE / UAS on the command line
 aero accounts              # which optional services are configured; everything runs keyless first
 ```
+
+Air and space meet at the launch and the reentry: FAA space-operations TFRs (keyless) joined to
+what actually flew (TFR-001..003), ground-track corridors of decaying objects over airports and
+traffic (REN-001..003), and a per-launch dossier that folds airspace, traffic, space weather and
+the catalogue into one report (`docs/SPACE.md`, "Launch and reentry airspace").
 
 The same auditability applies: every report has a manifest with provenance, every rule id has a
 description and (where it demands action) a playbook, every control traces to tests, and the

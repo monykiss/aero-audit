@@ -41,4 +41,9 @@ personal data beyond what every aircraft transmits in the clear.
   and altitude (km) transcribed from the webcast. Used as a genuine launch for the SPC rules and the demo.
 - `utm_position_sample.json`, `utm_position_bad.json`: our own synthetic UTM Position messages; the contract they are
   checked against (nasa/utm-apis) is fetched on demand and never bundled.
-
+- `tfr_sample.json`: synthetic, in the reduced shape `aero space tfr` keeps from the FAA's TFR list (`tfr.faa.gov`, list JSON
+  plus one XNOTAM XML document per restriction): a launch hazard polygon around the sample Wallops launch and a capsule
+  recovery circle placed inside the New York recording so the traffic join has something to find. Both are labelled
+  synthetic in their ids and text. Live products are US Government works in the public domain.
+- `decaying_sample.tle`: a synthetic element set (NORAD 99999, perigee ~185 km) placed so that its pass crosses the New
+  York recording; checksums valid; no real object.

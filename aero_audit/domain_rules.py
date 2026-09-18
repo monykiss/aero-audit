@@ -51,6 +51,14 @@ SPACE_RULE_CATALOG: dict[str, tuple[str, str]] = {
     "LCH-001": ("safety", "Aircraft inside the hazard radius of a pad during its launch window"),
     "LCH-002": ("data-quality", "Launch record stale while its window is open"),
     "LCH-003": ("data-quality", "Launch window overlaps the recording but the pad is outside the recorded region"),
+    # space-operations airspace (space/airspace.py, ingest/tfr.py)
+    "TFR-001": ("safety", "Aircraft inside a space-operations TFR while it was in effect"),
+    "TFR-002": ("data-quality", "US launch window without a published space-operations TFR covering the pad"),
+    "TFR-003": ("data-quality", "TFR product stale while a restriction is in effect"),
+    # reentry corridors (space/reentry.py)
+    "REN-001": ("safety", "Aircraft under the ground track of a decaying object as it passed"),
+    "REN-002": ("operations", "Airports under the corridor of a decaying object"),
+    "REN-003": ("data-quality", "Element set too old for an object flagged decaying"),
 }
 
 SPACE_PLAYBOOKS: dict[str, Playbook] = {
@@ -110,6 +118,24 @@ SPACE_PLAYBOOKS: dict[str, Playbook] = {
         "Range safety and the ATC facility; after the fact, the launch operator's airspace coordination review.",
         ("Record the count inside the real area and the displacement baseline.",),
         60,
+    ),
+    "TFR-001": Playbook(
+        "TFR-001", "Aircraft inside a space-operations TFR while in effect",
+        ("Read the NOTAM text for the exemptions (range support, ATC-authorised, the operator's own aircraft) and the exact vertical limits.",
+         "List each aircraft with first and last time inside, altitude and the number of fixes; match callsigns against the exemptions."),
+        ("An aircraft inside the volume during the effective time and not on the exemption list is an entry into a published restriction; a TFR at 'unlimited' ceiling catches overflights the NOTAM may not intend.",),
+        "The controlling ARTCC named in the NOTAM and the launch operator's airspace coordinator; after the fact, the FAA's Office of Commercial Space Transportation.",
+        ("Record the count inside, the exemption matches and the baseline outside the effective time.",),
+        60,
+    ),
+    "REN-001": Playbook(
+        "REN-001", "Aircraft under the track of a decaying object",
+        ("Check the tracking authority's reentry prediction (TIP) and any reentry NOTAM; the corridor here is a ground track with a width, not a footprint.",
+         "Refetch elements: a set older than two days no longer places a decaying object on the right pass."),
+        ("Exposure to a possible footprint is informational until the authority publishes a window; the finding names who would be affected, not who is at risk.",),
+        "Dispatch and the ANSP for the flight information regions under the corridor; the tracking authority owns the prediction.",
+        ("Annotate the report with the authority's prediction once published and rerun with fresh elements.",),
+        240,
     ),
 }
 
