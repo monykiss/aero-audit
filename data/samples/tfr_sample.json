@@ -1,0 +1,93 @@
+{
+ "features": [
+  {
+   "notam_id": "SYN 6/0001",
+   "type": "SPACE OPERATIONS",
+   "regulation": "91.143",
+   "facility": "ZDC",
+   "state": "VIRGINIA",
+   "place": "WALLOPS ISLAND (SYNTHETIC)",
+   "purpose": "TO PROVIDE A SAFE ENVIRONMENT FOR SPACE OPERATIONS (SYNTHETIC SAMPLE)",
+   "description": "synthetic launch hazard area around Wallops Pad 0A for the sample launch",
+   "issued": "2026-09-08T12:00:00",
+   "effective": "2026-09-10T11:00:00",
+   "expire": "2026-09-10T13:00:00",
+   "effective_ts": 1789038000.0,
+   "expire_ts": 1789045200.0,
+   "lower_ft": 0.0,
+   "upper_ft": null,
+   "polygon": [
+    [
+     38.05,
+     -75.75
+    ],
+    [
+     38.05,
+     -75.2
+    ],
+    [
+     37.7,
+     -74.6
+    ],
+    [
+     37.3,
+     -74.7
+    ],
+    [
+     37.35,
+     -75.55
+    ],
+    [
+     37.7,
+     -75.75
+    ]
+   ],
+   "circle": null,
+   "vertices": 6,
+   "centroid": [
+    37.6917,
+    -75.2583
+   ]
+  },
+  {
+   "notam_id": "SYN 6/0002",
+   "type": "SPACE OPERATIONS",
+   "regulation": "91.143",
+   "facility": "ZNY",
+   "state": "NEW YORK",
+   "place": "SOUTH OF LONG ISLAND (SYNTHETIC)",
+   "purpose": "TO PROVIDE A SAFE ENVIRONMENT FOR CAPSULE RECOVERY OPERATIONS (SYNTHETIC SAMPLE)",
+   "description": "synthetic recovery area placed inside the sample recording so the traffic join has something to find",
+   "issued": "2026-09-09T18:00:00",
+   "effective": "2026-09-10T11:30:00",
+   "expire": "2026-09-10T12:30:00",
+   "effective_ts": 1789039800.0,
+   "expire_ts": 1789043400.0,
+   "lower_ft": 0.0,
+   "upper_ft": 18000.0,
+   "polygon": [],
+   "circle": {
+    "lat": 40.55,
+    "lon": -73.55,
+    "radius_nm": 25.0
+   },
+   "vertices": 0,
+   "centroid": [
+    40.55,
+    -73.55
+   ]
+  }
+ ],
+ "fetched_at": "20260910T113000Z",
+ "source": "synthetic (shape of https://tfr.faa.gov/tfrapi/getTfrList + detail XML)",
+ "types": [
+  "SPACE OPERATIONS"
+ ],
+ "listed_total": 2,
+ "listed_by_type": {
+  "SPACE OPERATIONS": 2
+ },
+ "detail_failures": 0,
+ "truncated": 0,
+ "synthetic": true
+}

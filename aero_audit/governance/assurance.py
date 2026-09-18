@@ -35,6 +35,8 @@ COMPONENTS: tuple[Component, ...] = (
     Component("Space assets and footage", "aero_audit/space (nasa3d, nasa_images, footage, dataset, classifier)", "E", False, "Exploratory intake and scene classification; no operational decisions."),
     Component("Launch telemetry and orbital analysis", "aero_audit/space (telemetry, orbital, cdm, cdm_inbox, debris)", "D", True, "Physics checks and conjunction assessment on supplied data; advisory to operators."),
     Component("UAS well-clear metrics", "aero_audit/uas", "D", True, "Offline DO-365 metrics on recordings; never real-time guidance."),
+    Component("Launch and reentry airspace", "aero_audit/ingest/tfr, aero_audit/space (airspace, reentry, mission), aero_audit/knowledge/spaceports", "D", True,
+              "Published restrictions and decaying-object corridors joined to traffic; advisory after the fact, the NOTAM and the tracking authority stay authoritative."),
     Component("Governance layer", "aero_audit/governance", "E", False, "Registry of controls, risks, studies and posture; documentation-grade."),
 )
 

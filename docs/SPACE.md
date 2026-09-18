@@ -17,6 +17,7 @@ client), so nothing here is public yet.
 | [NASA Image and Video Library](https://images.nasa.gov) (`images-api.nasa.gov`) | Searchable imagery, video (with SRT captions and EXIF metadata), audio; includes SpaceX crew launches flown for NASA | Public domain in general; per-item `copyright` field must be honoured | `space/nasa_images.py` |
 | Local footage you have rights to | Any video file | Yours | `space/footage.py` |
 | Telemetry CSV | `t_s, speed, altitude` from an overlay reader, a flight-data export, or a simulation | Yours | `space/telemetry.py` |
+| [FAA TFR list](https://tfr.faa.gov) (`tfrapi/getTfrList` + one XNOTAM XML per restriction) | Temporary flight restrictions with merged geometry, effective times and vertical limits; space operations under 14 CFR 91.143 | US Government work, public domain; the NOTAM text is authoritative | `ingest/tfr.py`, `space/airspace.py` |
 
 SpaceX's own webcasts are copyrighted; this branch does not download them. The NASA library
 carries NASA's coverage of those launches, which is what "footage like SpaceX" resolves to here.
@@ -155,6 +156,53 @@ stays authoritative. `web/schedule.py` runs any registered job on an interval as
 audited job (network jobs are skipped under `AERO_OFFLINE=1`), and `web/space_jobs.py` is the one
 registry the app, the scheduler and `aero space watch` share. The SPACE page in the app shows all
 of it with buttons that submit the same jobs.
+
+## Launch and reentry airspace: the air/space seam (0.8.0)
+
+```bash
+aero space tfr                                       # FAA space-operations TFRs (keyless): geometry, times, limits
+aero space tfr --recording <rec> --launches <ll2.json>   # aircraft inside a restriction in effect (TFR-001); US windows without one (TFR-002)
+aero space reentry --recording <rec>                 # corridors of decaying objects vs airports and traffic (REN-001..003)
+aero space mission wallops --file data/samples/ll2_launches_sample.json --recording <rec>   # the dossier of one launch
+aero space watch --schedule tfr=600,reentry=1800     # both as scheduled jobs; `mission` runs on demand
+```
+
+A launch is the moment air and space travel share one volume of sky, and a reentry is the moment
+the sky has to make room again. Four pieces close that seam:
+
+- **`ingest/tfr.py`** reads the FAA's TFR list and each restriction's XNOTAM document into one
+  product: type, facility, effective and expiry times, lower and upper limits, and the merged
+  geometry (polygon vertices or a circle) in decimal degrees, with a provenance sidecar. Space
+  operations (91.143) are fetched by default; `--all-types` takes every type. The parser was
+  checked on live documents (a launch TFR in Nevada with 73 vertices, a fire-fighting hazard TFR
+  in California).
+- **`space/airspace.py`** joins that product to a recording (TFR-001: aircraft inside the volume,
+  below the ceiling, while the restriction was in effect; the same volume outside its effective
+  time is the displacement baseline) and to launch windows (TFR-002: a US window within 72 h with
+  no space-operations TFR covering the pad, skipped for holds and scrubs; abroad launches are
+  reported, never flagged). TFR-003 says the product is older than six hours while a restriction is
+  in effect. Exemptions in the NOTAM text (range support, ATC-authorised aircraft) are the
+  facility's call, so TFR-001 lists the aircraft and stops there.
+- **`space/reentry.py`** takes the objects the element history flags as decaying (perigee under
+  200 km or reentry within 30 days, `space/maneuvers.py`), propagates them with SGP4, converts
+  TEME to latitude and longitude by the GMST rotation (checked against the J2000 sidereal time,
+  a closed-form WGS84 point, and the ISS's westward node drift), and builds a corridor of +-50 nm
+  around the ground track for the next hours. REN-002 lists the airports under it, REN-001 the
+  recorded aircraft under it at the time of the pass, REN-003 an element set older than 48 h for
+  a decaying object. It is exposure, not a prediction: the tracking authority's TIP message and
+  the reentry NOTAM supersede it, and the playbook says so.
+- **`space/mission.py`** folds one launch into a dossier with one manifest: the pad and its
+  spaceport (`knowledge/spaceports.py`, forty sites with SATCAT launch-site codes), the airports
+  within 50 nm, the TFRs covering the window and the traffic inside them, the traffic inside the
+  hazard radius (LCH), the newest space-weather product (SWX), and the objects the SATCAT lists
+  from that day at that site with their decay state (ORB-008). Every section names its producing
+  module; the dossier adds no rule of its own.
+
+Studies ST-22 (launch airspace compliance), ST-23 (reentry corridor exposure) and ST-24 (mission
+dossier) run these on the samples; controls C-45..C-47 carry the evidence. The bundled
+`tfr_sample.json` is synthetic (a Wallops launch polygon and a recovery circle placed inside the
+New York recording so the join has something to find); `decaying_sample.tle` is a synthetic
+185 km-perigee object whose pass crosses the same recording.
 
 ## Catalogue (keyless) and the Space-Track question
 

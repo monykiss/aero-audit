@@ -2,6 +2,18 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 0.8.0 - 2026-09-18
+
+- The air/space seam: FAA temporary flight restrictions fetched keyless (list plus XNOTAM geometry, times and
+  limits; `ingest/tfr.py`) and joined to recorded traffic and to launch windows (TFR-001..003, `space/airspace.py`);
+  reentry corridors of decaying objects with a checked TEME-to-geodetic conversion against airports and traffic
+  (REN-001..003, `space/reentry.py`); a spaceport table with SATCAT site codes (`knowledge/spaceports.py`); the
+  per-launch mission dossier (`space/mission.py`, `aero space mission`). Commands `aero space tfr`, `reentry`,
+  `mission`; jobs `tfr`, `reentry`, `mission`; studies ST-22..ST-24; controls C-45..C-47; live-check and demo steps;
+  `faa_tfr` in the integration inventory; synthetic samples `tfr_sample.json` and `decaying_sample.tle`.
+- Upstream: nasa/NASA-3D-Resources#50 withdrawn; the contribution package lives in `upstream/nasa3d/` (no public fork).
+- SATCAT rows keep the launch-site code.
+
 ## 0.7.0 - 2026-09-18
 
 - Space: NASA-3D-Resources catalogue with blob-verified fetch; NASA image and video library client; footage frames

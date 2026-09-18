@@ -48,6 +48,8 @@ INTEGRATIONS: dict[str, Integration] = {i.key: i for i in (
     Integration("ll2", "The Space Devs Launch Library 2", (), "https://thespacedevs.com (paid tiers raise the limit)", "Launch windows and pads.", "15 requests per hour keyless", ("space-launch",)),
     Integration("github", "GitHub API", (), "https://github.com/settings/tokens (fine-grained, public repositories read-only)", "NASA-3D-Resources tree at 5,000 requests per hour and Dependabot/Scorecard checks.",
                 "60 requests per hour anonymous", ("space-assets",), ("GITHUB_TOKEN",)),
+    Integration("faa_tfr", "FAA temporary flight restrictions", (), "none", "Published space-operations restrictions with geometry, times and limits: TFR-001..003, the launch-window coverage check and the mission dossier.",
+                "fully keyless (list JSON plus one XML document per restriction)", ("space-launch", "air-operations")),
     Integration("noaa_awc", "NOAA Aviation Weather Center", (), "none", "METAR/TAF for airport context.", "fully keyless", ("air-operations",)),
     Integration("faa_nas", "FAA NAS status", (), "none", "Airport programmes and delays.", "fully keyless", ("air-operations",)),
 )}
@@ -60,6 +62,7 @@ PROBES: dict[str, tuple[str, str]] = {  # key -> (url, what a 200 proves); authe
     "satcat": ("https://celestrak.org/satcat/records.php?CATNR=25544&FORMAT=csv", "keyless catalogue record answers"),
     "ll2": ("https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=1", "keyless launch list answers (15/h)"),
     "noaa_awc": ("https://aviationweather.gov/api/data/metar?ids=KJFK&format=json", "keyless METAR answers"),
+    "faa_tfr": ("https://tfr.faa.gov/tfrapi/getTfrList", "keyless TFR list answers"),
     "faa_nas": ("https://nasstatus.faa.gov/api/airport-status-information", "keyless NAS status answers"),
     "github": ("https://api.github.com/rate_limit", "rate limit endpoint answers (token raises the quota)"),
     "nasa_api": ("https://api.nasa.gov/DONKI/notifications", "key (or DEMO_KEY) accepted by the DONKI endpoint the tool uses"),

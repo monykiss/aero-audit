@@ -16,11 +16,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-STEPS = ("elements", "satcat", "space_weather", "launches", "donki", "nws_alerts", "utm_contracts")
+STEPS = ("elements", "satcat", "space_weather", "launches", "tfr", "donki", "nws_alerts", "utm_contracts")
 
 
 def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "stations", max_sets: int = 60) -> dict[str, Any]:
     from ..ingest import nws_alerts
+    from ..ingest import tfr as tfr_mod
     from ..uas import utm
     from . import donki, launches, satcat, spaceweather
     from .orbital import fetch_group, parse_tle, screen
@@ -28,6 +29,7 @@ def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "sta
     f = {"elements": lambda: asyncio.run(fetch_group(group)), "satcat": lambda: asyncio.run(satcat.fetch()), "space_weather": lambda: asyncio.run(spaceweather.fetch()),
          "launches": lambda: asyncio.run(launches.fetch("upcoming", 10)), "donki": lambda: asyncio.run(donki.fetch(3)),
          "nws_alerts": lambda: asyncio.run(nws_alerts.fetch(("Flood Warning", "Flash Flood Warning"))),
+         "tfr": lambda: asyncio.run(tfr_mod.fetch(tfr_mod.SPACE_TYPES, max_details=6)),
          "utm_contracts": lambda: asyncio.run(utm.fetch_domains())[0]} | (fetchers or {})
     rows: list[dict[str, Any]] = []
     ctx: dict[str, Any] = {}
@@ -66,6 +68,11 @@ def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "sta
         rows_ = json.loads(Path(p).read_text()).get("launches", [])
         return {"file": Path(p).name, "launches": len(rows_), "next": rows_[0].get("name") if rows_ else None, "keyless": True}
 
+    def _tfr() -> dict[str, Any]:
+        p = f["tfr"]()
+        s = tfr_mod.summary(p)
+        return {"file": Path(p).name, "space_ops_tfrs": s["features"], "with_geometry": s["with_geometry"], "listed_total": s["listed_total"], "keyless": True}
+
     def _donki() -> dict[str, Any]:
         p = f["donki"]()
         pay = json.loads(Path(p).read_text())
@@ -85,7 +92,7 @@ def run(fetchers: dict[str, Callable[[], Path]] | None = None, group: str = "sta
         errs = utm.validate(good, utm.schema_for(doc, "Position"), doc) if good is not None and "Position" in defs else None
         return {"file": Path(p).name, "definitions": len(defs), "sample_position_errors": None if errs is None else len(errs), "keyless": True}
 
-    for name, work in (("elements", _elements), ("satcat", _satcat), ("space_weather", _weather), ("launches", _launches), ("donki", _donki), ("nws_alerts", _nws), ("utm_contracts", _utm)):
+    for name, work in (("elements", _elements), ("satcat", _satcat), ("space_weather", _weather), ("launches", _launches), ("tfr", _tfr), ("donki", _donki), ("nws_alerts", _nws), ("utm_contracts", _utm)):
         step(name, work)
     ok = sum(1 for r in rows if r["ok"])
     return {"steps": rows, "passed": ok, "total": len(rows), "all_keyless": True, "spacetrack_used": False, "ran_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

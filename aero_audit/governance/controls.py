@@ -194,6 +194,15 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
     Control("C-43", "Publication readiness", "Mechanical checks before the private branch goes public: nothing private tracked, no secret-looking strings, every source attributed, generated docs fresh, library and traceability clean, optional deps declared, changelog and README complete; the licence item stays open until upstream answers.",
             "governance", ("space-assets", "space-launch", "space-orbital", "uas-utm", "space-environment"), ("NASA-NOSA-1.3", "NASA-MEDIA", "ODbL-1.0"), "implemented",
             ("module:aero_audit/space/demo.py", "command:aero space demo", "test:tests/test_generic_report_demo.py", "module:aero_audit/governance/publish.py", "module:aero_audit/governance/status.py", "artefact:docs/generated/STATUS.md", "test:tests/test_publish_status.py", "command:aero gov publish-check", "doc:docs/UPSTREAM.md")),
+    Control("C-45", "Space-operations airspace joined to traffic", "Published space-operations TFRs (geometry, effective time, vertical limits) fetched keyless and joined to recorded traffic and to launch windows: aircraft inside a restriction in effect, US windows without one, stale products.",
+            "compliance", ("space-launch", "air-operations"), ("CFR14-91.143", "CFR14-450", "ICAO-A11"), "implemented",
+            ("rule:TFR-001", "rule:TFR-002", "rule:TFR-003", "module:aero_audit/ingest/tfr.py", "module:aero_audit/space/airspace.py", "test:tests/test_airspace.py", "command:aero space tfr", "study:ST-22", "doc:docs/SPACE.md"), cadence_days=30),
+    Control("C-46", "Reentry corridor watch", "Decaying objects (low perigee or reentry within the watch window) propagated to ground-track corridors; airports and recorded traffic under them listed with the element age; the authority's prediction stays supreme.",
+            "risk", ("space-orbital", "air-operations"), ("CFR14-91.143", "ICAO-DOC4444", "NASA-STD-8719.14", "CCSDS-502"), "implemented",
+            ("rule:REN-001", "rule:REN-002", "rule:REN-003", "module:aero_audit/space/reentry.py", "test:tests/test_airspace.py", "command:aero space reentry", "study:ST-23"), cadence_days=30),
+    Control("C-47", "Mission dossier", "One launch joined across domains in one report with one manifest: spaceport and airports, TFR coverage and the traffic inside it, hazard-radius traffic, space weather, catalogued objects and their decay; every section names its producing module.",
+            "governance", ("space-launch", "air-operations", "space-orbital", "space-environment"), ("CFR14-450", "CFR14-91.143", "NASA-SLIM"), "implemented",
+            ("module:aero_audit/space/mission.py", "module:aero_audit/knowledge/spaceports.py", "test:tests/test_airspace.py", "command:aero space mission", "study:ST-24", "doc:docs/SPACE.md"), cadence_days=90),
 )}
 
 

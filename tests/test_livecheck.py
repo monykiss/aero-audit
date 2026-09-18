@@ -39,7 +39,8 @@ def test_live_check_with_injected_fetchers(tmp_path):
     contract = tmp_path / "utm-domain-commons.json"
     contract.write_text(json.dumps({"swagger": "2.0", "definitions": {"Position": {"type": "object", "required": ["gufi"], "properties": {"gufi": {"type": "string"}}}}}))
     res = livecheck.run({"elements": lambda: _tle(tmp_path), "satcat": lambda: satcat_csv, "space_weather": lambda: ROOT / "data/samples/swpc_scales_sample.json",
-                         "launches": boom, "donki": lambda: donki_json, "nws_alerts": lambda: nws, "utm_contracts": lambda: contract})
+                         "launches": boom, "donki": lambda: donki_json, "nws_alerts": lambda: nws, "utm_contracts": lambda: contract,
+                         "tfr": lambda: ROOT / "data/samples/tfr_sample.json"})
     by = {r["step"]: r for r in res["steps"]}
     assert [r["step"] for r in res["steps"]] == list(livecheck.STEPS)
     assert by["elements"]["ok"] and by["elements"]["sets"] >= 1
@@ -49,4 +50,5 @@ def test_live_check_with_injected_fetchers(tmp_path):
     assert by["donki"]["ok"] and by["donki"]["agreement"]["G"] == "swpc-only"
     assert by["nws_alerts"]["ok"] and by["nws_alerts"]["extents"] == 1
     assert by["utm_contracts"]["ok"] and by["utm_contracts"]["definitions"] == 1 and by["utm_contracts"]["sample_position_errors"] == 0
-    assert res["passed"] == 6 and res["total"] == 7 and res["spacetrack_used"] is False and res["all_keyless"]
+    assert by["tfr"]["ok"] and by["tfr"]["space_ops_tfrs"] == 2 and by["tfr"]["with_geometry"] == 2 and by["tfr"]["keyless"]
+    assert res["passed"] == 7 and res["total"] == 8 and res["spacetrack_used"] is False and res["all_keyless"]

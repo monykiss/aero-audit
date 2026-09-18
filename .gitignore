@@ -22,3 +22,4 @@ logs/
 reports/*
 !reports/.gitkeep
 data/space/
+data/airspace/

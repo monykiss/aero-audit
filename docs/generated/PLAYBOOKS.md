@@ -421,3 +421,35 @@ Escalate: Range safety and the ATC facility; after the fact, the launch operator
 
 Contain:
 - Record the count inside the real area and the displacement baseline.
+
+## TFR-001: Aircraft inside a space-operations TFR while in effect
+
+SLA to triage: 60 min
+
+Triage:
+1. Read the NOTAM text for the exemptions (range support, ATC-authorised, the operator's own aircraft) and the exact vertical limits.
+1. List each aircraft with first and last time inside, altitude and the number of fixes; match callsigns against the exemptions.
+
+Verify:
+- An aircraft inside the volume during the effective time and not on the exemption list is an entry into a published restriction; a TFR at 'unlimited' ceiling catches overflights the NOTAM may not intend.
+
+Escalate: The controlling ARTCC named in the NOTAM and the launch operator's airspace coordinator; after the fact, the FAA's Office of Commercial Space Transportation.
+
+Contain:
+- Record the count inside, the exemption matches and the baseline outside the effective time.
+
+## REN-001: Aircraft under the track of a decaying object
+
+SLA to triage: 240 min
+
+Triage:
+1. Check the tracking authority's reentry prediction (TIP) and any reentry NOTAM; the corridor here is a ground track with a width, not a footprint.
+1. Refetch elements: a set older than two days no longer places a decaying object on the right pass.
+
+Verify:
+- Exposure to a possible footprint is informational until the authority publishes a window; the finding names who would be affected, not who is at risk.
+
+Escalate: Dispatch and the ANSP for the flight information regions under the corridor; the tracking authority owns the prediction.
+
+Contain:
+- Annotate the report with the authority's prediction once published and rerun with fresh elements.

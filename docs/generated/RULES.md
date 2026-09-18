@@ -60,3 +60,9 @@
 | LCH-001 | safety | Aircraft inside the hazard radius of a pad during its launch window |
 | LCH-002 | data-quality | Launch record stale while its window is open |
 | LCH-003 | data-quality | Launch window overlaps the recording but the pad is outside the recorded region |
+| TFR-001 | safety | Aircraft inside a space-operations TFR while it was in effect |
+| TFR-002 | data-quality | US launch window without a published space-operations TFR covering the pad |
+| TFR-003 | data-quality | TFR product stale while a restriction is in effect |
+| REN-001 | safety | Aircraft under the ground track of a decaying object as it passed |
+| REN-002 | operations | Airports under the corridor of a decaying object |
+| REN-003 | data-quality | Element set too old for an object flagged decaying |

@@ -11,6 +11,7 @@
 | Space assets and footage | `aero_audit/space (nasa3d, nasa_images, footage, dataset, classifier)` | E | no | Exploratory intake and scene classification; no operational decisions. | version control; a README stating purpose and limits |
 | Launch telemetry and orbital analysis | `aero_audit/space (telemetry, orbital, cdm, cdm_inbox, debris)` | D | yes | Physics checks and conjunction assessment on supplied data; advisory to operators. | version control; documented requirements and design; unit and regression tests run in CI; release records with provenance; coding standard checks |
 | UAS well-clear metrics | `aero_audit/uas` | D | yes | Offline DO-365 metrics on recordings; never real-time guidance. | version control; documented requirements and design; unit and regression tests run in CI; release records with provenance; coding standard checks |
+| Launch and reentry airspace | `aero_audit/ingest/tfr, aero_audit/space (airspace, reentry, mission), aero_audit/knowledge/spaceports` | D | yes | Published restrictions and decaying-object corridors joined to traffic; advisory after the fact, the NOTAM and the tracking authority stay authoritative. | version control; documented requirements and design; unit and regression tests run in CI; release records with provenance; coding standard checks |
 | Governance layer | `aero_audit/governance` | E | no | Registry of controls, risks, studies and posture; documentation-grade. | version control; a README stating purpose and limits |
 
 ## SLIM repository checklist: 24 / 24 (100%)

@@ -1,6 +1,6 @@
 # Controls library (generated)
 
-Implementation index: **97%** over 44 controls; 36 of 36 standards have at least one implemented or partial control.
+Implementation index: **97%** over 47 controls; 36 of 36 standards have at least one implemented or partial control.
 
 ## Compliance
 
@@ -21,6 +21,7 @@ Implementation index: **97%** over 44 controls; 36 of 36 standards have at least
 | C-33 | External asset integrity and provenance | implemented | space-assets | NASA-NOSA-1.3, NASA-MEDIA | module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py; test:tests/test_space.py; command:aero space fetch |
 | C-34 | Crisis extent to operations impact | implemented | earth-crisis, air-operations | NASA-NPR-8715.3, ICAO-A11 | module:aero_audit/ingest/nws_alerts.py; command:aero data crisis-fetch; test:tests/test_gap_fill.py; study:ST-11; test:tests/test_governance.py |
 | C-38 | Space weather watch | implemented | space-environment, air-operations, space-orbital | ICAO-A3, NOAA-SCALES | module:aero_audit/space/donki.py; test:tests/test_accounts_donki.py; module:aero_audit/space/spaceweather.py; rule:SWX-001; rule:SWX-002; rule:SWX-003; rule:SWX-004; rule:SWX-005; test:tests/test_feeds_risk.py; command:aero space weather; study:ST-17 |
+| C-45 | Space-operations airspace joined to traffic | implemented | space-launch, air-operations | CFR14-91.143, CFR14-450, ICAO-A11 | rule:TFR-001; rule:TFR-002; rule:TFR-003; module:aero_audit/ingest/tfr.py; module:aero_audit/space/airspace.py; test:tests/test_airspace.py; command:aero space tfr; study:ST-22; doc:docs/SPACE.md |
 
 ## Risk
 
@@ -32,6 +33,7 @@ Implementation index: **97%** over 44 controls; 36 of 36 standards have at least
 | C-16 | Response playbooks with triage SLAs | implemented | air-surveillance, air-operations | NIST-SP800-53, ICAO-A17 | module:aero_audit/security/playbooks.py; module:aero_audit/security/playbook_model.py; module:aero_audit/alerts.py; artefact:docs/generated/PLAYBOOKS.md; test:tests/test_security.py |
 | C-17 | Operational impact quantification | implemented | air-operations | ICAO-A11 | module:aero_audit/impact.py; command:aero impact; test:tests/test_impact.py |
 | C-39 | Launch-window airspace | implemented | space-launch, air-operations | CFR14-91.143 | module:aero_audit/space/launches.py; rule:LCH-001; rule:LCH-002; rule:LCH-003; test:tests/test_feeds_risk.py; command:aero space launches; study:ST-18 |
+| C-46 | Reentry corridor watch | implemented | space-orbital, air-operations | CFR14-91.143, ICAO-DOC4444, NASA-STD-8719.14, CCSDS-502 | rule:REN-001; rule:REN-002; rule:REN-003; module:aero_audit/space/reentry.py; test:tests/test_airspace.py; command:aero space reentry; study:ST-23 |
 
 ## Study
 
@@ -65,6 +67,7 @@ Implementation index: **97%** over 44 controls; 36 of 36 standards have at least
 | C-42 | Bidirectional traceability | implemented | air-surveillance, air-operations, space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NPR-7150.2, NASA-SLIM | module:aero_audit/governance/traceability.py; artefact:docs/generated/TRACEABILITY.md; test:tests/test_depth.py; command:aero gov traceability; command:aero docs-build |
 | C-44 | Periodic digest | implemented | air-surveillance, air-operations, space-orbital, space-environment, space-launch, uas-utm | NASA-SLIM, NIST-CSF-2 | module:aero_audit/governance/digest.py; test:tests/test_digest.py; command:aero gov digest |
 | C-43 | Publication readiness | implemented | space-assets, space-launch, space-orbital, uas-utm, space-environment | NASA-NOSA-1.3, NASA-MEDIA, ODbL-1.0 | module:aero_audit/space/demo.py; command:aero space demo; test:tests/test_generic_report_demo.py; module:aero_audit/governance/publish.py; module:aero_audit/governance/status.py; artefact:docs/generated/STATUS.md; test:tests/test_publish_status.py; command:aero gov publish-check; doc:docs/UPSTREAM.md |
+| C-47 | Mission dossier | implemented | space-launch, air-operations, space-orbital, space-environment | CFR14-450, CFR14-91.143, NASA-SLIM | module:aero_audit/space/mission.py; module:aero_audit/knowledge/spaceports.py; test:tests/test_airspace.py; command:aero space mission; study:ST-24; doc:docs/SPACE.md |
 
 ## Policies
 
@@ -88,32 +91,32 @@ Implementation index: **97%** over 44 controls; 36 of 36 standards have at least
 | ICAO-A2 | ICAO Annex 2, Rules of the Air | ICAO | air | 1 / 0 / 0 |
 | ICAO-A6 | ICAO Annex 6, Operation of Aircraft | ICAO | air | 1 / 0 / 0 |
 | ICAO-A10 | ICAO Annex 10 Vol III/IV, Aeronautical Telecommunications | ICAO | air | 2 / 0 / 0 |
-| ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 3 / 0 / 0 |
+| ICAO-A11 | ICAO Annex 11, Air Traffic Services | ICAO | air | 4 / 0 / 0 |
 | ICAO-A14 | ICAO Annex 14, Aerodromes | ICAO | air | 0 / 1 / 0 |
 | ICAO-A17 | ICAO Annex 17, Security | ICAO | air | 5 / 0 / 0 |
-| ICAO-DOC4444 | ICAO Doc 4444 PANS-ATM | ICAO | air | 2 / 0 / 0 |
+| ICAO-DOC4444 | ICAO Doc 4444 PANS-ATM | ICAO | air | 3 / 0 / 0 |
 | ICAO-DOC9924 | ICAO Doc 9924, Aeronautical Surveillance Manual | ICAO | air | 3 / 0 / 0 |
 | RTCA-DO260B | RTCA DO-260B, 1090ES ADS-B MOPS | RTCA | air | 3 / 0 / 0 |
 | RTCA-DO365 | RTCA DO-365, DAA MOPS for UAS | RTCA | air | 1 / 0 / 0 |
 | CFR14-91.227 | 14 CFR 91.227 ADS-B Out performance | FAA | air | 1 / 0 / 0 |
 | CFR14-91.135 | 14 CFR 91.135 Class A operations | FAA | air | 1 / 0 / 0 |
-| CFR14-91.143 | 14 CFR 91.143 Flight limitation in the proximity of space flight operations | FAA | air | 1 / 0 / 0 |
+| CFR14-91.143 | 14 CFR 91.143 Flight limitation in the proximity of space flight operations | FAA | air | 4 / 0 / 0 |
 | ICAO-A3 | ICAO Annex 3, Meteorological Service (space weather advisories, Amdt 78+) | ICAO | air | 1 / 0 / 0 |
 | NOAA-SCALES | NOAA Space Weather Scales (R / S / G) | NOAA SWPC | space | 1 / 0 / 0 |
 | EU-1207-2011 | EU Regulation 1207/2011 (SPI IR) as amended | EU | air | 1 / 0 / 0 |
 | ASTM-F3411 | ASTM F3411, Remote ID and Tracking | ASTM | air | 1 / 0 / 0 |
 | ASTM-F3442 | ASTM F3442/F3442M, DAA performance for smaller UAS | ASTM | air | 2 / 0 / 0 |
-| CFR14-450 | 14 CFR Part 450, Launch and Reentry Licensing | FAA AST | space | 2 / 0 / 0 |
+| CFR14-450 | 14 CFR Part 450, Launch and Reentry Licensing | FAA AST | space | 4 / 0 / 0 |
 | CCSDS-133 | CCSDS 133.0-B, Space Packet Protocol | CCSDS | space | 1 / 0 / 0 |
-| CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 1 / 0 / 0 |
+| CCSDS-502 | CCSDS 502.0-B, Orbit Data Messages | CCSDS | space | 2 / 0 / 0 |
 | CCSDS-508 | CCSDS 508.0-B, Conjunction Data Message | CCSDS | space | 1 / 0 / 0 |
 | CCSDS-355 | CCSDS 355.0-B, Space Data Link Security | CCSDS | space | 0 / 1 / 0 |
 | NASA-NPR-8715.3 | NASA NPR 8715.3, General Safety Program Requirements | NASA | space | 1 / 0 / 0 |
-| NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 1 / 0 / 0 |
+| NASA-STD-8719.14 | NASA-STD-8719.14, Limiting Orbital Debris | NASA | space | 2 / 0 / 0 |
 | ISO-24113 | ISO 24113, Space debris mitigation requirements | ISO | space | 1 / 0 / 0 |
 | NASA-NPR-7150.2 | NASA NPR 7150.2, Software Engineering Requirements | NASA | software | 1 / 1 / 0 |
 | NASA-STD-8739.8 | NASA-STD-8739.8, Software Assurance and Safety | NASA | software | 0 / 1 / 0 |
-| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 6 / 1 / 0 |
+| NASA-SLIM | NASA-AMMOS SLIM best-practice guides | NASA AMMOS | software | 7 / 1 / 0 |
 | NIST-CSF-2 | NIST Cybersecurity Framework 2.0 | NIST | cyber | 6 / 0 / 0 |
 | NIST-SP800-53 | NIST SP 800-53 r5 | NIST | cyber | 9 / 0 / 0 |
 | ISO-27001 | ISO/IEC 27001:2022 Annex A | ISO | cyber | 8 / 0 / 0 |

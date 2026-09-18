@@ -117,6 +117,7 @@ at low or medium residual (20%), runnable studies (10%) and evidence freshness o
 | 7b. Data governance registry | Metadata registry over recordings, assets, reports and study outputs modelled on CMR's collection/granule split, with cumulus-style reconciliation reports | **2026-09-15**: `aero data catalog build/search/reconcile` over 12 collections with hashes, time bounds and provenance pointers; ST-15; C-36 implemented |
 | 7. Crisis overlays | Extents from CMT or Earth Engine exports intersected with airports, routes and live traffic; relief-flight coverage study | **2026-09-17**: live NWS alert polygons (keyless, public domain) through `aero data crisis-fetch`; ST-11 ran on nine real flood warnings; C-34 partial. Open: relief-flight coverage study |
 | 8. Performance | Hot paths vectorised with scalar references kept and proven equivalent; bench suite and recorded numbers | **2026-09-15**: projection, rasteriser, screen, catalogue cache, page memo; `aero bench --suite space`; docs/PERFORMANCE.md |
+| 9. Air/space seam | Published space-operations airspace, reentry corridors and a per-launch dossier joining every domain | **2026-09-18**: FAA TFR product (keyless, geometry from XNOTAM) joined to traffic and launch windows (TFR-001..003); decaying-object corridors with a checked geodetic conversion over airports and traffic (REN-001..003); spaceport table; mission dossier (`aero space mission`); ST-22..24, C-45..47. Open: reentry TIP ingestion when a source without a user agreement exists; TFR history for displacement studies |
 | 6. Upstream | Catalogue and integrity tool offered to nasa/NASA-3D-Resources; library client published; branch becomes public | **2026-09-15**: standalone `scripts/nasa3d_catalog.py` (stdlib only) and the PR text in docs/UPSTREAM.md are ready; catalogue regenerated and verify run recorded 2026-09-16; the licence email is drafted in docs/UPSTREAM.md and waits on the user to send it (P-08) |
 
 Open issues on nasa/NASA-3D-Resources that the catalogue tool answers directly (checked 2026-09-10): #44 "Miscategorization of a file" (our `kind_of` classification and subject grouping surface exactly this), #43 "LWO version missing images" (ST-04 reports models without a preview image); #17 "License" (closed) is the thread to cite when confirming terms. The first upstream offer should be a PR that adds a generated `CATALOG.json` plus a small script, referencing those issues.
@@ -160,6 +161,7 @@ traffic, AIT-Core, em-core) are candidates for direct dependencies when their ph
 ## Next actions (2026-09-17)
 
 1. **Done 2026-09-18**: 0.7.0 released from `main`; upstream contribution offered as nasa/NASA-3D-Resources#50 and withdrawn (no public fork wanted); package kept in `upstream/nasa3d/`; licence position recorded in `docs/LICENSE_DETERMINATION.md`.
-2. **Data**: second-source hold-out done (56.4% top-1 vs 80.2% in-distribution); next hand-curated labels and richer classes before any model labels a report.
-3. **Ops**: run `aero space watch` under launchd (`ops/launchd/`) so the caches and ledger stay fresh without the app.
-4. **Public main**: when the answer arrives, merge slice A (or everything) and release 0.7.0 with the 0.6.0 asset set.
+2. **Done 2026-09-18**: air/space seam (phase 9) on `main` as 0.8.0: TFRs, reentry corridors, spaceports, mission dossier.
+3. **Data**: second-source hold-out done (56.4% top-1 vs 80.2% in-distribution); next hand-curated labels and richer classes before any model labels a report.
+4. **Ops**: run `aero space watch` under launchd (`ops/launchd/`) so the caches and ledger stay fresh without the app.
+5. **Public main**: when the answer arrives, merge slice A (or everything) and release 0.7.0 with the 0.6.0 asset set.
