@@ -159,7 +159,7 @@ traffic, AIT-Core, em-core) are candidates for direct dependencies when their ph
 
 ## Next actions (2026-09-17)
 
-1. **You**: send the licence email (`docs/upstream_email.txt`, also in `docs/UPSTREAM.md`); decide the public shape in `docs/RELEASE_PLAN.md` (recommendation: 0.7.0 with everything but NASA-derived data; `scripts/release_candidate.sh 0.7.0` prepares it locally).
+1. **You**: say the word on 0.7.0 (`docs/RELEASE_PLAN.md`; the licence position is determined in `docs/LICENSE_DETERMINATION.md`, the courtesy email is optional) and on the upstream pull request (needs a public fork under your account).
 2. **Data**: second-source hold-out done (56.4% top-1 vs 80.2% in-distribution); next hand-curated labels and richer classes before any model labels a report.
 3. **Ops**: run `aero space watch` under launchd (`ops/launchd/`) so the caches and ledger stay fresh without the app.
 4. **Public main**: when the answer arrives, merge slice A (or everything) and release 0.7.0 with the 0.6.0 asset set.

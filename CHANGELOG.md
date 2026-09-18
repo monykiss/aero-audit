@@ -24,6 +24,8 @@ All notable changes to aero-audit. Dates are UTC.
 - Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
   ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
   docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Licence position determined and recorded (docs/LICENSE_DETERMINATION.md): PUB-10 passes; ten controls that were
+  complete moved from partial to implemented with honest notes (implementation index 95%).
 - `aero gov digest`: the periodic brief (reports by kind, findings by rule and severity, worst findings, posture, live check,
   hold-out, jobs, publication gate) with a manifest; `digest` job and launchd schedule; C-44.
 - Demo and live check cover the gap fills: bundled public-domain Falcon 9 telemetry sample, UTM conformance and crisis

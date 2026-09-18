@@ -36,7 +36,7 @@ users of the repository three things they ask for in the issue tracker:
 
 ## Before sending
 
-1. Confirm the licence with the point of contact (email above) and note the answer here. **Open: your action** (draft below).
+1. Licence: **determined 2026-09-18** in `docs/LICENSE_DETERMINATION.md` (NOSA 1.3 for the contribution; nothing NASA-owned redistributed). The email below is a courtesy about the preferred location of CATALOG.json.
 2. Regenerate the catalogue from the current default branch on the day of the PR. **Done 2026-09-16** (below).
 3. Run `scripts/nasa3d_catalog.py verify` on three files of different kinds and paste the output. **Done 2026-09-16** (below).
 4. Keep the PR to the script and the catalogue: no aero-audit code, no renamed files.

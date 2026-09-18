@@ -29,7 +29,8 @@ prints the two commands that publish.
 
 ## Decision points (yours)
 
-1. **Send the licence email** in `docs/UPSTREAM.md`. Until then nothing in slice B ships data.
+1. **Licence**: determined and recorded in `docs/LICENSE_DETERMINATION.md` (no NASA material is redistributed; the
+   contribution goes under NOSA 1.3). The email in `docs/upstream_email.txt` is a courtesy about the file location.
 2. **Choose the public shape** when the answer arrives:
    - *Merge everything into `main`* and release 0.7.0: simplest; the README already has the branch quick start.
    - *Merge slices A and C now, hold B*: needs a small refactor to make the `space` package import cleanly without `nasa3d`/`nasa_images` (they are only imported inside functions today, so this is mostly moving three CLI commands behind a flag).

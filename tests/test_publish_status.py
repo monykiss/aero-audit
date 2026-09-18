@@ -12,11 +12,12 @@ def test_publish_checks_on_this_tree_leave_only_the_licence_item_open():
     rows = {r["id"]: r for r in publish.checks(".")}
     assert set(rows) == {f"PUB-{i:02d}" for i in range(1, 12)}
     failing = [k for k, r in rows.items() if not r["ok"]]
-    assert failing == ["PUB-10"], {k: rows[k]["detail"] for k in failing}
+    assert failing == [], {k: rows[k]["detail"] for k in failing}
     s = publish.summary(list(rows.values()))
-    assert s["blocking_on_user"] and not s["ready"] and s["passed"] == 10
+    assert s["ready"] and not s["blocking_on_user"] and s["passed"] == 11
+    assert "LICENSE_DETERMINATION" in rows["PUB-10"]["detail"]
     md = publish.render_markdown(list(rows.values()))
-    assert "Only the upstream licence question remains" in md and "| PUB-02 " in md
+    assert "Ready to publish." in md and "| PUB-02 " in md
 
 
 def test_secret_and_private_detection_on_a_scratch_repo(tmp_path, monkeypatch):
@@ -45,5 +46,5 @@ def test_status_page_and_publish_command():
     r = CliRunner().invoke(cli.app, ["gov", "publish-check"])
     assert r.exit_code == 0 and "PUB-10" in r.output
     r = CliRunner().invoke(cli.app, ["gov", "publish-check", "--strict"])
-    assert r.exit_code == 1
+    assert r.exit_code == 0
     assert Path("docs/generated/STATUS.md").is_file()

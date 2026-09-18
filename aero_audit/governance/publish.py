@@ -85,7 +85,10 @@ def checks(root: str | Path = ".") -> list[dict[str, Any]]:
     docs_needed = ("docs/SPACE.md", "docs/UAS.md", "docs/ACCOUNTS.md", "docs/HOLISTIC_PLAN.md")
     miss_docs = [d for d in docs_needed if d not in readme or not (root / d).is_file()]
     row("PUB-09", "README links the branch documentation", not miss_docs, "linked" if not miss_docs else "missing: " + ", ".join(miss_docs))
-    row("PUB-10", "Licence question settled with upstream (P-08)", False, "waiting on the NASA-3D-Resources licence confirmation; see docs/UPSTREAM.md")
+    det = root / "docs/LICENSE_DETERMINATION.md"
+    dtext = det.read_text() if det.is_file() else ""
+    settled = "## Determination" in dtext and "Decision:" in dtext and "never redistributed" in dtext
+    row("PUB-10", "Licence position determined and recorded (P-08)", settled, "docs/LICENSE_DETERMINATION.md: no NASA material redistributed; contribution under NOSA 1.3" if settled else "record the determination in docs/LICENSE_DETERMINATION.md")
     st_hits = []
     for f in files:
         p = root / f

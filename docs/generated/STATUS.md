@@ -1,6 +1,6 @@
 # Programme status (generated)
 
-Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air rules and 34 space/UAS rules; 31 controls implemented, 13 partial, 0 planned; 20 of 21 studies runnable; 186 tests.
+Governance index **98%** (controls 97%, standards 100%, risk share 100%); 24 air rules and 34 space/UAS rules; 41 controls implemented, 3 partial, 0 planned; 20 of 21 studies runnable; 186 tests.
 
 ## Domains
 
@@ -26,16 +26,16 @@ Governance index **90%** (controls 85%, standards 100%, risk share 91%); 24 air 
 
 ## Publication readiness
 
-9 of 11 checks pass; failing: PUB-04, PUB-10
+11 of 11 checks pass; ready.
 
 - PUB-01 Nothing private tracked: ok (clean)
 - PUB-02 No secret-looking strings in tracked text: ok (clean)
 - PUB-03 Every external source attributed: ok (all named)
-- PUB-04 Generated docs match the code: NO (stale: API.md)
+- PUB-04 Generated docs match the code: ok (fresh)
 - PUB-05 Control library referentially clean: ok (clean)
 - PUB-06 Traceability: no orphan rules, studies, standards or untested controls: ok (clean)
 - PUB-07 Optional dependencies declared and sgp4 locked: ok (space extra + lock, vision extra)
 - PUB-08 Changelog carries an Unreleased or current-version section: ok (present)
 - PUB-09 README links the branch documentation: ok (linked)
-- PUB-10 Licence question settled with upstream (P-08): NO (waiting on the NASA-3D-Resources licence confirmation; see docs/UPSTREAM.md)
+- PUB-10 Licence position determined and recorded (P-08): ok (docs/LICENSE_DETERMINATION.md: no NASA material redistributed; contribution under NOSA 1.3)
 - PUB-11 No Space-Track material tracked (user agreement, 10 USC 2274): ok (clean)

@@ -53,15 +53,15 @@ def test_unified_register_spans_domains():
     domains = {r["domain"] for r in rows}
     assert {"air-surveillance", "space-launch", "space-orbital", "uas-utm", "space-assets"} <= domains
     s05 = next(r for r in rows if r["id"] == "S05")
-    assert s05["score"] == 15 and s05["residual"] == 10 and s05["control_effectiveness"] == 0.35  # C-09 partial: distance screen only
+    assert s05["score"] == 15 and s05["residual"] == 6 and s05["control_effectiveness"] == 0.6  # C-09 implemented: screen, CDM Pc, history, catalogue
     s06 = next(r for r in rows if r["id"] == "S06")
-    assert s06["residual"] < s06["score"] and s06["control_effectiveness"] == 0.35  # C-10 partial: debris checklist on supplied missions
+    assert s06["residual"] < s06["score"] and s06["control_effectiveness"] == 0.6  # C-10 implemented: debris checklist with lifetime model
     from aero_audit.governance.controls import CONTROLS
 
     assert not [k for k, v in CONTROLS.items() if v.status == "planned"]  # every control now has at least a partial implementation
     s03 = next(r for r in rows if r["id"] == "S03")
     assert s03["residual"] < s03["score"] and s03["control_effectiveness"] == 0.6
-    assert rows[0]["residual_rating"] in ("critical", "high")
+    assert rows[0]["residual_rating"] in ("critical", "high", "medium")  # every control now reduces its risk; the top residual is medium
     assert sum(by_rating(rows).values()) == len(rows)
     assert "| S05 |" in render_register(rows)
 
