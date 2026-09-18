@@ -87,8 +87,17 @@ def verify_manifest(path: str | Path) -> dict[str, Any]:
     """Re-hash every file a manifest names; report which still match."""
     mp = Path(path)
     m = json.loads(mp.read_text())
+    if not isinstance(m, dict):
+        return {"manifest": str(mp), "ok": False, "files": {}, "error": "manifest is not a JSON object"}
     out: dict[str, Any] = {"manifest": str(mp), "ok": True, "files": {}}
-    for k, f in m.get("files", {}).items():
+    files = m.get("files")
+    if not isinstance(files, dict):
+        return {"manifest": str(mp), "ok": False, "files": {}, "error": "manifest has no files object"}
+    for k, f in files.items():
+        if not isinstance(f, dict) or not f.get("path"):
+            out["files"][str(k)] = {"path": None, "expected": None, "actual": None, "ok": False}
+            out["ok"] = False
+            continue
         p = Path(f["path"])
         if not p.is_absolute():
             p = mp.parent / p.name
