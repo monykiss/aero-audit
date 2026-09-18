@@ -11,15 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Build sdist and wheel
         run: uv build
       - name: Software bill of materials (CycloneDX) from the hash-pinned lock
-        run: uvx pip-audit -r requirements.lock.txt -f cyclonedx-json -o dist/sbom.cdx.json --strict --desc on
+        run: uvx --from pip-audit==2.9.0 pip-audit -r requirements.lock.txt -f cyclonedx-json -o dist/sbom.cdx.json --strict --desc on
       - name: Checksums
         run: cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+      - name: Sign artifacts with Sigstore (keyless, OIDC identity of this workflow)
+        uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: dist/*.whl dist/*.tar.gz dist/sbom.cdx.json dist/SHA256SUMS
       - name: Attach to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

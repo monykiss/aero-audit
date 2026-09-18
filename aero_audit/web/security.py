@@ -201,8 +201,11 @@ def safe_path(value: Any, roots: Iterable[str | Path], suffixes: Iterable[str] =
     raw = str(value)
     if "\x00" in raw:
         raise PermissionError("invalid path")
-    p = Path(raw).expanduser()
-    resolved = p.resolve()
+    try:
+        p = Path(raw).expanduser()  # "~nobody" raises RuntimeError from the standard library: refuse, never 500 (found by fuzzing)
+        resolved = p.resolve()
+    except (RuntimeError, OSError, ValueError) as e:
+        raise PermissionError("invalid path") from e
     suffixes = tuple(suffixes)
     for root in roots:
         try:

@@ -2,11 +2,15 @@
 
 ## Reporting a vulnerability
 
-Use GitHub's private vulnerability reporting on this repository (Security tab, "Report a
+Use GitHub's private vulnerability reporting on this repository:
+https://github.com/monykiss/aero-audit/security/advisories/new (Security tab, "Report a
 vulnerability"). Include the recording or request that reproduces the issue. You will get an
-acknowledgement within a week. Do not open a public issue for a vulnerability, and never test
-injection, spoofing, or jamming against live aviation systems: `aero synth` and the demo
-injections exist so that nothing real is ever touched.
+acknowledgement within 7 days and a fix or a documented decision within 90 days of the report;
+credit goes to the reporter in the release notes unless you ask otherwise. Do not open a public
+issue for a vulnerability, and never test injection, spoofing, or jamming against live aviation
+systems: `aero synth` and the demo injections exist so that nothing real is ever touched.
+
+Supported versions: the latest tagged release and `main`. Older tags get no fixes.
 
 ## What this software is
 
@@ -48,9 +52,14 @@ and TLS in front of it; the token mode is the minimum, not the design.
 - Vision weights (`yolov8n.pt`) are fetched from the ultralytics GitHub release on first use of
   the optional `[vision]` extra; verify the checksum against the release page or vendor the file.
 - The front end has no build step and one vendored library (Leaflet 1.9.4).
-- Every tagged release carries a CycloneDX SBOM and SHA-256 checksums built in CI from the lock file;
-  the OpenSSF Scorecard workflow publishes the repository's supply-chain score.
+- Every tagged release carries a CycloneDX SBOM and SHA-256 checksums built in CI from the lock file, and
+  every artifact is signed keylessly with Sigstore under the workflow's OIDC identity (verify with
+  `sigstore verify github --cert-identity-regexp 'monykiss/aero-audit' <file>`); the OpenSSF Scorecard
+  workflow publishes the repository's supply-chain score.
 - The API is described by an OpenAPI document generated from the router; undocumented routes fail CI.
+- The parsers that touch outside input (recording replay, the rules engine's state vectors, request path
+  confinement, report manifests) are fuzzed with atheris in CI (`fuzz/fuzz_targets.py`, 20 s per target on
+  every push) and smoke-tested on seed inputs in the suite.
 
 ## Data handling
 
