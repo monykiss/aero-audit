@@ -36,11 +36,11 @@ users of the repository three things they ask for in the issue tracker:
 
 ## Status
 
-**Opened 2026-09-18**: https://github.com/nasa/NASA-3D-Resources/pull/50 from the fork
-`monykiss/NASA-3D-Resources`, branch `catalogue-tool`: `tools/nasa3d_catalog.py`, `tools/CATALOG.json` (regenerated the
-same day: 1,195 files, 5.00 GB, 374 subjects) and a three-line `tools/README.md`. Nothing else in the repository is touched.
-The maintainers' response decides the file location and any paperwork; the determination in
-`docs/LICENSE_DETERMINATION.md` stands either way.
+**Withdrawn 2026-09-18.** Pull request nasa/NASA-3D-Resources#50 was opened from a fork under the
+maintainer's account and closed the same day with a note, because the maintainer keeps only `aero-audit`
+public; the fork is archived pending deletion. The complete package now lives in `upstream/nasa3d/`
+(script, generated catalogue, README, and `PR.md` with the resubmission steps). The determination in
+`docs/LICENSE_DETERMINATION.md` stands.
 
 ## Before sending
 

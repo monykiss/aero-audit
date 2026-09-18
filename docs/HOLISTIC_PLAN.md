@@ -159,7 +159,7 @@ traffic, AIT-Core, em-core) are candidates for direct dependencies when their ph
 
 ## Next actions (2026-09-17)
 
-1. **Done 2026-09-18**: 0.7.0 released from `main`; upstream pull request nasa/NASA-3D-Resources#50 open; licence position recorded in `docs/LICENSE_DETERMINATION.md`. Watch the upstream PR for the maintainers' answer.
+1. **Done 2026-09-18**: 0.7.0 released from `main`; upstream contribution offered as nasa/NASA-3D-Resources#50 and withdrawn (no public fork wanted); package kept in `upstream/nasa3d/`; licence position recorded in `docs/LICENSE_DETERMINATION.md`.
 2. **Data**: second-source hold-out done (56.4% top-1 vs 80.2% in-distribution); next hand-curated labels and richer classes before any model labels a report.
 3. **Ops**: run `aero space watch` under launchd (`ops/launchd/`) so the caches and ledger stay fresh without the app.
 4. **Public main**: when the answer arrives, merge slice A (or everything) and release 0.7.0 with the 0.6.0 asset set.
