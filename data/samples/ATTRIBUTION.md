@@ -22,3 +22,23 @@ personal data beyond what every aircraft transmits in the clear.
 - `apron_hohn.jpg`: "Lufttransportgeschwader 63 der Bundeswehr auf dem Fliegerhorst Hohn (August 2021)",
   Wikimedia Commons, licensed CC BY-SA 4.0. 1920 px thumbnail. Used only as a computer-vision demo input.
   https://commons.wikimedia.org/wiki/File:Lufttransportgeschwader_63_der_Bundeswehr_auf_dem_Fliegerhorst_Hohn_(August_2021).jpg
+
+## Space and UAS samples (private branch)
+
+- `swpc_scales_sample.json`: synthetic, in the shape of NOAA SWPC's `noaa-scales.json` and `planetary_k_index_1m.json`
+  products (a severe geomagnetic storm day). Live products are US Government works in the public domain; cite
+  NOAA/NWS/SWPC when publishing derived results.
+- `ll2_launches_sample.json`: synthetic, in the reduced shape this tool keeps from The Space Devs' Launch Library 2
+  (`ll.thespacedevs.com`). Live data: free tier, attribution requested ("Data from The Space Devs").
+- `synthetic_conjunction.cdm`, `synthetic_mission.json`: synthetic CCSDS 508 message and mission description written for
+  the tests; no real objects.
+- CelesTrak element sets fetched by `aero space conjunctions` are cached under `data/space/elements/` (git-ignored) with
+  a provenance sidecar; CelesTrak asks to be cited (Dr. T.S. Kelso).
+- NASA-3D-Resources previews and NASA image library items are cached under `data/space/` (git-ignored) with their
+  terms in each provenance sidecar (NOSA 1.3 and the NASA media guidelines).
+- `gps3sv01_telemetry.json`: the analysed ascent telemetry of the GPS III SV01 Falcon 9 launch from
+  https://github.com/shahar603/Telemetry-Data (Unlicense, public domain), parallel arrays of time (s), velocity (m/s)
+  and altitude (km) transcribed from the webcast. Used as a genuine launch for the SPC rules and the demo.
+- `utm_position_sample.json`, `utm_position_bad.json`: our own synthetic UTM Position messages; the contract they are
+  checked against (nasa/utm-apis) is fetched on demand and never bundled.
+

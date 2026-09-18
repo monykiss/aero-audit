@@ -1,4 +1,4 @@
-# API v1 (generated from the router, 0.6.1)
+# API v1 (generated from the router, 0.7.0)
 
 Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies must be application/json and carry X-Aero-Token (the CSRF token from GET /api/v1/app in loopback mode, or the shared token in remote mode). Every response carries X-Request-Id. See SECURITY.md and docs/APP.md.
 
@@ -36,13 +36,18 @@ Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies mus
 | GET | `/api/v1/faa` | ecosystem | FAA NAS status | Ground stops, delay programmes and closures; fetched on demand when no source holds a copy. |
 | GET | `/api/v1/audit` | audit | Audit log | Hash-chained audit entries, filterable by action, actor and text. |
 | GET | `/api/v1/audit.csv` | audit | Audit log CSV | All audit entries as CSV with sequence, previous hash and hash. |
+| GET | `/api/v1/governance` | governance | Governance posture | Domains, controls with evidence, unified register, studies, policies and the posture index. |
+| GET | `/api/v1/space` | space | Space summary | Elements on disk with ages, latest conjunction / CDM / debris reports, CDM ledger events, cached space weather and launch windows, assets, dataset and classifier. |
+| GET | `/api/v1/uas` | uas | UAS summary | Latest well-clear, risk-class and UTM contract reports with their findings and the definitions in force. |
+| GET | `/api/v1/integrations` | app | Integrations | External services, what each unlocks, its keyless fallback and whether its credentials are configured (values never returned). |
+| GET | `/api/v1/schedule` | jobs | Scheduled intake | Jobs the scheduler submits on an interval (AERO_SCHEDULE), next run, run and skip counts. |
 | GET | `/api/v1/openapi.json` | reference | This document | OpenAPI 3.1 description of the API, generated from the router. |
 | GET | `/api/v1/observability` | observability | Observability snapshot | KPIs, readiness checks and every metric with percentiles. |
 | GET | `/api/v1/logs` | observability | Structured log tail | Newest JSON log events, filterable by level and event substring. |
 | GET | `/api/v1/audit/verify` | audit | Verify the audit chain | Walk the chain and report the first broken line, if any. |
 | GET | `/api/v1/reports/{name}/manifest` | reports | Verify a report manifest | Re-hash the report files named by the manifest. |
 | GET | `/api/v1/jobs` | jobs | Jobs | Recent background jobs with status and results. |
-| POST | `/api/v1/jobs` | jobs | Submit a job | Body {"type": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate, "params": {...}}. |
+| POST | `/api/v1/jobs` | jobs | Submit a job | Body {"type": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build|maneuvers|encounter_model|satcat|digest, "params": {...}}. |
 | GET | `/api/v1/jobs/{id}` | jobs | Job detail | Status, progress, log and result of one job. |
 | POST | `/api/v1/jobs/{id}/cancel` | jobs | Cancel a job | Request cancellation of a running job. |
 | GET | `/api/v1/settings` | settings | Settings | App settings, model integrity and every tunable threshold with its override state. |

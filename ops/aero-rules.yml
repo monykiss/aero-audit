@@ -24,3 +24,12 @@ groups:
         expr: increase(aero_findings_total{severity="critical"}[5m]) > 0
         labels: {severity: critical}
         annotations: {summary: "Critical finding raised ({{ $labels.rule }})"}
+      - alert: AeroCdmEscalating
+        expr: aero_cdm_events{trend="escalating"} > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $value }} conjunction event(s) with rising Pc across successive messages"}
+      - alert: AeroScheduledJobFailing
+        expr: increase(aero_jobs_total{status="failed", type=~"cdm_inbox|space_weather|launches|conjunctions|spacetrack_pull|catalog_build"}[1h]) > 0
+        labels: {severity: warning}
+        annotations: {summary: "Scheduled intake job {{ $labels.type }} failed in the last hour"}

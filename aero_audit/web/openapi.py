@@ -46,7 +46,7 @@ SUMMARIES: dict[tuple[str, str], tuple[str, str, str]] = {
     ("GET", "/api/v1/reports"): ("Reports on disk", "Report groups with links to JSON, Markdown, HTML and manifest.", "reports"),
     ("GET", "/api/v1/reports/{name}/manifest"): ("Verify a report manifest", "Re-hash the report files named by the manifest.", "reports"),
     ("GET", "/api/v1/jobs"): ("Jobs", "Recent background jobs with status and results.", "jobs"),
-    ("POST", "/api/v1/jobs"): ("Submit a job", "Body {\"type\": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate, \"params\": {...}}.", "jobs"),
+    ("POST", "/api/v1/jobs"): ("Submit a job", "Body {\"type\": capture|audit_session|audit_recording|train|evaluate|prune|docs_build|corroborate|cdm_inbox|spacetrack_pull|conjunctions|space_weather|launches|wellclear|uas_risk|catalog_build|maneuvers|encounter_model|satcat|digest, \"params\": {...}}.", "jobs"),
     ("GET", "/api/v1/jobs/{id}"): ("Job detail", "Status, progress, log and result of one job.", "jobs"),
     ("POST", "/api/v1/jobs/{id}/cancel"): ("Cancel a job", "Request cancellation of a running job.", "jobs"),
     ("GET", "/api/v1/settings"): ("Settings", "App settings, model integrity and every tunable threshold with its override state.", "settings"),
@@ -60,6 +60,10 @@ SUMMARIES: dict[tuple[str, str], tuple[str, str, str]] = {
     ("GET", "/api/v1/logs"): ("Structured log tail", "Newest JSON log events, filterable by level and event substring.", "observability"),
     ("GET", "/api/v1/openapi.json"): ("This document", "OpenAPI 3.1 description of the API, generated from the router.", "reference"),
     ("GET", "/api/v1/governance"): ("Governance posture", "Domains, controls with evidence, unified register, studies, policies and the posture index.", "governance"),
+    ("GET", "/api/v1/space"): ("Space summary", "Elements on disk with ages, latest conjunction / CDM / debris reports, CDM ledger events, cached space weather and launch windows, assets, dataset and classifier.", "space"),
+    ("GET", "/api/v1/uas"): ("UAS summary", "Latest well-clear, risk-class and UTM contract reports with their findings and the definitions in force.", "uas"),
+    ("GET", "/api/v1/integrations"): ("Integrations", "External services, what each unlocks, its keyless fallback and whether its credentials are configured (values never returned).", "app"),
+    ("GET", "/api/v1/schedule"): ("Scheduled intake", "Jobs the scheduler submits on an interval (AERO_SCHEDULE), next run, run and skip counts.", "jobs"),
 }
 
 QUERY_PARAMS: dict[str, list[tuple[str, str]]] = {

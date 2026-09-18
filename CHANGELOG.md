@@ -2,6 +2,68 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 0.7.0 - 2026-09-18
+
+- Space: NASA-3D-Resources catalogue with blob-verified fetch; NASA image and video library client; footage frames
+  and caption milestones; SPC launch telemetry rules; keyless CelesTrak elements with SGP4 screening (ORB-001..003);
+  CCSDS CDM assessment with covariance-based Pc (ORB-004/005), KVN and XML inbox with event trends, Space-Track
+  client; debris-mitigation checklist DEB-001..008 with a lifetime model; dataset pipeline with provenance and a
+  registry-gated scene classifier; ultralytics fine-tune scaffold.
+- UAS: DO-365 / DAIDALUS well-clear and alert levels, encounter extraction with NMAC-proximate rates and lead time
+  (DAA-001/002), schema-lite OpenAPI contract validator.
+- Governance: domains, standards, controls with typed evidence, unified register, study registry (15 studies, 13
+  runnable), posture index, NPR 7150.2 assurance classification with a SLIM checklist, CMR-style data catalogue with
+  reconciliation; `aero gov`, `aero uas`, `aero space`, `aero data catalog`; GOV page; docs/HOLISTIC_PLAN.md.
+- Upstream package for nasa/NASA-3D-Resources (standalone script and PR text).
+- Cross-domain feeds: NOAA space weather mapped to ICAO advisory effects with exposed high-latitude traffic (SWX-001..005);
+  Launch Library 2 windows joined to traffic near the pad (LCH-001..003); airspace density classes and the observed DAA
+  risk ratio (DAA-003/004); `space-environment` domain; C-38..C-41; ST-16..ST-18.
+- App: SPACE and UAS pages with job buttons; `/api/v1/space`, `/api/v1/uas`, `/api/v1/integrations`, `/api/v1/schedule`;
+  scheduled intake (`AERO_SCHEDULE`, `AERO_OFFLINE`) sharing one job registry with `aero space watch`; `aero accounts`
+  and docs/ACCOUNTS.md; report kinds for every space and UAS report.
+- Depth: numpy OBJ renderer for multi-view training images; element-history manoeuvre and decay detection (ORB-006/007,
+  ST-20); encounter model with Monte Carlo NMAC estimates (ST-19); traceability matrix with gap lists (C-42,
+  docs/generated/TRACEABILITY.md); `aero space render|maneuvers`, `aero uas encounter-model`, `aero gov traceability`.
+- Licence position determined and recorded (docs/LICENSE_DETERMINATION.md): PUB-10 passes; ten controls that were
+  complete moved from partial to implemented with honest notes (implementation index 95%).
+- `aero gov digest`: the periodic brief (reports by kind, findings by rule and severity, worst findings, posture, live check,
+  hold-out, jobs, publication gate) with a manifest; `digest` job and launchd schedule; C-44.
+- Demo and live check cover the gap fills: bundled public-domain Falcon 9 telemetry sample, UTM conformance and crisis
+  airports when their inputs are fetched; live-check adds NWS alerts and the UTM contract fetch (7 keyless paths).
+- Second-source hold-out (149 NASA-library images from other queries, de-duplicated by id): histogram 40.9%, YOLOv8n-cls
+  56.4% top-1, recorded next to the in-distribution numbers as the ones to quote.
+- Gap fills: JSON telemetry loader and a real Falcon 9 ascent audited with a manifest; UTM validator resolves external
+  refs to sibling contracts, `aero uas utm-fetch`, ST-09 on NASA's real contracts with run-study options; live NWS crisis
+  extents (`aero data crisis-fetch`, ST-11 on real flood warnings); `aero space classify-eval` on a second-source hold-out;
+  YOLO classifier behind the registry gate for `aero space classify`.
+- Real-imagery evaluation: 400-image NASA library dataset (4 scene classes); histogram classifier 64.0%, YOLOv8n-cls
+  fine-tune 80.2% top-1 on 86 held-out real images, both registered with cards; `scripts/release_candidate.sh` (local,
+  push-guarded release preparation) and the recommendation in docs/RELEASE_PLAN.md; docs/RELEASE_PLAN.md (three slices, decision
+  points, mechanical gate); launchd example for `aero space watch`; empty-dataset guard in `aero space dataset`.
+- `aero space live-check`: every keyless space client end to end against the live feeds, one report, exit code on failure.
+- Space-Track made optional: CelesTrak SATCAT client (keyless, 70k objects) for identity, owner, type, orbit and decay
+  dates; ORB-008; catalogue enrichment on every conjunction screen; `aero space satcat`, satcat job and page section;
+  capability matrix in docs/ACCOUNTS.md; Space-Track rows carry the user-agreement restriction and stay out of bundles.
+- Accounts wired: `aero accounts --probe` (harmless authenticated reads, values never printed), `.env.example` with the space
+  variables, Space-Track call-out and pull button on the Space page, `aero space watch` adds the Space-Track pull when
+  credentials exist; NASA DONKI notifications with DEMO_KEY fallback cross-checked against the SWPC assessment
+  (`aero space weather --donki`, job param, Space page card). Account creation itself stays with the user.
+- Formats and detector: space/mesh.py reads STL, glTF binary (Draco via the DracoPy wheel), 3DS and LightWave LWO2/LWOB,
+  covering 607 of the 622 NASA-3D-Resources models without Blender or assimp; renders of two real NASA models feed a dataset;
+  the ultralytics classification fine-tune ran on CPU (YOLOv8n-cls, 3 epochs, top-1 0.905 on held-out renders) and
+  `scripts/train_detector.py --register` files the weights with a card and a registry entry; upstream package: catalogue
+  regenerated and verify run recorded in docs/UPSTREAM.md with the licence email drafted for the user.
+- Availability and scale: network jobs degrade to the newest cached product with a `degraded` flag and metric; scheduler
+  never stacks a running job type, applies politeness floors per feed and backs off on failures; feed health and job
+  cards on the Space and UAS pages with auto-refresh when jobs settle; `aero uas trend` and ST-21 (DAA-005) across
+  recordings.
+- Evidence: every space and UAS report now ships JSON + Markdown + manifest with provenance and input hashes
+  (audit/generic_report.py), from the CLI and from jobs alike; `aero space demo` runs every analysis offline on the
+  bundled samples; `aero doctor` checks sgp4, OpenCV, cached elements, the CDM ledger and the space samples.
+- Performance: vectorised well-clear projection (CONUS scoring ~60 s -> 11 s), rasteriser (1.1 s -> 0.04 s at 40k triangles),
+  conjunction screen (SatrecArray + broadcasted distances), catalogue hash cache, memoised page summaries; scalar references
+  kept and proven equivalent in tests/test_perf_equivalence.py; `aero bench --suite space`; docs/PERFORMANCE.md.
+
 ## 0.6.1 - 2026-09-18 - fuzzed, hardened
 
 - Fuzzing: `fuzz/fuzz_targets.py` (atheris) covers recording replay, the rules engine's state vectors, request path

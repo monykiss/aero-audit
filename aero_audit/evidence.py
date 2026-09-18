@@ -33,12 +33,31 @@ def collect(since_days: float | None = None, reports_dir: str | Path = "reports"
     files: list[Path] = [Path(p) for p in DEFAULT_MEMBERS if Path(p).is_file()]
     for p in sorted(Path(reports_dir).glob("*")):
         if p.suffix in (".json", ".md", ".html") and p.is_file() and (cutoff is None or p.stat().st_mtime >= cutoff):
+            if is_restricted(p):
+                continue  # Space-Track material never leaves this machine in a bundle (user agreement, 10 USC 2274)
             files.append(p)
     for p in sorted(Path(reports_dir, "studies").glob("*")) if Path(reports_dir, "studies").is_dir() else []:
         if p.is_file() and (cutoff is None or p.stat().st_mtime >= cutoff):
             files.append(p)
     files += [p for p in sorted(Path(docs_dir).glob("*.md")) if p.is_file()]
     return files
+
+
+RESTRICTED_MARKERS = ("space-track user agreement", "\"restricted\": \"space-track", "space-track cdm_public")
+
+
+def is_restricted(path: str | Path) -> bool:
+    """True when a report carries Space-Track material (marker in the JSON, or a sibling JSON of the same stem does)."""
+    p = Path(path)
+    candidates = [p] if p.suffix == ".json" else [p.with_suffix(".json"), p]
+    for c in candidates:
+        try:
+            head = c.read_text(errors="replace") if c.is_file() and c.stat().st_size < 50_000_000 else ""
+        except OSError:
+            continue
+        if any(m in head for m in RESTRICTED_MARKERS):
+            return True
+    return False
 
 
 def _settings_redacted() -> bytes | None:

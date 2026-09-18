@@ -1,0 +1,7 @@
+{
+ "source": "https://api.weather.gov/alerts/active",
+ "fetched_at": "20260917T201855Z",
+ "sha256": "4d42a4ef648c381eac42aa531fd60c2000112fff834e36c0cd980b83f39c7cf9",
+ "features": 14,
+ "terms": "NWS alerts are US Government works in the public domain; cite NOAA/NWS"
+}

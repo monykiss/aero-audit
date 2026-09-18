@@ -218,6 +218,19 @@ aero docs-build                                                # regenerate docs
 scripts/run_pipeline.sh                                        # train → evaluate → audit → assess → impact → docs
 ```
 
+## Space and UAS in sixty seconds (this branch)
+
+```bash
+aero space demo            # debris, CDM, space weather, launch windows, well-clear, risk classes, encounter model on the samples
+aero app                   # then SPACE and UAS in the left nav, or type SPACE / UAS on the command line
+aero accounts              # which optional services are configured; everything runs keyless first
+```
+
+The same auditability applies: every report has a manifest with provenance, every rule id has a
+description and (where it demands action) a playbook, every control traces to tests, and the
+governance page shows the posture across air and space. See [docs/SPACE.md](docs/SPACE.md),
+[docs/UAS.md](docs/UAS.md) and [docs/HOLISTIC_PLAN.md](docs/HOLISTIC_PLAN.md).
+
 ## Documentation
 
 | Document | What it covers |
@@ -234,7 +247,12 @@ scripts/run_pipeline.sh                                        # train → evalu
 | [docs/IMPACT.md](docs/IMPACT.md) | Stakeholders, quantified holding impact, security impact, limits |
 | [docs/ML.md](docs/ML.md) | Anomaly model, vision baseline, training-data strategy |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Data, detection, response, vision, assurance backlog |
-| [docs/generated/](docs/generated/) | Threat matrix with measured recall, playbooks, risk register, rule ids, rendered from code |
+| [docs/HOLISTIC_PLAN.md](docs/HOLISTIC_PLAN.md) | The bird's-eye plan: domains across air and space, the open-source landscape adopted, phases and their status |
+| [docs/SPACE.md](docs/SPACE.md) | NASA assets and footage, launch telemetry, orbital screening and CDMs, debris rules, space weather, launch windows, renders |
+| [docs/UAS.md](docs/UAS.md) | Well-clear and alert levels, encounter rates, density classes and risk ratio, encounter model, UTM contract checks |
+| [docs/ACCOUNTS.md](docs/ACCOUNTS.md) | Every external service, what it unlocks, its keyless fallback, how to configure it |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Hot paths, before/after numbers, what stays scalar and why |
+| [docs/generated/](docs/generated/) | Threat matrix with measured recall, playbooks, risk register, rule ids, controls, studies, posture, assurance, traceability, API, rendered from code |
 | [SECURITY.md](SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) | Policy, how to help, history |
 
 ## Data sources and ethics

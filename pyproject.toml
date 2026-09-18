@@ -1,6 +1,6 @@
 [project]
 name = "aero-audit"
-version = "0.6.1"
+version = "0.7.0"
 description = "AI/ML + computer-vision auditing toolkit for aviation operations and ADS-B security, with a hardened local app"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -33,7 +33,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-vision = ["opencv-python-headless>=4.10", "ultralytics>=8.3"]
+vision = ["opencv-python-headless>=4.10", "ultralytics>=8.3", "DracoPy>=1.4"]
+space = ["sgp4>=2.23"]
 dev = ["pytest>=8.2", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
 [project.urls]

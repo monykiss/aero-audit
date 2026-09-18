@@ -1,0 +1,39 @@
+{
+ "launches": [
+  {
+   "id": "sample-wallops",
+   "name": "Sample Launch | Wallops (synthetic)",
+   "provider": "Synthetic Launch Co",
+   "status": "Go",
+   "net": "2026-09-10T12:00:00Z",
+   "window_start": "2026-09-10T11:40:00Z",
+   "window_end": "2026-09-10T12:30:00Z",
+   "pad": "Wallops Pad 0A",
+   "location": "Wallops Flight Facility, Virginia, USA",
+   "country": "USA",
+   "pad_lat": 37.833,
+   "pad_lon": -75.488,
+   "last_updated": "2026-09-10T06:00:00Z",
+   "url": null
+  },
+  {
+   "id": "sample-vandenberg",
+   "name": "Sample Launch | Vandenberg (synthetic)",
+   "provider": "Synthetic Launch Co",
+   "status": "Hold",
+   "net": "2026-09-10T12:05:00Z",
+   "window_start": "2026-09-10T11:50:00Z",
+   "window_end": "2026-09-10T12:40:00Z",
+   "pad": "SLC-4E",
+   "location": "Vandenberg SFB, California, USA",
+   "country": "USA",
+   "pad_lat": 34.632,
+   "pad_lon": -120.611,
+   "last_updated": "2026-09-08T00:00:00Z",
+   "url": null
+  }
+ ],
+ "fetched_at": "20260910T113000Z",
+ "source": "synthetic, in the reduced shape of ll.thespacedevs.com/2.2.0/launch/upcoming/",
+ "mode": "upcoming"
+}
