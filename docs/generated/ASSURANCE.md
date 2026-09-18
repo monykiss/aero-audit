@@ -13,7 +13,7 @@
 | UAS well-clear metrics | `aero_audit/uas` | D | yes | Offline DO-365 metrics on recordings; never real-time guidance. | version control; documented requirements and design; unit and regression tests run in CI; release records with provenance; coding standard checks |
 | Governance layer | `aero_audit/governance` | E | no | Registry of controls, risks, studies and posture; documentation-grade. | version control; a README stating purpose and limits |
 
-## SLIM repository checklist: 23 / 24 (96%)
+## SLIM repository checklist: 24 / 24 (100%)
 
 | Id | Check | Status |
 |---|---|---|
@@ -33,7 +33,7 @@
 | SLIM-14 | Pinned dependencies with hashes | pass |
 | SLIM-15 | GitHub Actions pinned to commit SHAs | pass |
 | SLIM-16 | SBOM produced at release | pass |
-| SLIM-17 | Release artifacts signed | MISSING |
+| SLIM-17 | Release artifacts signed | pass |
 | SLIM-18 | Pre-commit hooks | pass |
 | SLIM-19 | Container image definition | pass |
 | SLIM-20 | Generated documentation kept in sync by CI | pass |
