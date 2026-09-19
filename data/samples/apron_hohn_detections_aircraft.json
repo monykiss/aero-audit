@@ -1,0 +1,136 @@
+{
+ "image": "apron_hohn.jpg",
+ "width": 1920,
+ "height": 1440,
+ "source": "models/aircraft_yolov8n.pt (YOLOv8n fine-tuned on RarePlanes; frozen backbone, augmentation, 25 epochs) tiled 320 conf 0.15",
+ "detections": [
+  {
+   "label": "aircraft",
+   "conf": 0.715,
+   "cx": 0.6436,
+   "cy": 0.5091,
+   "w": 0.0422,
+   "h": 0.034
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.605,
+   "cx": 0.5463,
+   "cy": 0.4842,
+   "w": 0.0312,
+   "h": 0.0229
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.586,
+   "cx": 0.5038,
+   "cy": 0.4692,
+   "w": 0.0312,
+   "h": 0.0285
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.475,
+   "cx": 0.7324,
+   "cy": 0.1829,
+   "w": 0.0141,
+   "h": 0.0153
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.388,
+   "cx": 0.263,
+   "cy": 0.3489,
+   "w": 0.0203,
+   "h": 0.0153
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.361,
+   "cx": 0.9773,
+   "cy": 0.217,
+   "w": 0.024,
+   "h": 0.0104
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.341,
+   "cx": 0.5334,
+   "cy": 0.4834,
+   "w": 0.0151,
+   "h": 0.0146
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.313,
+   "cx": 0.6402,
+   "cy": 0.5121,
+   "w": 0.0292,
+   "h": 0.0236
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.204,
+   "cx": 0.7161,
+   "cy": 0.1846,
+   "w": 0.0109,
+   "h": 0.009
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.196,
+   "cx": 0.7424,
+   "cy": 0.373,
+   "w": 0.0083,
+   "h": 0.009
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.181,
+   "cx": 0.6013,
+   "cy": 0.5049,
+   "w": 0.0417,
+   "h": 0.0097
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.175,
+   "cx": 0.4611,
+   "cy": 0.4604,
+   "w": 0.0292,
+   "h": 0.0201
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.174,
+   "cx": 0.7288,
+   "cy": 0.1918,
+   "w": 0.0135,
+   "h": 0.0111
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.173,
+   "cx": 0.5902,
+   "cy": 0.5051,
+   "w": 0.0193,
+   "h": 0.0097
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.158,
+   "cx": 0.284,
+   "cy": 0.3222,
+   "w": 0.0146,
+   "h": 0.0132
+  },
+  {
+   "label": "aircraft",
+   "conf": 0.155,
+   "cx": 0.8801,
+   "cy": 0.494,
+   "w": 0.0078,
+   "h": 0.0097
+  }
+ ]
+}

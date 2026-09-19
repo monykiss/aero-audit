@@ -82,7 +82,7 @@ CONTROLS: dict[str, Control] = {c.id: c for c in (
             "compliance", ("air-operations",), ("ICAO-A14",), "implemented",
             ("rule:OPS-VIS-001", "rule:OPS-VIS-002", "module:aero_audit/vision/apron.py", "module:aero_audit/vision/detect.py", "test:tests/test_vision_apron.py", "test:tests/test_release_1_0.py",
              "command:aero vision apron", "artefact:data/samples/apron_hohn_zones.json", "artefact:data/samples/apron_hohn_truth.json"),
-            notes="Zones with declared capacity from a JSON file; detections from the detector or any annotation file; detector recall against the annotated sample is measured and written into every report (the COCO baseline is weak on parked transports, and the number says so)."),
+            notes="Zones with declared capacity from a JSON file; detections from the detector or any annotation file; detector recall against the annotated sample is measured and written into every report. 1.3.0: YOLOv8n fine-tuned on RarePlanes (frozen backbone, augmentation) lifts the apron-photo recall from 2/12 to 6/12 at mAP50 0.94 on its own distribution; per-site few-shot with a spatial hold-out is the operational path (docs/ML.md)."),
     Control("C-08", "Launch telemetry plausibility", "Acceleration, altitude/speed consistency, dropouts, time regressions on a telemetry stream.",
             "compliance", ("space-launch",), ("CCSDS-133", "CFR14-450"), "implemented",
             ("rule:SPC-001", "rule:SPC-002", "rule:SPC-003", "rule:SPC-004", "rule:SPC-005", "module:aero_audit/space/telemetry.py", "module:aero_audit/space/footage.py", "test:tests/test_space.py", "test:tests/test_gap_fill.py", "command:aero space telemetry-audit", "command:aero space frames"),

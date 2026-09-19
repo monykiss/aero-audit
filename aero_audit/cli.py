@@ -743,7 +743,7 @@ def vision_apron(
     zones: Path | None = typer.Option(None, help="JSON list of {name, polygon, capacity} (declared stands per zone)"),
     detections: Path | None = typer.Option(None, help="Detections JSON from any detector or annotation instead of running the detector"),
     truth: Path | None = typer.Option(None, help="Annotated aircraft (same JSON layout): detector recall and precision go into the report"),
-    weights: str = typer.Option("yolov8n.pt"),
+    weights: str | None = typer.Option(None, help="Detector weights (default: models/aircraft_yolov8n.pt when registered, else the COCO yolov8n.pt)"),
     conf: float = typer.Option(0.15),
     tile: int = typer.Option(320, help="Tile size for sliced inference (0 = whole image)"),
     out: Path | None = typer.Option(None, help="Write a report (JSON, Markdown, manifest) here"),
@@ -761,6 +761,7 @@ def vision_apron(
     )
 
     zl = zones_from_json(zones) if zones else DEFAULT_ZONES
+    weights = weights or ("models/aircraft_yolov8n.pt" if Path("models/aircraft_yolov8n.pt").is_file() else "yolov8n.pt")
     if detections:
         dets = detections_from_json(detections)
     else:
@@ -1897,10 +1898,19 @@ def gov_run_study(
 
 
 @gov_app.command("reviews")
-def gov_reviews(out: Path | None = typer.Option(None, help="Write the Markdown here"), strict: bool = typer.Option(False, help="Exit 1 when any component is overdue (not only safety-related ones)")) -> None:
-    """Assurance reviews practised: the dated review per component, automatic evidence, cadence and what is overdue (C-31)."""
+def gov_reviews(out: Path | None = typer.Option(None, help="Write the Markdown here"), strict: bool = typer.Option(False, help="Exit 1 when any component is overdue (not only safety-related ones)"),
+                packet: str | None = typer.Option(None, help="Write a review packet for this component (a second reviewer's brief with the log entry to paste back)")) -> None:
+    """Assurance reviews practised: the dated review per component, automatic evidence, cadence and what is overdue (C-31); --packet briefs a peer reviewer."""
     from .governance import reviews
 
+    if packet:
+        text = reviews.render_packet(packet)
+        if out:
+            out.write_text(text)
+            con.print(f"Wrote {out}")
+        else:
+            con.print(text)
+        return
     rows = reviews.status()
     s = reviews.summary(rows)
     t = Table("component", "class", "safety", "last review", "kind", "outcome", "days", "cadence", "due", "checks")

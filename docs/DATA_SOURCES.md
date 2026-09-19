@@ -50,6 +50,15 @@ them, and do not resell their data.
 ~80 operators by ICAO callsign designator with category, ~180 ICAO aircraft type designators with
 class. Extend by adding rows; nothing else needs to change.
 
+## RarePlanes (detector training data, on demand)
+
+`scripts/rareplanes_subset.py` fetches a seeded, location-balanced subset of the real, tiled
+RarePlanes imagery (CosmiQ Works / In-Q-Tel; Shermeyer et al. 2020, CC BY-SA 4.0) from the public
+S3 bucket over plain HTTPS: 512 px satellite tiles with per-aircraft boxes, converted to a
+single-class YOLO layout under `data/space/rareplanes/yolo/` (git-ignored) with a manifest that
+records every tile's SHA-256, the licence and the citation. `scripts/train_aircraft_detector.py`
+fine-tunes YOLOv8n on it and registers the model with two evaluations (`docs/ML.md`).
+
 ## Not wired
 
 - airplanes.live: requires an emailed access request.

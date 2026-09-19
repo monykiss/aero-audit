@@ -1,6 +1,6 @@
 # Programme status (generated)
 
-Governance index **100%** (controls 100%, standards 100%, risk share 100%); 24 air rules and 43 space/UAS rules; 47 controls implemented, 0 partial, 0 planned; 24 of 25 studies runnable; 214 tests.
+Governance index **100%** (controls 100%, standards 100%, risk share 100%); 24 air rules and 43 space/UAS rules; 47 controls implemented, 0 partial, 0 planned; 24 of 25 studies runnable; 217 tests.
 
 ## Domains
 

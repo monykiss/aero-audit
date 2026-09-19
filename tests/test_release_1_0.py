@@ -87,6 +87,12 @@ def test_reviews_are_recorded_valid_current_and_render(tmp_path):
         reviews.load_log(bad)
     r = CliRunner().invoke(cli.app, ["gov", "reviews"])
     assert r.exit_code == 0 and "reviewed" in r.output, r.output
+    packet = reviews.render_packet("UAS well-clear metrics")
+    assert "# Review packet: UAS well-clear metrics" in packet and "aero_audit/uas/wellclear.py" in packet and "tests/test_uas.py" in packet and '"kind": "peer-review"' in packet
+    with pytest.raises(KeyError):
+        reviews.render_packet("nope")
+    r = CliRunner().invoke(cli.app, ["gov", "reviews", "--packet", "Governance layer", "--out", str(tmp_path / "packet.md")])
+    assert r.exit_code == 0 and (tmp_path / "packet.md").read_text().startswith("# Review packet: Governance layer"), r.output
 
 
 def test_apron_capacity_from_files_with_measured_recall(tmp_path):
