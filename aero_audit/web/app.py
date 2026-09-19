@@ -428,7 +428,8 @@ class App:
         model = None
         try:
             entries = json.loads(Path("models/registry.json").read_text())
-            e = entries[-1]
+            # the newest *anomaly* model: scene classifiers share the registry and carry accuracy, not recall per attack
+            e = next((x for x in reversed(entries) if isinstance(x, dict) and ("holdout_flag_rate" in x or "recall" in (x.get("evaluation") or {}))), entries[-1])
             model = {k: e.get(k) for k in ("model_path", "rows", "aircraft", "holdout_flag_rate", "trained_at", "sha256")}
             model["evaluation"] = e.get("evaluation")
         except (OSError, ValueError, IndexError):

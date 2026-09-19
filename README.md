@@ -4,7 +4,7 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 1.1.0](https://img.shields.io/badge/version-1.1.0-green.svg)](CHANGELOG.md)
+[![version 1.1.1](https://img.shields.io/badge/version-1.1.1-green.svg)](CHANGELOG.md)
 [![scorecard](https://api.securityscorecards.dev/projects/github.com/monykiss/aero-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/monykiss/aero-audit)
 
 **Air and space, audited end to end.** aero-audit follows real aircraft from public

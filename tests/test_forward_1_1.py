@@ -96,3 +96,22 @@ def test_mission_job_defaults_to_the_next_launch(tmp_path, monkeypatch):
 
     res = space_jobs.mission(Job("j", "mission", {}), {"file": "data/samples/ll2_launches_sample.json", "tfr": "data/samples/tfr_sample.json"})
     assert res["launch"].startswith("Sample Launch | Wallops") and Path(res["report"]).is_file()
+
+
+def test_app_info_picks_the_newest_anomaly_model_not_a_classifier(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AERO_SCHEDULE", "")
+    (tmp_path / "models").mkdir()
+    (tmp_path / "models/registry.json").write_text(json.dumps([
+        {"model_path": "models/anomaly.joblib", "rows": 1000, "holdout_flag_rate": 0.01, "evaluation": {"recall": {"ghost": 0.9}}},
+        {"model_path": "models/scene_classifier_study.joblib", "rows": 400, "evaluation": {"accuracy": 0.64, "per_class": {}}},
+    ]))
+    from aero_audit.web.app import App
+
+    app = App()
+    try:
+        info = app.info()
+    finally:
+        app.scheduler.stop()
+        app.sources.stop()
+    assert info["model"]["model_path"] == "models/anomaly.joblib" and info["model"]["evaluation"]["recall"]["ghost"] == 0.9

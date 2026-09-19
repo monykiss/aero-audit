@@ -1,4 +1,4 @@
-# API v1 (generated from the router, 1.1.0)
+# API v1 (generated from the router, 1.1.1)
 
 Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies must be application/json and carry X-Aero-Token (the CSRF token from GET /api/v1/app in loopback mode, or the shared token in remote mode). Every response carries X-Request-Id. See SECURITY.md and docs/APP.md.
 
