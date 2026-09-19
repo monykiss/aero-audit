@@ -628,13 +628,19 @@ def app_cmd(
     token: str | None = typer.Option(None, envvar="AERO_APP_TOKEN", help="Shared access token for a non-loopback bind"),
     allow_unauthenticated: bool = typer.Option(False, help="Non-loopback bind without a token (container whose port is published on loopback)"),
     allowed_host: list[str] | None = typer.Option(None, help="Extra Host header values to accept (e.g. a LAN name)"),
+    live: str | None = typer.Option(None, help="Start a live source at boot: a region key such as nyc (for an unattended launchd app)"),
+    provider: str = typer.Option("adsblol", help="Provider for --live"),
+    radius: float | None = typer.Option(None, help="Radius nm for --live (provider limit applies)"),
+    interval: float = typer.Option(12.0, help="Poll interval s for --live"),
+    demo: bool = typer.Option(False, help="Demo injections on the --live source (off for an unattended app)"),
 ) -> None:
-    """Start the local app (home screen, live map, findings, risk, reports, data, settings, help)."""
+    """Start the local app (home screen, live map, findings, risk, reports, data, settings, help); --live starts a source at boot."""
     from .web.app import run_app
 
     _security_banner(host, port, token, allow_unauthenticated)
-    con.print(f"[bold]aero-audit app[/] http://{host}:{port}/  (Ctrl+C to stop)")
-    run_app(port, host, open_browser, token=token, allow_unauthenticated=allow_unauthenticated, allowed_hosts=tuple(allowed_host or ()))
+    con.print(f"[bold]aero-audit app[/] http://{host}:{port}/  (Ctrl+C to stop)" + (f"  live {provider} over {live}" if live else ""))
+    preset = {"mode": "live", "provider": provider, "region": live, "radius": radius, "interval": interval, "demo": demo} if live else None
+    run_app(port, host, open_browser, preset=preset, token=token, allow_unauthenticated=allow_unauthenticated, allowed_hosts=tuple(allowed_host or ()))
 
 
 @app.command()
@@ -1626,6 +1632,26 @@ def space_mission(launch: str = typer.Argument(..., help="Launch id, or a substr
     slug = "".join(ch if ch.isalnum() else "_" for ch in str(row.get("id") or row.get("name") or "launch"))[:40]
     jp = write_generic(out, f"mission_{slug}", "dossier", d, fs, inputs={k: v for k, v in inputs["files"].items() if v} | {"recording": recording})["json"]
     con.print(f"Report: {jp}")
+
+
+@space_app.command("launch-capture")
+def space_launch_capture(file: Path | None = typer.Option(None, help="Launch file (default: newest cached)"),
+                         lead_h: float = typer.Option(2.0, help="Start this many hours before the window opens"), tail_h: float = typer.Option(1.0, help="Keep recording this long after it closes"),
+                         radius_nm: float = typer.Option(100.0), interval: float = typer.Option(15.0), max_h: float = typer.Option(4.0, help="Cap one capture segment"),
+                         dry_run: bool = typer.Option(False, help="Only list what is due"), out: Path = typer.Option(Path("reports"))) -> None:
+    """Record the airspace around a pad while its launch window is open (adsb.lol, keyless), then write the pad join, the TFR join and the mission dossier."""
+    from .space import capture
+
+    payload = json.loads(Path(file).read_text()) if file else None
+    res = capture.run(launches_payload=payload, lead_s=lead_h * 3600, tail_s=tail_h * 3600, radius_nm=radius_nm, interval_s=interval, max_duration_s=max_h * 3600,
+                      dry_run=dry_run, out_dir=out, say=lambda m: con.print(m))
+    con.print(f"{res['launches_cached']} launches cached; due now: {len(res['due'])}")
+    for r in res["due"]:
+        con.print(f"  {r['window_start']} .. {r['window_end']}  {r['name']}  {r['pad']}")
+    if res.get("recording"):
+        con.print(f"Recording: {res['recording']} ({res['batches']} batches, {res['state_vectors']} state vectors); reports: {', '.join(res['reports'].values())}")
+    elif not dry_run:
+        con.print("nothing to capture right now")
 
 
 @space_app.command("live-check")

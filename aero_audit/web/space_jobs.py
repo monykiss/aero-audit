@@ -317,7 +317,19 @@ def mission(job: Job, p: dict[str, Any]) -> dict[str, Any]:
     return {"launch": row.get("name"), "sections": d["sections"], **_write_report(f"mission_{slug}", d, fs, {k: v for k, v in inputs["files"].items() if v} | {"recording": p.get("recording")})}
 
 
-REGISTRY = {"tfr": tfr, "reentry": reentry, "mission": mission, "cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
+def launch_capture(job: Job, p: dict[str, Any]) -> dict[str, Any]:
+    from ..space import capture
+
+    payload = json.loads(Path(_confine(p["file"], JSON_SUFFIXES)).read_text()) if p.get("file") else None
+    res = capture.run(launches_payload=payload, lead_s=float(p.get("lead_h") or 2.0) * 3600, tail_s=float(p.get("tail_h") or 1.0) * 3600, radius_nm=float(p.get("radius_nm") or capture.RADIUS_NM),
+                      interval_s=float(p.get("interval") or capture.INTERVAL_S), max_duration_s=float(p.get("max_h") or 4.0) * 3600, stop=job.stop, dry_run=bool(p.get("dry_run")),
+                      max_batches=int(p["max_batches"]) if p.get("max_batches") else None, say=job.say)
+    if not res.get("picked"):
+        job.say(f"no launch window due ({res['launches_cached']} launches cached)")
+    return res
+
+
+REGISTRY = {"launch_capture": launch_capture, "tfr": tfr, "reentry": reentry, "mission": mission, "cdm_inbox": cdm_inbox, "spacetrack_pull": spacetrack_pull, "conjunctions": conjunctions, "space_weather": space_weather, "launches": launches,
             "wellclear": wellclear, "uas_risk": uas_risk, "catalog_build": catalog_build, "maneuvers": maneuvers, "encounter_model": encounter_model, "satcat": satcat, "digest": digest}
 
-__all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launches", "mission", "reentry", "space_weather", "spacetrack_pull", "tfr", "uas_risk", "wellclear"]
+__all__ = ["REGISTRY", "catalog_build", "cdm_inbox", "conjunctions", "launch_capture", "launches", "mission", "reentry", "space_weather", "spacetrack_pull", "tfr", "uas_risk", "wellclear"]

@@ -1,5 +1,12 @@
 # Operations runbook
 
+## The app, always up (macOS)
+
+`ops/launchd/org.aero-audit.app.plist` runs `aero app --no-open --port 8787 --live nyc` under launchd
+(loopback only, KeepAlive, logs in `logs/app.*.log`); `org.aero-audit.watch.plist` runs the scheduled
+intake including `launch_capture`, which records the airspace around a pad while its window is open
+and writes the joins afterwards (`docs/SPACE.md`).
+
 ## Daily capture (one poller per host, please)
 
 ```bash
