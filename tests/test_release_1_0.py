@@ -127,7 +127,7 @@ def test_contract_snapshot_holds_and_detects_removals():
 
 
 def test_every_control_implemented_and_publish_gate_at_1_0():
-    assert __version__ == "1.0.0" and all(c.status == "implemented" for c in CONTROLS.values())
+    assert tuple(int(x) for x in __version__.split(".")[:2]) >= (1, 0) and all(c.status == "implemented" for c in CONTROLS.values())
     rows = {r["id"]: r for r in publish.checks()}
     assert rows["PUB-12"]["ok"] and rows["PUB-13"]["ok"], (rows["PUB-12"], rows["PUB-13"])
     assert "Production/Stable" in Path("pyproject.toml").read_text()

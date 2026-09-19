@@ -22,6 +22,7 @@
 | ST-22 | Launch airspace compliance | space-launch | runnable | TFR product, recording, launch file | aircraft inside per restriction, restrictions overlapping the recording, US windows without a TFR within 72 h | nasa/utm-apis |
 | ST-23 | Reentry corridor exposure | space-orbital | runnable | element file(s), recording | objects flagged, airports under the corridor, aircraft under the track, element age | nasa/GMAT, Bill-Gray/find_orb |
 | ST-24 | Mission dossier | space-launch | runnable | launch file, TFR product, SWPC product, recording | TFRs covering the window, aircraft inside the hazard radius and inside the TFR, advisory conditions, objects catalogued and decayed | nasa/openmct |
+| ST-25 | Traffic displacement by launch airspace | space-launch | runnable | TFR products, recordings | restrictions, pairs with both windows, displacement ratio per pair, median ratio | - |
 | ST-15 | Data catalogue reconciliation | air-surveillance | runnable |  | added, removed, changed | nasa/Common-Metadata-Repository, nasa/cumulus |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable | GeoJSON extent | airports inside, airports near, major hubs affected | nasa/CrisisMappingToolkit |
 | ST-12 | Conjunction data message assessment | space-orbital | runnable | CDM file (KVN) | Pc, miss distance, consistency | open-space-collective/ccsds-data-messages, nasa/GMAT |

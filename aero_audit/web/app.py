@@ -788,6 +788,13 @@ def r_space(app: App, req: Any) -> Any:
     return space_summary()
 
 
+@router.route("GET", "/api/v1/overview")
+def r_overview(app: App, req: Any) -> Any:
+    from .views import overview
+
+    return overview()
+
+
 @router.route("GET", "/api/v1/uas")
 def r_uas(app: App, req: Any) -> Any:
     from .views import uas_summary

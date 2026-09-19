@@ -179,4 +179,57 @@ def join_launches(payload: dict[str, Any], launches_payload: dict[str, Any], now
     return summary, out
 
 
-__all__ = ["LOOKAHEAD_S", "PAD_SLACK_NM", "covering", "join_launches", "join_traffic"]
+def displacement(products: list[str | Path], recordings: list[str | Path], max_batches: int | None = None) -> dict[str, Any]:
+    """How much traffic a space-operations restriction actually displaced: for every restriction seen in any product
+    (newest geometry per NOTAM id) and every recording, the rate of distinct aircraft inside the volume per minute while it
+    was in effect against the rate in the same volume outside its effective time. A ratio near zero means the airspace
+    was clear; near one means the restriction was not observed to change traffic; None means one of the two windows was
+    not recorded. This is a study over history, so it grows with every cached product and recording."""
+    from ..ingest.replay import iter_recording
+
+    feats: dict[str, dict[str, Any]] = {}
+    for p in products:
+        try:
+            payload = tfr_mod.load(p)
+        except (OSError, ValueError):
+            continue
+        for f in _geometry_features(payload, tfr_mod.SPACE_TYPES):
+            feats[f["notam_id"]] = f  # products are read oldest to newest, so the newest geometry wins
+    rows = []
+    for rec in recordings:
+        inside_during: dict[str, set[str]] = {k: set() for k in feats}
+        inside_outside: dict[str, set[str]] = {k: set() for k in feats}
+        t_during: dict[str, set[int]] = {k: set() for k in feats}
+        t_outside: dict[str, set[int]] = {k: set() for k in feats}
+        batches = 0
+        for b in iter_recording(rec):
+            if max_batches and batches >= max_batches:
+                break
+            batches += 1
+            for sv in b.states:
+                if sv.lat is None or sv.lon is None or sv.on_ground:
+                    continue
+                for key, f in feats.items():
+                    minute = int(sv.ts // 60)
+                    if tfr_mod.active(f, sv.ts):
+                        t_during[key].add(minute)
+                        if tfr_mod.inside(sv.lat, sv.lon, f, sv.baro_alt_ft):
+                            inside_during[key].add(sv.icao24)
+                    else:
+                        t_outside[key].add(minute)
+                        if tfr_mod.inside(sv.lat, sv.lon, f, sv.baro_alt_ft):
+                            inside_outside[key].add(sv.icao24)
+        for key, f in feats.items():
+            md, mo = len(t_during[key]), len(t_outside[key])
+            rd = len(inside_during[key]) / md if md else None
+            ro = len(inside_outside[key]) / mo if mo else None
+            ratio = None if rd is None or ro is None or ro == 0 else round(rd / ro, 3)
+            rows.append({"notam_id": key, "place": f.get("place"), "recording": Path(str(rec)).name, "minutes_during": md, "minutes_outside": mo,
+                         "aircraft_inside_during": len(inside_during[key]), "aircraft_inside_outside": len(inside_outside[key]),
+                         "rate_during_per_min": None if rd is None else round(rd, 3), "rate_outside_per_min": None if ro is None else round(ro, 3), "displacement_ratio": ratio})
+    scored = [r["displacement_ratio"] for r in rows if r["displacement_ratio"] is not None]
+    return {"restrictions": len(feats), "products": len(products), "recordings": len(recordings), "rows": rows, "pairs_with_both_windows": len(scored),
+            "median_displacement_ratio": sorted(scored)[len(scored) // 2] if scored else None}
+
+
+__all__ = ["LOOKAHEAD_S", "PAD_SLACK_NM", "covering", "displacement", "join_launches", "join_traffic"]

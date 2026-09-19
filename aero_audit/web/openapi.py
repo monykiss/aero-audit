@@ -61,6 +61,7 @@ SUMMARIES: dict[tuple[str, str], tuple[str, str, str]] = {
     ("GET", "/api/v1/openapi.json"): ("This document", "OpenAPI 3.1 description of the API, generated from the router.", "reference"),
     ("GET", "/api/v1/governance"): ("Governance posture", "Domains, controls with evidence, unified register, studies, policies and the posture index.", "governance"),
     ("GET", "/api/v1/space"): ("Space summary", "Elements on disk with ages, latest conjunction / CDM / debris reports, CDM ledger events, cached space weather and launch windows, assets, dataset and classifier.", "space"),
+    ("GET", "/api/v1/overview"): ("Air and space overview", "One board from cached products and reports: next launches, space-operations TFRs in effect, space weather advisories, decaying objects, latest conjunction screen and well-clear numbers, reports of the last 24 h.", "space"),
     ("GET", "/api/v1/uas"): ("UAS summary", "Latest well-clear, risk-class and UTM contract reports with their findings and the definitions in force.", "uas"),
     ("GET", "/api/v1/integrations"): ("Integrations", "External services, what each unlocks, its keyless fallback and whether its credentials are configured (values never returned).", "app"),
     ("GET", "/api/v1/schedule"): ("Scheduled intake", "Jobs the scheduler submits on an interval (AERO_SCHEDULE), next run, run and skip counts.", "jobs"),

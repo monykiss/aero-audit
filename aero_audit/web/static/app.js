@@ -74,7 +74,25 @@
   function refreshWhenJobsSettle(page, a) { if (store.page !== page) return; if (a.jobs_running) { busy[page] = true; } else if (busy[page]) { busy[page] = false; navigate(); } }
   const pages = {
     home: { title: 'Home', async render(el) {
-      const [regs, recs] = await Promise.all([api('/regions'), api('/recordings')]); const a = store.app; const src = a.source;
+      const [regs, recs, ov] = await Promise.all([api('/regions'), api('/recordings'), api('/overview').catch(() => null)]); const a = store.app; const src = a.source;
+      const board = !ov ? '' : (() => {
+        const L = ov.launches, A = ov.airspace, W = ov.space_weather, D = ov.decaying, C = ov.conjunctions, U = ov.uas, R = ov.reports;
+        const adv = W && W.advisories ? Object.entries(W.advisories).filter(([, v]) => v).map(([k, v]) => k + ' ' + v).join(', ') : '';
+        const tiles = [
+          `<div class="tile ${A && A.in_effect && A.in_effect.length ? 'c-amber' : 'c-grey'}"><b>${A ? A.in_effect.length : '—'}</b><span>space-ops TFRs in effect</span></div>`,
+          `<div class="tile c-blue"><b>${L ? L.within_24h : '—'}</b><span>launches within 24 h${L && L.crewed_next ? ' · crewed next' : ''}</span></div>`,
+          `<div class="tile ${adv ? 'c-amber' : 'c-green'}"><b>${W && W.scales_now ? ['G', 'R', 'S'].map(k => k + (W.scales_now[k] ?? '?')).join(' ') : '—'}</b><span>space weather${adv ? ' · ' + esc(adv) : ''}</span></div>`,
+          `<div class="tile ${D && D.objects ? 'c-amber' : 'c-grey'}"><b>${D ? D.objects : '—'}</b><span>objects decaying</span></div>`,
+          `<div class="tile c-teal"><b>${C ? C.approaches : '—'}</b><span>close approaches (last screen)</span></div>`,
+          `<div class="tile c-violet"><b>${U && U.violations_per_flight_hour != null ? U.violations_per_flight_hour.toFixed(2) : '—'}</b><span>well-clear violations / flight h</span></div>`,
+          `<div class="tile c-grey"><b>${R ? R.last_24h : '—'}</b><span>reports in 24 h</span></div>`].join('');
+        const lines = [];
+        if (A && A.in_effect) A.in_effect.slice(0, 3).forEach(t => lines.push(`TFR ${esc(t.notam_id)} ${esc(t.place || '')} until ${esc(t.expire || '')}`));
+        if (A && A.next) lines.push(`next TFR ${esc(A.next.notam_id)} ${esc(A.next.place || '')} from ${esc(A.next.effective || '')}`);
+        if (L && L.next) L.next.slice(0, 3).forEach(l => lines.push(`${esc(l.name)} · ${esc(l.net)} · ${esc(l.pad || '')}${l.crewed ? ' · CREWED' : ''}`));
+        if (D && D.top) D.top.slice(0, 2).forEach(o => lines.push(`decaying ${esc(o.name)} perigee ${o.perigee_km} km${o.decay_days_estimate != null ? ' · ~' + o.decay_days_estimate + ' d' : ''}`));
+        return `<h2>Air and space, right now <span class="note">from cached products and reports; the <a href="#/space">SPACE</a> page has the detail</span></h2><div class="tiles">${tiles}</div>${lines.length ? `<p class="note">${lines.map(esc0 => esc0).join('<br>')}</p>` : ''}`;
+      })();
       const civil = recs.filter(r => !r.special); const byKind = k => regs.filter(r => r.kind === k);
       const opt = r => `<option value="${r.key}" data-int="${r.interval}" data-prov="${r.providers.join(',')}">${esc(r.name)}${r.kind === 'group' ? '' : ' (' + r.key + ')'}</option>`;
       const groups = [['🇺🇸 Whole country', [...byKind('group').filter(r => r.key === 'usa-hubs'), ...byKind('box').filter(r => r.key === 'conus')]], ['🌎 Continent / world', [...byKind('box').filter(r => r.key !== 'conus'), ...byKind('group').filter(r => r.key !== 'usa-hubs')]], ['🇺🇸 US hubs', byKind('us')], ['🌍 International hubs', byKind('world')], ['📡 Global feeds', byKind('global')]];
@@ -93,7 +111,7 @@ ${src.active ? `<div class="card accent-green" style="margin:14px 0"><h2>Running
 <div class="row"><label>where</label><select id="lreg" style="max-width:420px">${groups.map(([g, rs]) => `<optgroup label="${g}">${rs.map(opt).join('')}</optgroup>`).join('')}</select></div>
 <div class="row"><label>radius nm</label><input type="number" id="lrad" value="250" min="20" max="250" style="width:80px"><label>poll every</label><input type="number" id="lint" value="60" min="8" max="600" style="width:70px"><label>s</label><label><input type="checkbox" id="ldemo" ${a.settings.demo ? 'checked' : ''}> demo controls</label></div>
 <div class="row"><button class="primary" id="lstart">Go live</button><span class="note" id="lhint"></span></div></div></div>
-<h2>On this machine</h2><div class="tiles"><div class="tile c-blue"><b>${a.recordings}</b><span>recordings</span></div><div class="tile c-teal"><b>${a.reports}</b><span>reports</span></div><div class="tile c-violet"><b>${a.model ? (a.model.rows / 1000).toFixed(0) + 'k' : '—'}</b><span>model rows</span></div><div class="tile c-green"><b>${a.model ? (a.model.holdout_flag_rate * 100).toFixed(2) + '%' : '—'}</b><span>holdout flag rate</span></div><div class="tile c-amber"><b>${a.model && a.model.evaluation ? Math.round(Object.values(a.model.evaluation.recall).slice(0, 6).reduce((x, y) => x + y, 0) / 6 * 100) + '%' : '—'}</b><span>mean recall (6 attacks)</span></div><div class="tile c-grey"><b>${a.jobs_running}</b><span>jobs running</span></div></div>
+${board}<h2>On this machine</h2><div class="tiles"><div class="tile c-blue"><b>${a.recordings}</b><span>recordings</span></div><div class="tile c-teal"><b>${a.reports}</b><span>reports</span></div><div class="tile c-violet"><b>${a.model ? (a.model.rows / 1000).toFixed(0) + 'k' : '—'}</b><span>model rows</span></div><div class="tile c-green"><b>${a.model ? (a.model.holdout_flag_rate * 100).toFixed(2) + '%' : '—'}</b><span>holdout flag rate</span></div><div class="tile c-amber"><b>${a.model && a.model.evaluation ? Math.round(Object.values(a.model.evaluation.recall).slice(0, 6).reduce((x, y) => x + y, 0) / 6 * 100) + '%' : '—'}</b><span>mean recall (6 attacks)</span></div><div class="tile c-grey"><b>${a.jobs_running}</b><span>jobs running</span></div></div>
 <p class="note">Manage recordings, capture new data, train and evaluate on the <a href="#/data">Data &amp; model</a> page. Thresholds and demo mode are in <a href="#/settings">Settings</a>.</p>`;
       const regSel = el.querySelector('#lreg'), provSel = el.querySelector('#lprov'), hint = el.querySelector('#lhint');
       const syncRegion = () => { const prov = provSel.value; [...regSel.options].forEach(o => { o.disabled = !o.dataset.prov.split(',').includes(prov); });

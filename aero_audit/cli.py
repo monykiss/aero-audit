@@ -1691,6 +1691,29 @@ def space_telemetry(
     con.print(f"Reports: {paths['md']}, {paths['json']} (manifest {paths['manifest'].name})")
 
 
+@app.command("overview")
+def overview_cmd(as_json: bool = typer.Option(False, "--json", help="Print the board as JSON")) -> None:
+    """Air and space in one glance from cached products and reports: launches, TFRs in effect, space weather, decaying objects, last screen, well-clear, reports."""
+    from .web.views import overview
+
+    ov = overview()
+    if as_json:
+        con.print(json.dumps(ov, indent=1, default=str))
+        return
+    L, A, W, D, C, U, R = (ov.get(k) for k in ("launches", "airspace", "space_weather", "decaying", "conjunctions", "uas", "reports"))
+    con.print(f"[bold]space-ops TFRs in effect:[/] {len(A['in_effect']) if A and 'in_effect' in A else '-'}" + (f"  (next {A['next']['notam_id']} {A['next']['place']} from {A['next']['effective']})" if A and A.get("next") else ""))
+    for t in (A or {}).get("in_effect", [])[:5]:
+        con.print(f"  {t['notam_id']} {t.get('place')} until {t.get('expire')} up to {t.get('upper_ft')} ft")
+    con.print(f"[bold]launches within 24 h:[/] {L['within_24h'] if L else '-'}")
+    for l_ in (L or {}).get("next", [])[:5]:
+        con.print(f"  {l_['net']}  {l_['name']}  {l_.get('pad')}{'  CREWED' if l_.get('crewed') else ''}")
+    con.print(f"[bold]space weather:[/] {W['scales_now'] if W else '-'}  advisories {W['advisories'] if W else '-'}")
+    con.print(f"[bold]objects decaying:[/] {D['objects'] if D else '-'}" + ("  " + ", ".join(f"{o['name']} ({o['perigee_km']} km)" for o in D["top"][:3]) if D and D.get("top") else ""))
+    con.print(f"[bold]last conjunction screen:[/] {C['approaches'] if C else '-'} approaches, closest {C['closest_km'] if C else '-'} km")
+    con.print(f"[bold]well-clear:[/] {U['violations_per_flight_hour'] if U else '-'} violations per flight hour ({U['report'] if U else 'no report'})")
+    con.print(f"[bold]reports:[/] {R['last_24h']} in the last 24 h of {R['total']}: {R['kinds_24h']}")
+
+
 # ---- governance: the bird's-eye view ----------------------------------------------------------
 gov_app = typer.Typer(help="Holistic governance: domains, standards, controls with evidence, unified register, studies, posture.")
 app.add_typer(gov_app, name="gov")
