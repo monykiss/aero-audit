@@ -4,7 +4,7 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 1.0.0](https://img.shields.io/badge/version-1.0.0-green.svg)](CHANGELOG.md)
+[![version 1.1.0](https://img.shields.io/badge/version-1.1.0-green.svg)](CHANGELOG.md)
 [![scorecard](https://api.securityscorecards.dev/projects/github.com/monykiss/aero-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/monykiss/aero-audit)
 
 **Air and space, audited end to end.** aero-audit follows real aircraft from public
@@ -226,6 +226,7 @@ scripts/run_pipeline.sh                                        # train → evalu
 ```bash
 aero space demo            # debris, CDM, space weather, launch windows, TFRs, reentry corridor, mission dossier, well-clear, risk classes, encounter model on the samples
 aero space mission wallops --file data/samples/ll2_launches_sample.json --recording data/samples/adsblol_nyc_20260910T115129Z.jsonl.gz   # one launch, every domain
+aero overview              # air and space in one glance: TFRs in effect, next launches, space weather, decaying objects, last screen, well-clear
 aero app                   # then SPACE and UAS in the left nav, or type SPACE / UAS on the command line
 aero accounts              # which optional services are configured; everything runs keyless first
 ```

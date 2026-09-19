@@ -198,8 +198,10 @@ the sky has to make room again. Four pieces close that seam:
   from that day at that site with their decay state (ORB-008). Every section names its producing
   module; the dossier adds no rule of its own.
 
-Studies ST-22 (launch airspace compliance), ST-23 (reentry corridor exposure) and ST-24 (mission
-dossier) run these on the samples; controls C-45..C-47 carry the evidence. The bundled
+Studies ST-22 (launch airspace compliance), ST-23 (reentry corridor exposure), ST-24 (mission
+dossier) and ST-25 (traffic displacement by launch airspace, over every cached product and
+recording) run these on the samples; controls C-45..C-47 carry the evidence. `aero overview` and
+the top of the HOME page fold the cached state of all of it into one board. The bundled
 `tfr_sample.json` is synthetic (a Wallops launch polygon and a recovery circle placed inside the
 New York recording so the join has something to find); `decaying_sample.tle` is a synthetic
 185 km-perigee object whose pass crosses the same recording.

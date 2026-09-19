@@ -78,6 +78,7 @@ By residual rating: {'critical': 0, 'high': 0, 'medium': 8, 'low': 15}
 | ST-22 | Launch airspace compliance | space-launch | runnable |
 | ST-23 | Reentry corridor exposure | space-orbital | runnable |
 | ST-24 | Mission dossier | space-launch | runnable |
+| ST-25 | Traffic displacement by launch airspace | space-launch | runnable |
 | ST-15 | Data catalogue reconciliation | air-surveillance | runnable |
 | ST-11 | Airports inside a crisis extent | earth-crisis | runnable |
 | ST-12 | Conjunction data message assessment | space-orbital | runnable |

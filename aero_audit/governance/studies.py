@@ -323,6 +323,18 @@ def _reentry_exposure(tle: str | Path = "data/samples/decaying_sample.tle", reco
     return {"objects": summary["objects"], "from": summary.get("from"), "hours": hours, "width_nm": width_nm, "rows": rows, "findings": [f.rule_id for f in fs]}
 
 
+def _tfr_displacement(products: list[str | Path] | None = None, recordings: list[str | Path] | None = None, recording: str | Path | None = None, tfr: str | Path | None = None, **_: Any) -> dict[str, Any]:
+    from ..space import airspace
+
+    prods = [Path(x) for x in products] if products else ([Path(tfr)] if tfr else sorted(p for p in Path("data/airspace").glob("tfr_*.json") if not p.name.endswith(".provenance.json")))
+    recs = [Path(x) for x in recordings] if recordings else ([Path(recording)] if recording else sorted(Path("data/recordings").glob("*.jsonl*")))
+    if not prods:
+        prods = [Path("data/samples/tfr_sample.json")]
+    if not recs:
+        recs = sorted(Path("data/samples").glob("*.jsonl.gz"))
+    return airspace.displacement(prods, recs)
+
+
 def _mission_dossier(launch: str = "wallops", launches: str | Path = "data/samples/ll2_launches_sample.json", tfr: str | Path = "data/samples/tfr_sample.json",
                      scales: str | Path = "data/samples/swpc_scales_sample.json", recording: str | Path | None = None, hazard_nm: float = 50.0, **_: Any) -> dict[str, Any]:
     import json as _json
@@ -341,7 +353,7 @@ RUNNERS: dict[str, Callable[..., dict[str, Any]]] = {
     "wellclear": _wellclear, "encounter_rates": _encounter_rates, "utm_conformance": _utm_conformance, "debris": _debris,
     "classifier_eval": _classifier_eval, "catalog_reconcile": _catalog_reconcile,
     "cdm_assessment": _cdm_assessment, "risk_classes": _risk_classes, "space_weather": _space_weather, "launch_join": _launch_join,
-    "tfr_join": _tfr_join, "reentry_exposure": _reentry_exposure, "mission_dossier": _mission_dossier,
+    "tfr_join": _tfr_join, "reentry_exposure": _reentry_exposure, "mission_dossier": _mission_dossier, "tfr_displacement": _tfr_displacement,
     "encounter_model": _encounter_model, "element_history": _element_history, "wellclear_trend": _wellclear_trend,
     "conjunction_screen": _conjunction_screen,
     "airports_in_extent": _airports_in_extent,
@@ -411,6 +423,9 @@ STUDIES: dict[str, Study] = {s.id: s for s in (
     Study("ST-24", "Mission dossier", "For one launch, what did every domain see: airspace, traffic, space weather, catalogued objects and their decay?",
           "space-launch", "Join of the launch record with the spaceport table, the TFR product, the recording, the newest space-weather product and the SATCAT by launch date and site code; one report, one manifest.",
           ("launch file", "TFR product", "SWPC product", "recording"), ("TFRs covering the window", "aircraft inside the hazard radius and inside the TFR", "advisory conditions", "objects catalogued and decayed"), "runnable", "mission_dossier", ("nasa/openmct",)),
+    Study("ST-25", "Traffic displacement by launch airspace", "How much traffic did each space-operations restriction actually displace, across every cached product and recording?",
+          "space-launch", "Newest geometry per NOTAM id across the cached TFR products; per recording, distinct aircraft inside the volume per minute while in effect against the same volume outside its effective time; ratio per pair, median over history.",
+          ("TFR products", "recordings"), ("restrictions", "pairs with both windows", "displacement ratio per pair", "median ratio"), "runnable", "tfr_displacement", ()),
     Study("ST-15", "Data catalogue reconciliation", "What changed on disk since the last catalogue build?",
           "air-surveillance", "Rebuild the CMR-style catalogue and diff it against the saved one.", (), ("added", "removed", "changed"), "runnable", "catalog_reconcile",
           ("nasa/Common-Metadata-Repository", "nasa/cumulus")),

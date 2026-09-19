@@ -304,7 +304,10 @@ def mission(job: Job, p: dict[str, Any]) -> dict[str, Any]:
                             _confine(p["scales"], JSON_SUFFIXES) if p.get("scales") else None)
     if not inputs["launches"]:
         raise FileNotFoundError("no launch file given and none cached; run the launches job first")
-    row = ms.find_launch(inputs["launches"], str(p.get("launch") or ""))
+    if p.get("launch"):
+        row = ms.find_launch(inputs["launches"], str(p["launch"]))
+    else:
+        row = next((r for r in sorted(inputs["launches"].get("launches", []), key=lambda r: r.get("net") or "") if r.get("pad_lat") is not None), None)
     if row is None:
         raise KeyError(f"no launch matches {p.get('launch')!r}")
     rec = _recording_path(p["recording"]) if p.get("recording") else None

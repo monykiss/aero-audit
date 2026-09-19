@@ -2,6 +2,17 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.1.0 - 2026-09-19
+
+- **Overview board**: `aero overview`, `GET /api/v1/overview` and the top of the HOME page show air and space in one
+  glance from cached products and reports: space-operations TFRs in effect and the next one, launches within 24 h (crewed
+  flagged), space weather scales and advisories, decaying objects, the last conjunction screen, well-clear rate, reports
+  of the last 24 h.
+- **ST-25 traffic displacement by launch airspace**: across every cached TFR product and recording, distinct aircraft
+  inside each restriction per minute while in effect against the same volume outside its effective time; grows with
+  history (`airspace.displacement`).
+- The `mission` job defaults to the next launch with a pad when no launch is named (SPACE page button).
+
 ## 1.0.0 - 2026-09-18
 
 The 1.0 bar: every control implemented, the public contract frozen, the honest numbers written into the reports.

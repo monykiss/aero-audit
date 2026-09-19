@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -182,4 +183,92 @@ def _uas_summary() -> dict[str, Any]:
     }
 
 
-__all__ = ["space_summary", "uas_summary"]
+def overview() -> dict[str, Any]:
+    """Air and space in one glance: what is in effect, what is next, what is decaying, what the sky's weather is, and what
+    the newest reports found. Every section is derived from cached products and reports on disk; a missing product
+    leaves its section None rather than failing the board."""
+    return _memo("overview", _overview)
+
+
+def _overview() -> dict[str, Any]:
+    now = time.time()
+    out: dict[str, Any] = {"generated_at": now}
+
+    def section(name: str, fn: Any) -> None:
+        try:
+            out[name] = fn()
+        except Exception as e:  # noqa: BLE001 - one broken product must not blank the board
+            out[name] = {"error": f"{type(e).__name__}: {str(e)[:120]}"}
+
+    def _launches() -> dict[str, Any] | None:
+        from ..space import launches as ll
+
+        p = ll.latest()
+        if not p:
+            return None
+        rows = (_load(p) or {}).get("launches", [])
+        upcoming = sorted((r for r in rows if r.get("net") and r.get("pad_lat") is not None), key=lambda r: r["net"])
+        soon = [r for r in upcoming if 0 <= (datetime.fromisoformat(r["net"]).timestamp() - now) <= 86400]
+        return {"file": p.name, "cached": len(rows), "next": [{k: r.get(k) for k in ("name", "net", "pad", "location", "status", "crewed", "mission_type")} for r in upcoming[:5]],
+                "within_24h": len(soon), "crewed_next": any(r.get("crewed") for r in upcoming[:5])}
+
+    def _airspace() -> dict[str, Any] | None:
+        from ..ingest import tfr as tfr_mod
+
+        p = tfr_mod.latest()
+        if not p:
+            return None
+        feats = [f for f in tfr_mod.load(p).get("features", []) if f.get("polygon") or f.get("circle")]
+        active = [f for f in feats if tfr_mod.active(f, now)]
+        future = sorted((f for f in feats if f.get("effective_ts") and f["effective_ts"] > now), key=lambda f: f["effective_ts"])
+        return {"file": p.name, "age_h": round((now - p.stat().st_mtime) / 3600, 1), "space_ops": len(feats), "in_effect": [{k: f.get(k) for k in ("notam_id", "place", "state", "expire", "upper_ft")} for f in active[:8]],
+                "next": {k: future[0].get(k) for k in ("notam_id", "place", "state", "effective")} if future else None}
+
+    def _weather() -> dict[str, Any] | None:
+        from ..space import spaceweather
+
+        p = spaceweather.latest()
+        if not p:
+            return None
+        summ, fs = spaceweather.assess(_load(p) or {}, now=now)
+        return {"file": p.name, "scales_now": summ.get("scales_now"), "advisories": summ.get("icao_advisory_conditions"), "kp": summ.get("kp"), "findings": [f.rule_id for f in fs]}
+
+    def _decaying() -> dict[str, Any] | None:
+        from ..space import reentry
+
+        cands = reentry.candidates()
+        if not cands and not reentry.ELEMENTS_DIR.is_dir():
+            return None
+        top = sorted(cands, key=lambda c: (c["decay_days_estimate"] is None, c["decay_days_estimate"] or 1e9, c["perigee_km"]))[:5]
+        return {"objects": len(cands), "top": [{k: c.get(k) for k in ("norad", "name", "perigee_km", "decay_days_estimate", "age_h", "flags")} for c in top]}
+
+    def _conjunctions() -> dict[str, Any] | None:
+        p, d = _latest_report("conjunctions")
+        if not p:
+            return None
+        appr = (d or {}).get("screen", {}).get("approaches", [])
+        return {"report": p.name, "age_h": round((now - p.stat().st_mtime) / 3600, 1), "approaches": len(appr), "closest_km": min((a.get("min_km") for a in appr if a.get("min_km") is not None), default=None),
+                "findings": len((d or {}).get("findings", []))}
+
+    def _uas() -> dict[str, Any] | None:
+        p, d = _latest_report("wellclear")
+        if not p:
+            return None
+        s = (d or {}).get("summary", {})
+        return {"report": p.name, "age_h": round((now - p.stat().st_mtime) / 3600, 1), **{k: s.get(k) for k in ("aircraft_airborne", "violations", "violations_per_flight_hour", "nmac_proximate")}}
+
+    def _reports() -> dict[str, Any]:
+        files = [f for f in REPORTS.glob("*.json") if not f.name.endswith(".manifest.json")] if REPORTS.is_dir() else []
+        recent = [f for f in files if now - f.stat().st_mtime <= 86400]
+        kinds: dict[str, int] = {}
+        for f in recent:
+            k = f.stem.rsplit("_", 1)[0]
+            kinds[k] = kinds.get(k, 0) + 1
+        return {"total": len(files), "last_24h": len(recent), "kinds_24h": dict(sorted(kinds.items()))}
+
+    for name, fn in (("launches", _launches), ("airspace", _airspace), ("space_weather", _weather), ("decaying", _decaying), ("conjunctions", _conjunctions), ("uas", _uas), ("reports", _reports)):
+        section(name, fn)
+    return out
+
+
+__all__ = ["overview", "space_summary", "uas_summary"]

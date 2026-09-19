@@ -1,4 +1,4 @@
-# API v1 (generated from the router, 1.0.0)
+# API v1 (generated from the router, 1.1.0)
 
 Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies must be application/json and carry X-Aero-Token (the CSRF token from GET /api/v1/app in loopback mode, or the shared token in remote mode). Every response carries X-Request-Id. See SECURITY.md and docs/APP.md.
 
@@ -38,6 +38,7 @@ Local, single-user API of the aero-audit app. JSON in, JSON out; POST bodies mus
 | GET | `/api/v1/audit.csv` | audit | Audit log CSV | All audit entries as CSV with sequence, previous hash and hash. |
 | GET | `/api/v1/governance` | governance | Governance posture | Domains, controls with evidence, unified register, studies, policies and the posture index. |
 | GET | `/api/v1/space` | space | Space summary | Elements on disk with ages, latest conjunction / CDM / debris reports, CDM ledger events, cached space weather and launch windows, assets, dataset and classifier. |
+| GET | `/api/v1/overview` | space | Air and space overview | One board from cached products and reports: next launches, space-operations TFRs in effect, space weather advisories, decaying objects, latest conjunction screen and well-clear numbers, reports of the last 24 h. |
 | GET | `/api/v1/uas` | uas | UAS summary | Latest well-clear, risk-class and UTM contract reports with their findings and the definitions in force. |
 | GET | `/api/v1/integrations` | app | Integrations | External services, what each unlocks, its keyless fallback and whether its credentials are configured (values never returned). |
 | GET | `/api/v1/schedule` | jobs | Scheduled intake | Jobs the scheduler submits on an interval (AERO_SCHEDULE), next run, run and skip counts. |
