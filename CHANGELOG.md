@@ -2,6 +2,16 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.2.0 - 2026-09-19
+
+- **Launch-window capture** (`space/capture.py`, `aero space launch-capture`, job `launch_capture`): record the adsb.lol feed
+  around a pad while its window is open (lead 2 h, tail 1 h, 100 nm, segments capped at 4 h, one capture per launch via
+  `data/recordings/launch_captures.json`), then write the pad join, the TFR join and the mission dossier for that launch.
+- **The app, always up**: `aero app --live REGION` starts a live source at boot; `ops/launchd/org.aero-audit.app.plist`
+  keeps it running; the preview pane attaches (`aero-app-attached`).
+- README gallery: the SPACE page and the HOME board (live captures).
+- Fix: the scheduled `reentry` job failed with a missing key when no cached object was decaying.
+
 ## 1.1.2 - 2026-09-19
 
 - Fix: the newest anomaly model is the newest registry entry with per-attack recall; every registry entry carries the

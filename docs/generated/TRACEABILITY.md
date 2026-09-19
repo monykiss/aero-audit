@@ -67,7 +67,7 @@ Bidirectional traceability (NPR 7150.2 SWE-052 lineage): controls to standards, 
 | C-42 Bidirectional traceability | implemented | NASA-NPR-7150.2, NASA-SLIM |  | traceability.py | test_depth.py |  |
 | C-44 Periodic digest | implemented | NASA-SLIM, NIST-CSF-2 |  | digest.py | test_digest.py |  |
 | C-43 Publication readiness | implemented | NASA-NOSA-1.3, NASA-MEDIA, ODbL-1.0 |  | demo.py, publish.py, status.py | test_generic_report_demo.py, test_publish_status.py |  |
-| C-45 Space-operations airspace joined to traffic | implemented | CFR14-91.143, CFR14-450, ICAO-A11 | TFR-001, TFR-002, TFR-003 | tfr.py, airspace.py | test_airspace.py | ST-22, ST-25 |
+| C-45 Space-operations airspace joined to traffic | implemented | CFR14-91.143, CFR14-450, ICAO-A11 | TFR-001, TFR-002, TFR-003 | tfr.py, airspace.py, capture.py | test_airspace.py, test_capture.py | ST-22, ST-25 |
 | C-46 Reentry corridor watch | implemented | CFR14-91.143, ICAO-DOC4444, NASA-STD-8719.14, CCSDS-502 | REN-001, REN-002, REN-003 | reentry.py | test_airspace.py | ST-23 |
 | C-47 Mission dossier | implemented | CFR14-450, CFR14-91.143, NASA-SLIM |  | mission.py, spaceports.py | test_airspace.py | ST-24 |
 

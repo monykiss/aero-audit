@@ -21,7 +21,7 @@ Implementation index: **100%** over 47 controls; 36 of 36 standards have at leas
 | C-33 | External asset integrity and provenance | implemented | space-assets | NASA-NOSA-1.3, NASA-MEDIA | module:aero_audit/space/nasa3d.py; module:aero_audit/space/nasa_images.py; test:tests/test_space.py; command:aero space fetch |
 | C-34 | Crisis extent to operations impact | implemented | earth-crisis, air-operations | NASA-NPR-8715.3, ICAO-A11 | module:aero_audit/ingest/nws_alerts.py; command:aero data crisis-fetch; test:tests/test_gap_fill.py; study:ST-11; test:tests/test_governance.py |
 | C-38 | Space weather watch | implemented | space-environment, air-operations, space-orbital | ICAO-A3, NOAA-SCALES | module:aero_audit/space/donki.py; test:tests/test_accounts_donki.py; module:aero_audit/space/spaceweather.py; rule:SWX-001; rule:SWX-002; rule:SWX-003; rule:SWX-004; rule:SWX-005; test:tests/test_feeds_risk.py; command:aero space weather; study:ST-17 |
-| C-45 | Space-operations airspace joined to traffic | implemented | space-launch, air-operations | CFR14-91.143, CFR14-450, ICAO-A11 | rule:TFR-001; rule:TFR-002; rule:TFR-003; module:aero_audit/ingest/tfr.py; module:aero_audit/space/airspace.py; test:tests/test_airspace.py; command:aero space tfr; study:ST-22; study:ST-25; doc:docs/SPACE.md |
+| C-45 | Space-operations airspace joined to traffic | implemented | space-launch, air-operations | CFR14-91.143, CFR14-450, ICAO-A11 | rule:TFR-001; rule:TFR-002; rule:TFR-003; module:aero_audit/ingest/tfr.py; module:aero_audit/space/airspace.py; module:aero_audit/space/capture.py; test:tests/test_airspace.py; test:tests/test_capture.py; command:aero space tfr; command:aero space launch-capture; study:ST-22; study:ST-25; doc:docs/SPACE.md |
 
 ## Risk
 

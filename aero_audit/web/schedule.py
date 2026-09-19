@@ -18,9 +18,9 @@ from .. import observability as obs
 
 ENV = "AERO_SCHEDULE"
 MIN_INTERVAL_S = 60.0
-NETWORK_JOBS = {"space_weather", "launches", "spacetrack_pull", "conjunctions", "satcat", "tfr"}
+NETWORK_JOBS = {"space_weather", "launches", "spacetrack_pull", "conjunctions", "satcat", "tfr", "launch_capture"}
 # politeness floors per job: Launch Library 2 allows 15 requests/hour keyless, Space-Track asks for restraint, CelesTrak caches for hours
-MIN_INTERVALS: dict[str, float] = {"launches": 300.0, "spacetrack_pull": 600.0, "conjunctions": 300.0, "space_weather": 120.0, "satcat": 3600.0, "digest": 3600.0, "tfr": 300.0, "reentry": 300.0, "mission": 300.0}
+MIN_INTERVALS: dict[str, float] = {"launches": 300.0, "spacetrack_pull": 600.0, "conjunctions": 300.0, "space_weather": 120.0, "satcat": 3600.0, "digest": 3600.0, "tfr": 300.0, "reentry": 300.0, "mission": 300.0, "launch_capture": 300.0}
 MAX_BACKOFF_FACTOR = 8
 
 

@@ -4,19 +4,34 @@
     {
       "name": "aero-demo",
       "runtimeExecutable": ".venv/bin/aero",
-      "runtimeArgs": ["demo", "--no-open", "--port", "8787"],
+      "runtimeArgs": [
+        "demo",
+        "--no-open",
+        "--port",
+        "8787"
+      ],
       "port": 8787
     },
     {
       "name": "aero-app",
       "runtimeExecutable": ".venv/bin/aero",
-      "runtimeArgs": ["app", "--no-open", "--port", "8787"],
+      "runtimeArgs": [
+        "app",
+        "--no-open",
+        "--port",
+        "8787"
+      ],
       "port": 8787
     },
     {
       "name": "aero-dashboard-attached",
       "url": "http://localhost:8790",
       "port": 8790
+    },
+    {
+      "name": "aero-app-attached",
+      "url": "http://localhost:8787",
+      "port": 8787
     }
   ]
 }

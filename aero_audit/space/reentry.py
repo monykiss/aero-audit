@@ -123,7 +123,8 @@ def exposure(cands: list[dict[str, Any]], recording: str | Path | None = None, s
     out: list[Finding] = []
     rows = []
     if not cands:
-        return {"objects": 0, "hours": hours, "width_nm": width_nm, "rows": [], "findings": 0}, out
+        return {"objects": 0, "from": start.isoformat(), "hours": hours, "step_s": step_s, "width_nm": width_nm, "recording": str(recording) if recording else None,
+                "with_airports_under": 0, "with_aircraft_under": 0, "rows": [], "findings": 0}, out
     sets = [c["set"] for c in cands]
     ts, lat, lon, h, errors = subpoints(sets, start, hours, step_s)
     states: list[tuple[float, float, float, float | None, str, str]] = []

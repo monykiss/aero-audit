@@ -206,6 +206,24 @@ the top of the HOME page fold the cached state of all of it into one board. The 
 New York recording so the join has something to find); `decaying_sample.tle` is a synthetic
 185 km-perigee object whose pass crosses the same recording.
 
+## Launch-window capture (1.2): recordings that overlap real windows
+
+```bash
+aero space launch-capture --dry-run            # which cached launches are due (window open, opens within 2 h, or closed < 1 h ago)
+aero space launch-capture                      # record adsb.lol around the pad (100 nm) until the window closes + 1 h, then join
+aero space watch --schedule launches=3600,tfr=600,launch_capture=600   # unattended: one capture per launch, never two
+```
+
+`space/capture.py` turns the seam analyses from sample-based into real: every scheduler tick it picks
+the earliest due launch that is not already captured (`data/recordings/launch_captures.json`
+remembers segments per launch), records the feed around the pad into
+`data/recordings/adsblol_launch-<id>_<stamp>.jsonl`, caps a segment at four hours (a scrubbed launch
+with a day-long window cannot hold a worker), and when the segment ends writes the pad-radius join
+(LCH), the space-operations TFR join (TFR-001, newest product) and the mission dossier for that
+launch, each with a manifest. The displacement study (ST-25) and the weekly digest then grow with
+every launch. `ops/launchd/org.aero-audit.app.plist` keeps the app itself up with a live source
+started at boot (`aero app --live nyc`), so the preview pane attaches instead of owning the process.
+
 ## Catalogue (keyless) and the Space-Track question
 
 ```bash

@@ -145,7 +145,7 @@ def test_reentry_candidates_corridor_and_findings():
     healthy = orbital.parse_tle(Path("data/samples/decaying_sample.tle").read_text())
     assert reentry.candidates([TLE], now=now) and reentry.exposure([], None)[0]["objects"] == 0 and healthy
     empty, fs_empty = reentry.analyse([], None, start=start, hours=0.1)
-    assert empty["objects"] == 0 and fs_empty == []
+    assert empty["objects"] == 0 and fs_empty == [] and empty["with_airports_under"] == 0 and empty["with_aircraft_under"] == 0  # the job reads these when nothing is decaying
 
 
 def test_spaceport_table_lookups():
