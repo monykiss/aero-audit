@@ -2,6 +2,11 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.1.1 - 2026-09-19
+
+- Fix: the HOME page failed to render ("Cannot convert undefined or null to object") once a scene classifier was the newest
+  model-registry entry; `/api/v1/app` now reports the newest anomaly model and the page guards the recall tile.
+
 ## 1.1.0 - 2026-09-19
 
 - **Overview board**: `aero overview`, `GET /api/v1/overview` and the top of the HOME page show air and space in one
