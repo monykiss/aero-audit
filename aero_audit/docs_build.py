@@ -67,12 +67,6 @@ def build(out_dir: str | Path = "docs/generated", status: bool = True) -> list[P
     p = out / "TRACEABILITY.md"
     p.write_text(render_traceability())
     written.append(p)
-    if status:  # the status page runs the readiness checks, whose drift check rebuilds everything else: never itself
-        from .governance.status import render_markdown as render_status
-
-        p = out / "STATUS.md"
-        p.write_text(render_status("."))
-        written.append(p)
     p = out / "API.md"
     p.write_text(render_api(build_spec(api_router)))
     written.append(p)
@@ -84,4 +78,10 @@ def build(out_dir: str | Path = "docs/generated", status: bool = True) -> list[P
     lines += [f"| {rid} | {cat} | {desc} |" for rid, (cat, desc) in {**RULE_CATALOG, **SPACE_RULE_CATALOG}.items()]
     p.write_text("\n".join(lines) + "\n")
     written.append(p)
+    if status:  # last: the status page runs the readiness checks, whose drift check compares every page above with a fresh build
+        from .governance.status import render_markdown as render_status
+
+        p = out / "STATUS.md"
+        p.write_text(render_status("."))
+        written.append(p)
     return written
