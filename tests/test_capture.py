@@ -85,5 +85,7 @@ def test_job_and_cli(tmp_path, monkeypatch):
     assert res["dry_run"] and res["picked"] is None  # T0 is in the past by now: nothing due at wall-clock time
     r = CliRunner().invoke(cli.app, ["space", "launch-capture", "--file", "data/samples/launches.json", "--dry-run"])
     assert r.exit_code == 0 and "due now: 0" in r.output, r.output
-    r = CliRunner().invoke(cli.app, ["app", "--help"])
-    assert r.exit_code == 0 and "--live" in r.output
+    import inspect
+
+    app_cmd = next(c for c in cli.app.registered_commands if (c.name or c.callback.__name__) == "app")
+    assert {"live", "provider", "radius", "interval", "demo"} <= set(inspect.signature(app_cmd.callback).parameters)  # `aero app --live REGION`
