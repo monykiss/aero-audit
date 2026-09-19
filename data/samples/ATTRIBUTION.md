@@ -53,3 +53,5 @@ personal data beyond what every aircraft transmits in the clear.
 - `apron_hohn_zones.json`, `apron_hohn_truth.json`: our own zone polygons (declared capacity) and approximate centre
   annotations of the twelve parked transports in `apron_hohn.jpg`; `apron_hohn_detections_yolov8n.json` is the COCO
   YOLOv8n detector's own output on that image (tiled at 320 px), kept so the measured recall (2 of 12 matched) is reproducible offline.
+- `apron_hohn_detections_aircraft.json`: the fine-tuned aircraft detector's output on the same image (`models/aircraft_yolov8n.pt`,
+  YOLOv8n trained on a RarePlanes subset, CC BY-SA 4.0 data); kept so the demo's measured recall (6 of 12) is reproducible offline.

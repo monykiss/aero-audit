@@ -135,4 +135,35 @@ def render_markdown(now: datetime | None = None, root: str | Path = ".") -> str:
     return "\n".join(lines) + "\n"
 
 
-__all__ = ["CADENCE_DAYS", "KINDS", "OUTCOMES", "REVIEW_LOG", "automatic_checks", "load_log", "render_markdown", "status", "summary"]
+def render_packet(component_name: str, root: str | Path = ".") -> str:
+    """A review packet for a second reviewer: what the component is, what the tree proves, what to read, what to answer,
+    and the log entry to paste back. Turning self-reviews into peer reviews needs a person; this makes the ask concrete."""
+    comp = next((c for c in COMPONENTS if c.name == component_name), None)
+    if comp is None:
+        raise KeyError(f"unknown component {component_name!r}; known: {', '.join(c.name for c in COMPONENTS)}")
+    rows = [r for r in status(root=root) if r["component"] == comp.name]
+    r = rows[0]
+    root = Path(root)
+    files: list[str] = []
+    for part in comp.path.split(","):
+        base = part.strip().split(" ")[0].strip("/")
+        p = root / base
+        files += sorted(str(x.relative_to(root)) for x in (p.rglob("*.py") if p.is_dir() else [p.with_suffix(".py")] if p.with_suffix(".py").is_file() else []))
+    tests = sorted(str(t.relative_to(root)) for t in (root / "tests").glob("test_*.py") if any(pat.search(t.read_text(errors="replace")) for pat in _module_patterns(comp)))
+    lines = [f"# Review packet: {comp.name}", "", f"NPR 7150.2 class {comp.nasa_class}, safety-related: {'yes' if comp.safety_related else 'no'}. {comp.rationale}", "",
+             f"Last review: {r['last_date'] or 'none'} ({r['last_kind'] or '-'}, {r['last_outcome'] or '-'}); cadence {r['cadence_days']} days.", "",
+             "## What the tree proves", ""] + [f"- {'✓' if c['ok'] else '✗'} {c['check']} ({c['detail']})" for c in r["checks"]] + [
+             "", "## Files to read", ""] + [f"- `{f}`" for f in files[:60]] + ["", "## Tests that exercise it", ""] + [f"- `{t}`" for t in tests] + [
+             "", "## Questions for the reviewer", "",
+             "1. Do the module docstrings state what each analysis can and cannot claim, and do the findings' recommendations match?",
+             "2. Are inputs from outside the tree (feeds, files, request bodies) validated or confined before use?",
+             "3. Are failure paths explicit (no silent except, degraded states reported), and does a test cover each?",
+             "4. Do thresholds and defaults appear in the report so a reader can judge a finding without the code?",
+             "5. Is anything here a safety or security decision the toolkit should not be making on its own?", "",
+             "## Log entry to paste into docs/assurance/review_log.json", "",
+             "```json", json.dumps({"component": comp.name, "date": "YYYY-MM-DD", "kind": "peer-review", "reviewer": "name (affiliation)", "scope": "files above at commit <sha>",
+                                    "outcome": "accepted | accepted-with-actions | rejected", "actions": [], "evidence": ["notes or issue links"]}, indent=1), "```", ""]
+    return "\n".join(lines)
+
+
+__all__ = ["CADENCE_DAYS", "KINDS", "OUTCOMES", "REVIEW_LOG", "automatic_checks", "load_log", "render_markdown", "render_packet", "status", "summary"]

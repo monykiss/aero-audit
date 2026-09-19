@@ -4,7 +4,7 @@
 [![codeql](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/monykiss/aero-audit/actions/workflows/codeql.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](pyproject.toml)
-[![version 1.2.0](https://img.shields.io/badge/version-1.2.0-green.svg)](CHANGELOG.md)
+[![version 1.3.0](https://img.shields.io/badge/version-1.3.0-green.svg)](CHANGELOG.md)
 [![scorecard](https://api.securityscorecards.dev/projects/github.com/monykiss/aero-audit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/monykiss/aero-audit)
 
 **Air and space, audited end to end.** aero-audit follows real aircraft from public
@@ -291,8 +291,9 @@ tour, and gzip replay. `make lint` is ruff. CI fails when `docs/generated` drift
 
 ## Roadmap
 
-1.0 is the contract, not the end. Next: fine-tune the detector on aerial datasets (DOTA,
-RarePlanes) so apron recall stops being the weakest number; sequence models over whole tracks;
+1.0 is the contract, not the end. Done since: the detector fine-tuned on RarePlanes (apron recall
+2/12 to 6/12, mAP50 0.94 on its own distribution), launch-window capture, the always-up app. Next:
+more oblique training data and a second annotated apron for a real cross-site number; sequence models over whole tracks;
 runway and taxiway geometry for surface movement; receiver-level provenance to close the ghost
 and drift gaps; FAA registry cross-checks; reentry predictions from a source without a user
 agreement; TFR history for displacement studies. Details: [docs/ROADMAP.md](docs/ROADMAP.md).

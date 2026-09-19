@@ -29,11 +29,29 @@
 
 ## Computer vision (OPS-VIS)
 
-- **Detector.** YOLOv8n pretrained on COCO (class `airplane`), imported lazily.
-- **Tiled inference.** 320-px tiles with 25% overlap and greedy NMS; on the bundled aerial apron
-  photo (12 parked transports) whole-image inference found none, tiling finds 4 with a few false
-  positives on the photographer's wing. This is the honest baseline and the reason fine-tuning
-  on DOTA / iSAID / RarePlanes is the next ML task.
+- **Detector.** YOLOv8n fine-tuned on a RarePlanes subset (`models/aircraft_yolov8n.pt`, registered
+  with a card and a checksum; `aero vision apron` uses it when present, the COCO `yolov8n.pt` otherwise).
+- **Tiled inference.** 320-px tiles with 25% overlap and greedy NMS.
+- **Measured (1.3.0).** Training data: 500 RarePlanes tiles / 1,697 aircraft, validation 120 tiles /
+  442 aircraft (satellite, nadir, CC BY-SA 4.0; `scripts/rareplanes_subset.py`). Frozen backbone,
+  rotation and perspective augmentation, 25 epochs, 4 minutes on an Apple GPU
+  (`scripts/train_aircraft_detector.py --freeze 10 --degrees 15 --perspective 0.0005 --epochs 25`).
+
+  | Evaluation | COCO baseline | Fine-tuned |
+  |---|---|---|
+  | RarePlanes validation mAP50 (same distribution) | n/a (no aircraft class) | **0.941** (mAP50-95 0.571, precision 0.926, recall 0.848) |
+  | Apron photo, 12 annotated transports, oblique (other domain) | recall 0.167 (2/12), precision 0.40 | recall **0.50** (6/12), precision 0.375 |
+
+  Plain fine-tuning without the frozen backbone reached the same mAP50 but *lost* the apron photo
+  (1/12): the satellite domain overwrote the COCO features the oblique view needs. Freezing the
+  backbone kept them (3/12), augmentation added the rest (6/12). Every apron report writes the
+  recall it measured against annotations, so the number travels with the finding.
+- **Per-site few-shot (the operational path).** `scripts/apron_site_finetune.py` trains on crops
+  around the six west stands of the same photo and scores only the six east stands it never saw.
+  Measured: the registered RarePlanes model already finds 5 of the 6 held-out stands (recall 0.83,
+  precision 0.39); 40 epochs on 24 crops of the west stands keep recall at 0.83 and lift precision
+  to 0.45. With six approximate labels the gain is in false positives, not misses; a second
+  annotated photo is what a real cross-site number needs.
 - **Zones.** Polygons in normalised coordinates with a capacity; occupancy over capacity is
   OPS-VIS-001, zero occupancy is OPS-VIS-002.
 

@@ -91,7 +91,9 @@ def run(out: str | Path = "reports", recording: str | Path | None = None, max_ba
 
     zl = zones_from_json(SAMPLES / "apron_hohn_zones.json")
     truth = detections_from_json(SAMPLES / "apron_hohn_truth.json")
-    det_file = SAMPLES / "apron_hohn_detections_yolov8n.json"
+    det_file = SAMPLES / "apron_hohn_detections_aircraft.json"  # the registered fine-tune's output; the COCO baseline file is kept beside it
+    if not det_file.is_file():
+        det_file = SAMPLES / "apron_hohn_detections_yolov8n.json"
     dets = detections_from_json(det_file) if det_file.is_file() else truth
     occ = occupancy(dets, zl)
     fs = zone_findings(occ, zl, "apron_hohn.jpg", 0.0)

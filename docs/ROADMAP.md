@@ -18,7 +18,8 @@
 - [ ] Register owners and review cadence; export to GRC tools.
 
 ## Vision
-- [ ] Fine-tune on DOTA / iSAID / RarePlanes; evaluate on held-out apron imagery (the 1.0 baseline: 2 of 12 parked transports matched on the sample, measured in every apron report).
+- [x] Fine-tune on RarePlanes (1.3.0): mAP50 0.94 on RarePlanes validation; apron-photo recall 2/12 -> 6/12 with a frozen backbone and augmentation; per-site few-shot with a spatial hold-out measured (docs/ML.md).
+- [ ] More oblique training data (airport webcams with permission, or rendered views); a second annotated apron photo for a real cross-site number.
 - [ ] Multi-frame tracking for stand occupancy and turnaround durations.
 
 ## Assurance

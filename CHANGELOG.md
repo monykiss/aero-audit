@@ -2,6 +2,20 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.3.0 - 2026-09-19
+
+- **Aircraft detector fine-tuned on RarePlanes** (`scripts/rareplanes_subset.py`, `scripts/train_aircraft_detector.py`):
+  a seeded, location-balanced subset of the public tiles (CC BY-SA 4.0) with a provenance manifest; YOLOv8n with a frozen
+  backbone and geometric augmentation, 25 epochs in four minutes on an Apple GPU; registered as
+  `models/aircraft_yolov8n.pt` with a card carrying both numbers: mAP50 0.941 on RarePlanes validation and apron-photo
+  recall 0.50 (6/12) against the annotations, up from the COCO baseline's 0.167 (2/12). Plain fine-tuning lost the
+  apron photo (1/12); the card says so. `aero vision apron` uses the registered detector when present.
+- **Per-site few-shot** (`scripts/apron_site_finetune.py`): train on one part of a camera's view, score the stands it
+  never saw; measured on the sample: held-out recall 0.83 before and after, precision 0.39 to 0.45 (`docs/ML.md`).
+- **Peer-review packet**: `aero gov reviews --packet <component>` writes a second reviewer's brief with the files, the
+  tests, the automatic evidence, the questions and the log entry to paste back (C-31).
+- Data sources: RarePlanes documented with licence and citation.
+
 ## 1.2.0 - 2026-09-19
 
 - **Launch-window capture** (`space/capture.py`, `aero space launch-capture`, job `launch_capture`): record the adsb.lol feed
