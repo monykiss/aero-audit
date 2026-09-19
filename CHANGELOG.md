@@ -2,6 +2,11 @@
 
 All notable changes to aero-audit. Dates are UTC.
 
+## 1.1.2 - 2026-09-19
+
+- Fix: the newest anomaly model is the newest registry entry with per-attack recall; every registry entry carries the
+  same field set, so the 1.1.1 selector still picked a scene classifier for the HOME tiles.
+
 ## 1.1.1 - 2026-09-19
 
 - Fix: the HOME page failed to render ("Cannot convert undefined or null to object") once a scene classifier was the newest

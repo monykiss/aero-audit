@@ -104,7 +104,7 @@ def test_app_info_picks_the_newest_anomaly_model_not_a_classifier(tmp_path, monk
     (tmp_path / "models").mkdir()
     (tmp_path / "models/registry.json").write_text(json.dumps([
         {"model_path": "models/anomaly.joblib", "rows": 1000, "holdout_flag_rate": 0.01, "evaluation": {"recall": {"ghost": 0.9}}},
-        {"model_path": "models/scene_classifier_study.joblib", "rows": 400, "evaluation": {"accuracy": 0.64, "per_class": {}}},
+        {"model_path": "models/scene_classifier_study.joblib", "rows": 400, "holdout_flag_rate": 0.0, "evaluation": {"accuracy": 0.64, "per_class": {}}},  # the registry writer fills every field
     ]))
     from aero_audit.web.app import App
 
