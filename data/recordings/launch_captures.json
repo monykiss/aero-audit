@@ -1,0 +1,90 @@
+{
+ "5af31461-bce5-4cfb-a0ee-b527cf285d90": {
+  "id": "5af31461-bce5-4cfb-a0ee-b527cf285d90",
+  "launch": "Kinetica 1 | Unknown Payload",
+  "pad": "Launch Area 130",
+  "running": false,
+  "segments": [
+   {
+    "batches": 163,
+    "ended_ts": 1789881317.127593,
+    "recording": "data/recordings/adsblol_launch-5af31461-bce5-4cfb-a0ee-b527cf285d90_20260920T035628Z.jsonl",
+    "reports": {
+     "launches": "reports/launches_capture_5af31461-bce5-4cfb-a0ee-b527cf285d90_20260920T051517Z.json",
+     "mission": "reports/mission_5af31461-bce5-4cfb-a0ee-b527cf285d90_20260920T051519Z.json",
+     "tfr": "reports/tfr_capture_5af31461-bce5-4cfb-a0ee-b527cf285d90_20260920T051517Z.json"
+    },
+    "started_ts": 1789876588.542751
+   }
+  ]
+ },
+ "63063b9d-ade9-4448-8717-6f910aa81188": {
+  "id": "63063b9d-ade9-4448-8717-6f910aa81188",
+  "launch": "Long March 8A | Unknown Payload",
+  "pad": "Commercial LC-1",
+  "running": false,
+  "segments": [
+   {
+    "batches": null,
+    "ended_ts": 1790166292.071331,
+    "recording": "data/recordings/adsblol_launch-63063b9d-ade9-4448-8717-6f910aa81188_20260923T113135Z.jsonl",
+    "started_ts": 1790163095.758304
+   },
+   {
+    "batches": null,
+    "ended_ts": 1790167216.8130932,
+    "recording": "data/recordings/adsblol_launch-63063b9d-ade9-4448-8717-6f910aa81188_20260923T123146Z.jsonl",
+    "started_ts": 1790166706.2431018
+   },
+   {
+    "batches": 465,
+    "ended_ts": 1790174954.841119,
+    "recording": "data/recordings/adsblol_launch-63063b9d-ade9-4448-8717-6f910aa81188_20260923T124149Z.jsonl",
+    "reports": {
+     "launches": "reports/launches_capture_63063b9d-ade9-4448-8717-6f910aa81188_20260923T144914Z.json",
+     "mission": "reports/mission_63063b9d-ade9-4448-8717-6f910aa81188_20260923T144916Z.json",
+     "tfr": "reports/tfr_capture_63063b9d-ade9-4448-8717-6f910aa81188_20260923T144914Z.json"
+    },
+    "started_ts": 1790167309.667883
+   }
+  ]
+ },
+ "aed67837-b567-43e0-8071-c3ccc24aa496": {
+  "id": "aed67837-b567-43e0-8071-c3ccc24aa496",
+  "launch": "Long March 6A | Unknown Payload",
+  "pad": "Launch Complex 9A",
+  "running": false,
+  "segments": [
+   {
+    "batches": 797,
+    "ended_ts": 1790244247.929174,
+    "recording": "data/recordings/adsblol_launch-aed67837-b567-43e0-8071-c3ccc24aa496_20260924T064350Z.jsonl",
+    "reports": {
+     "launches": "reports/launches_capture_aed67837-b567-43e0-8071-c3ccc24aa496_20260924T100407Z.json",
+     "mission": "reports/mission_aed67837-b567-43e0-8071-c3ccc24aa496_20260924T100409Z.json",
+     "tfr": "reports/tfr_capture_aed67837-b567-43e0-8071-c3ccc24aa496_20260924T100408Z.json"
+    },
+    "started_ts": 1790232230.19813
+   }
+  ]
+ },
+ "d1471f9d-e9d0-4146-8e97-90863e48bfc8": {
+  "id": "d1471f9d-e9d0-4146-8e97-90863e48bfc8",
+  "launch": "Falcon 9 Block 5 | Starlink Group 15-27",
+  "pad": "Space Launch Complex 4E",
+  "running": false,
+  "segments": [
+   {
+    "batches": 572,
+    "ended_ts": 1789876551.7738082,
+    "recording": "data/recordings/adsblol_launch-d1471f9d-e9d0-4146-8e97-90863e48bfc8_20260919T235549Z.jsonl",
+    "reports": {
+     "launches": "reports/launches_capture_d1471f9d-e9d0-4146-8e97-90863e48bfc8_20260920T035552Z.json",
+     "mission": "reports/mission_d1471f9d-e9d0-4146-8e97-90863e48bfc8_20260920T035558Z.json",
+     "tfr": "reports/tfr_capture_d1471f9d-e9d0-4146-8e97-90863e48bfc8_20260920T035556Z.json"
+    },
+    "started_ts": 1789862149.7395022
+   }
+  ]
+ }
+}

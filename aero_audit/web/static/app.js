@@ -71,10 +71,25 @@
 
   /* Pages that submit jobs re-render once when the running-job count drops to zero, so results appear without a manual reload. */
   const busy = {};
-  function refreshWhenJobsSettle(page, a) { if (store.page !== page) return; if (a.jobs_running) { busy[page] = true; } else if (busy[page]) { busy[page] = false; navigate(); } }
+  function refreshWhenJobsSettle(page, a) { if (store.page !== page) return; if (a.jobs_running) { busy[page] = true; } else if (busy[page]) { busy[page] = false; recsCache = null; navigate(); } }
+
+  /* The recordings inventory walks every capture on disk, and one that is still being written to can take
+     minutes to summarise the first time. No page waits for it: views render straight away from whatever is
+     cached, and the one page still showing when it lands re-renders itself. Captures and prunes change the
+     set on disk, so a settling job drops the cache. */
+  const RECS_PAGES = ['home', 'space', 'uas', 'reports', 'data'];
+  const RECS_NOTE = '<span class="note">reading the recordings inventory…</span>';
+  let recsCache = null, recsInflight = null;
+  const recsLoading = () => recsCache === null;
+  const recsList = () => recsCache || [];
+  const recsOptions = rs => recsLoading() ? '<option value="">reading the inventory…</option>' : rs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('');
+  function recsLoad() {
+    if (recsCache || recsInflight) return;
+    recsInflight = api('/recordings').catch(() => []).then(r => { recsCache = r; recsInflight = null; if (RECS_PAGES.includes(store.page)) navigate(); });
+  }
   const pages = {
     home: { title: 'Home', async render(el) {
-      const [regs, recs, ov] = await Promise.all([api('/regions'), api('/recordings'), api('/overview').catch(() => null)]); const a = store.app; const src = a.source;
+      const [regs, ov] = await Promise.all([api('/regions'), api('/overview').catch(() => null)]); const recs = recsList(), recsBusy = recsLoading(); recsLoad(); const a = store.app; const src = a.source;
       const board = !ov ? '' : (() => {
         const L = ov.launches, A = ov.airspace, W = ov.space_weather, D = ov.decaying, C = ov.conjunctions, U = ov.uas, R = ov.reports;
         const adv = W && W.advisories ? Object.entries(W.advisories).filter(([, v]) => v).map(([k, v]) => k + ' ' + v).join(', ') : '';
@@ -103,9 +118,9 @@
 ${src.active ? `<div class="card accent-green" style="margin:14px 0"><h2>Running: ${esc(src.label)}</h2><p>${src.tracked} aircraft in the last poll · ${src.findings} findings · ${src.batches} polls · last poll ${src.last_ingest_age_s ?? '-'} s ago${src.errors.length ? ' · <span class="bad">' + esc(src.errors.at(-1)) + '</span>' : ''}</p><div class="row"><a class="btn primary" href="#/live">Open the live picture</a><button id="hstop">Stop</button></div></div>` :
 `<div class="steps"><div class="step s1"><b>1 · Choose a source</b>Replay a recording on disk, or go live on a region, a whole country, or a continent.</div><div class="step s2"><b>2 · Watch the live picture</b>Aircraft coloured by their worst finding, altitude, speed or trust; click any for details and playbook steps.</div><div class="step s3"><b>3 · Try an injection</b>Teleport, hijack code, ghost: see detection, escalation and trust erosion in seconds.</div></div>`}
 <div class="cards"><div class="card accent-blue"><h2>▶ Replay a recording</h2><p>Deterministic, works offline. Loops when it reaches the end.</p>
-<div class="row"><select id="rsel" style="max-width:440px">${civil.map(r => `<option value="${esc(r.path)}">${r.sample ? '★ bundled sample · ' : ''}${esc(r.file)} · ${r.provider} ${r.regions.join('+')} · ${r.polls} polls · ${r.aircraft} aircraft · ${r.span_min} min</option>`).join('')}</select></div>
+<div class="row"><select id="rsel" style="max-width:440px">${recsBusy ? '<option value="">reading the recordings inventory…</option>' : ''}${civil.map(r => `<option value="${esc(r.path)}">${r.sample ? '★ bundled sample · ' : ''}${esc(r.file)} · ${r.provider} ${r.regions.join('+')} · ${r.polls} polls · ${r.aircraft} aircraft · ${r.span_min} min</option>`).join('')}</select></div>
 <div class="row"><label>speed <b id="spv">8</b>×</label><input type="range" id="rspeed" min="1" max="40" value="8"><label><input type="checkbox" id="rdemo" ${a.settings.demo ? 'checked' : ''}> demo controls</label></div>
-<div class="row"><button class="primary" id="rstart" ${civil.length ? '' : 'disabled'}>Start replay</button>${civil.length ? '' : '<span class="note">no recordings yet: capture one on the Data page or go live</span>'}</div></div>
+<div class="row"><button class="primary" id="rstart" ${civil.length ? '' : 'disabled'}>Start replay</button>${civil.length ? '' : (recsBusy ? RECS_NOTE : '<span class="note">no recordings yet: capture one on the Data page or go live</span>')}</div></div>
 <div class="card accent-green"><h2>● Go live</h2><p>Polls a public feed, records everything for later audit, refreshes weather every 10 minutes.</p>
 <div class="row"><label>feed</label><select id="lprov"><option value="opensky">OpenSky (whole-country boxes, no integrity fields)</option><option value="adsblol">adsb.lol (integrity fields, hubs up to 250 nm)</option></select></div>
 <div class="row"><label>where</label><select id="lreg" style="max-width:420px">${groups.map(([g, rs]) => `<optgroup label="${g}">${rs.map(opt).join('')}</optgroup>`).join('')}</select></div>
@@ -200,12 +215,12 @@ ${p.evidence.missing.length ? `<div class="card accent-amber" style="margin-top:
       el.querySelector('#ggo').onclick = () => location.hash = '#/governance?' + qs({pillar: el.querySelector('#gpil').value, status: el.querySelector('#gst').value});
     } },
     space: { title: 'Space', async render(el) {
-      const [s, integ, sched, recs, jobs] = await Promise.all([api('/space'), api('/integrations'), api('/schedule'), api('/recordings'), api('/jobs')]);
+      const [s, integ, sched, jobs] = await Promise.all([api('/space'), api('/integrations'), api('/schedule'), api('/jobs')]); const recs = recsList(); recsLoad();
       const SPACE_JOBS = ['conjunctions', 'cdm_inbox', 'spacetrack_pull', 'space_weather', 'launches', 'maneuvers', 'catalog_build', 'satcat', 'digest', 'tfr', 'reentry', 'mission', 'launch_capture'];
       const sw = s.space_weather, lc = s.launches, cj = s.conjunctions, cd = s.cdm, db = s.debris, as = s.assets;
       const sevc = v => v === 'critical' || v === 'high' ? 'neg' : (v === 'medium' ? 'amb' : '');
       const fcols = [{k: 'rule_id', label: 'Rule'}, {k: 'severity', label: 'Sev', cls: r => sevc(r.severity)}, {k: 'title', label: 'Finding', fmt: r => esc(r.title)}, {k: 'callsign', label: 'Object', fmt: r => esc(r.callsign || '')}];
-      const recOpts = recs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('');
+      const recOpts = recsOptions(recs);
       el.innerHTML = `<h1>Space <span class="note">orbital · conjunction · debris · space weather · launch windows · assets</span></h1>
 <p class="lead">Passive space situational awareness on public data: element sets screened for close approaches, conjunction messages assessed for probability of collision, mission designs checked against debris rules, NOAA space weather mapped to ICAO advisory conditions, and launch windows joined to the air traffic actually observed near the pad. Every number links to a report on disk.</p>
 <div class="tiles"><div class="tile c-blue"><b>${s.elements.length}</b><span>element files</span></div><div class="tile ${cj.approaches ? 'c-amber' : 'c-grey'}"><b>${cj.approaches ?? '—'}</b><span>close approaches (latest screen)</span></div><div class="tile ${cd.events.some(e => e.trend === 'escalating') ? 'c-red' : 'c-teal'}"><b>${cd.events.length}</b><span>CDM events · ${cd.ledger_rows} ledger rows</span></div><div class="tile ${sw && Object.values(sw.icao_advisory_conditions).some(Boolean) ? 'c-amber' : 'c-grey'}"><b>${sw ? `R${sw.scales_now.R} S${sw.scales_now.S} G${sw.scales_now.G}` : '—'}</b><span>NOAA scales now${sw && sw.kp != null ? ` · Kp ${sw.kp}` : ''}</span></div><div class="tile c-violet"><b>${lc ? lc.count : '—'}</b><span>launches cached</span></div><div class="tile c-green"><b>${as.dataset_items}</b><span>dataset items${as.classifier ? ` · clf ${Math.round((as.classifier.accuracy || 0) * 100)}%` : ''}</span></div></div>
@@ -254,13 +269,13 @@ ${sw && sw.donki ? `<div class="card">NASA DONKI cross-check (${esc(sw.donki.fil
       el.querySelector('#spexp').onclick = () => App.runJob('space_weather', {file: sw ? 'data/space/spaceweather/' + sw.file : undefined, recording: el.querySelector('#sprec').value}, 'space');
     }, tick(a) { refreshWhenJobsSettle('space', a); } },
     uas: { title: 'UAS', async render(el) {
-      const [u, recs, jobs] = await Promise.all([api('/uas'), api('/recordings'), api('/jobs')]); const k = u.wellclear.kpis; const rr = (u.risk.summary || {}).risk_ratio || {}; const dens = (u.risk.summary || {}).density;
+      const [u, jobs] = await Promise.all([api('/uas'), api('/jobs')]); const recs = recsList(); recsLoad(); const k = u.wellclear.kpis; const rr = (u.risk.summary || {}).risk_ratio || {}; const dens = (u.risk.summary || {}).density;
       const sevc = v => v === 'critical' || v === 'high' ? 'neg' : (v === 'medium' ? 'amb' : '');
       const fcols = [{k: 'rule_id', label: 'Rule'}, {k: 'severity', label: 'Sev', cls: r => sevc(r.severity)}, {k: 'title', label: 'Finding', fmt: r => esc(r.title)}, {k: 'callsign', label: 'Aircraft', fmt: r => esc(r.callsign || '')}];
       el.innerHTML = `<h1>UAS integration <span class="note">well-clear · encounters · airspace density · DAA risk ratio · UTM contracts</span></h1>
 <p class="lead">What a detect-and-avoid safety case needs from real traffic: encounters between airborne aircraft scored with the DO-365 well-clear definitions, how often they were violated and with how much notice, how dense the low-altitude airspace is where small UAS fly, and an observed bound on the DAA risk ratio. Definitions: ${esc(u.definitions.well_clear)} · NMAC ${esc(u.definitions.nmac)} · alerts ${esc(u.definitions.alert_levels)}.</p>
 <div class="tiles"><div class="tile c-blue"><b>${k.flight_hours ?? '—'}</b><span>flight hours observed</span></div><div class="tile c-teal"><b>${k.encounter_pairs ?? '—'}</b><span>encounter pairs</span></div><div class="tile ${k.violations ? 'c-amber' : 'c-grey'}"><b>${k.violations ?? '—'}</b><span>well-clear violations · ${k.violations_per_flight_hour ?? '—'}/fh</span></div><div class="tile ${k.nmac_proximate ? 'c-red' : 'c-grey'}"><b>${k.nmac_proximate ?? '—'}</b><span>NMAC-proximate</span></div><div class="tile c-violet"><b>${k.median_lead_time_s ?? '—'} s</b><span>median alert lead</span></div><div class="tile ${rr.risk_ratio != null && rr.risk_ratio > rr.limit ? 'c-amber' : 'c-green'}"><b>${rr.risk_ratio ?? '—'}</b><span>observed DAA risk ratio (limit ${rr.limit ?? '0.2'})</span></div></div>
-<div class="row"><select id="urec">${recs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('')}</select><button class="primary" id="uwc">Score well-clear on this recording</button><button id="urk">Density classes and risk ratio</button><button id="uem">Encounter model (Monte Carlo)</button></div>
+<div class="row"><select id="urec">${recsOptions(recs)}</select><button class="primary" id="uwc">Score well-clear on this recording</button><button id="urk">Density classes and risk ratio</button><button id="uem">Encounter model (Monte Carlo)</button></div>
 <div class="jobs" id="ujobs">${jobs.filter(j => ['wellclear', 'uas_risk', 'encounter_model'].includes(j.type)).slice(0, 4).map(jobCard).join('')}</div>
 <h2>Encounters ${u.wellclear.report ? `<span class="note">${esc(u.wellclear.report)} · ${ago(u.wellclear.mtime)}</span>` : '<span class="note">none yet</span>'}</h2><div id="upairs"></div>
 <h2>Findings</h2><div id="ufind"></div>
@@ -325,9 +340,9 @@ ${pb ? `<h3>Playbook · triage within ${pb.sla_minutes} min</h3><ol>${pb.triage.
 <h2>Operational cost of holding this session</h2><div class="tiles"><div class="tile c-amber"><b>${imp.holds}</b><span>holds</span></div><div class="tile c-amber"><b>${imp.observed_minutes}</b><span>minutes</span></div><div class="tile c-teal"><b>${imp.fuel_kg}</b><span>kg fuel</span></div><div class="tile c-teal"><b>${(imp.co2_kg / 1000).toFixed(1)} t</b><span>CO2</span></div><div class="tile c-red"><b>€${imp.delay_cost}</b><span>delay cost</span></div></div>`;
     } },
     reports: { title: 'Reports', async render(el) {
-      const [reps, jobs, recs] = await Promise.all([api('/reports'), api('/jobs'), api('/recordings')]); const active = store.app.source.active;
+      const [reps, jobs] = await Promise.all([api('/reports'), api('/jobs')]); const recs = recsList(); recsLoad(); const active = store.app.source.active;
       el.innerHTML = `<h1>Reports</h1><p class="lead">Every audit writes JSON (machine-readable), Markdown (executive summary, ranked findings, playbook steps), a self-contained HTML page you can email, and a manifest with the SHA-256 of each file plus full provenance (code commit, input hash, model hash, thresholds).</p>
-<div class="row"><button class="primary" id="rsess" ${active ? '' : 'disabled'}>Generate report from the current session</button><select id="rrec">${recs.map(r => `<option value="${esc(r.path)}">${esc(r.file)}</option>`).join('')}</select><button id="rrun">Audit this recording</button></div>
+<div class="row"><button class="primary" id="rsess" ${active ? '' : 'disabled'}>Generate report from the current session</button><select id="rrec">${recsOptions(recs)}</select><button id="rrun">Audit this recording</button></div>
 <div class="jobs" id="rjobs">${jobs.filter(j => ['audit_session', 'audit_recording'].includes(j.type)).slice(0, 5).map(jobCard).join('')}</div>
 <h2>On disk (${reps.length})</h2><table><tr><th>report</th><th>kind</th><th>when</th><th>open</th></tr>${reps.map(r => `<tr><td>${esc(r.name)}</td><td>${r.kind}</td><td>${ago(r.mtime)}</td><td>${r.files.html ? `<a href="${r.files.html}" target="_blank">html</a> · ` : ''}${r.files.md ? `<a href="${r.files.md}" target="_blank">md</a> · ` : ''}${r.files.json ? `<a href="${r.files.json}" target="_blank">json</a>` : ''}${r.files.html ? ` · <a href="#" data-view="${r.files.html}">view here</a>` : ''}${r.files.manifest ? ` · <a href="${r.files.manifest}" target="_blank">manifest</a> · <a href="#" data-verify="${esc(r.name)}">verify</a>` : ''}</td></tr>`).join('')}</table><div id="rview"></div>`;
       el.querySelector('#rsess').onclick = () => App.runJob('audit_session', {}, 'reports');
@@ -336,12 +351,12 @@ ${pb ? `<h3>Playbook · triage within ${pb.sla_minutes} min</h3><ol>${pb.triage.
       el.addEventListener('click', e => { const a = e.target.closest('a[data-view]'); if (!a) return; e.preventDefault(); el.querySelector('#rview').innerHTML = `<h2>${esc(a.dataset.view.split('/').pop())}</h2><iframe src="${a.dataset.view}" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>`; });
     } },
     data: { title: 'Data & model', async render(el) {
-      const [recs, regs, jobs, ev, model] = await Promise.all([api('/recordings'), api('/regions'), api('/jobs'), api('/evaluation'), api('/model')]);
+      const [regs, jobs, ev, model] = await Promise.all([api('/regions'), api('/jobs'), api('/evaluation'), api('/model')]); const recs = recsList(), recsBusy = recsLoading(); recsLoad();
       el.innerHTML = `<h1>Data &amp; model</h1><p class="lead">Recordings are the ground truth: every audit is replayable from them. Capture more, train the anomaly model, and measure detection with injected attacks.</p>
 <div class="cards"><div class="card"><h2>Capture live traffic</h2><p>Records to data/recordings for later audits and training. One capture at a time.</p><div class="row"><select id="cprov"><option value="adsblol">adsb.lol</option><option value="opensky">OpenSky</option></select><select id="creg">${regs.map(r => `<option value="${r.key}">${esc(r.name)} (${r.key})${r.endpoint ? ' · global feed' : ''}</option>`).join('')}</select></div><div class="row"><label>radius</label><input type="number" id="crad" value="250" style="width:70px"><label>every</label><input type="number" id="cint" value="12" style="width:60px"><label>s for</label><input type="number" id="csec" value="600" style="width:70px"><label>s</label><button class="primary" id="cgo">Start capture</button></div></div>
 <div class="card"><h2>Anomaly model</h2><p>${model && model.rows ? `${model.rows} rows from ${model.aircraft} aircraft · holdout flag rate ${(model.holdout_flag_rate * 100).toFixed(2)}% · trained ${esc(model.trained_at)}` : 'No model trained yet.'}</p><div class="row"><label>contamination</label><input type="number" id="tcont" value="0.01" step="0.005" min="0.001" max="0.1" style="width:80px"><button id="ttrain">Train on all civil recordings</button><button id="teval">Evaluate detection</button></div>
 ${ev.scenarios ? `<table><tr><th>scenario</th><th>recall</th><th>TTD</th></tr>${ev.scenarios.map(r => `<tr><td>${r.name}${r.known_gap ? ' <span class="note">(known gap)</span>' : ''}</td><td class="${r.recall >= .8 ? 'rat-low' : (r.recall >= .5 ? 'rat-medium' : 'rat-critical')}">${(r.recall * 100).toFixed(0)}%</td><td>${r.median_ttd_s == null ? '-' : r.median_ttd_s.toFixed(0) + ' s'}</td></tr>`).join('')}</table><p class="note">precision: ${Object.entries(ev.rule_precision || {}).map(([k, v]) => `${k} ${v == null ? 'n/a' : v.toFixed(2)}`).join(' · ')}</p>` : '<p class="note">no evaluation yet</p>'}</div></div>
-<h2>Recordings (${recs.length})</h2><div class="row"><label>retention</label><input type="number" id="pdays" value="${store.app.settings.retention_days}" style="width:70px"><label>days</label><button id="pdry">Preview prune</button><button id="papply" class="danger">Prune now</button></div>
+<h2>Recordings (${recsBusy ? '…' : recs.length})</h2>${recsBusy ? `<p>${RECS_NOTE}</p>` : ''}<div class="row"><label>retention</label><input type="number" id="pdays" value="${store.app.settings.retention_days}" style="width:70px"><label>days</label><button id="pdry">Preview prune</button><button id="papply" class="danger">Prune now</button></div>
 <table><tr><th>file</th><th>feed</th><th>regions</th><th>polls</th><th>aircraft</th><th>span</th><th>size</th><th>actions</th></tr>${recs.map(r => `<tr><td>${esc(r.file)}${r.special ? ' <span class="note">(special: not trained on)</span>' : ''}</td><td>${r.provider}</td><td>${r.regions.join('+')}</td><td>${r.polls}</td><td>${r.aircraft}</td><td>${r.span_min} min</td><td>${r.size_mb} MB</td><td><button class="small" data-replay="${esc(r.path)}">replay</button> <button class="small" data-audit="${esc(r.path)}">audit</button> <button class="small" data-eval="${esc(r.path)}">evaluate</button></td></tr>`).join('')}</table>
 <h2>Jobs</h2><div class="jobs" id="djobs">${jobs.slice(0, 12).map(jobCard).join('') || '<div class="note">none yet</div>'}</div>`;
       el.querySelector('#cgo').onclick = () => App.runJob('capture', {provider: el.querySelector('#cprov').value, region: el.querySelector('#creg').value, radius: +el.querySelector('#crad').value, interval: +el.querySelector('#cint').value, seconds: +el.querySelector('#csec').value}, 'data');

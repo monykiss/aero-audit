@@ -7,6 +7,7 @@ a background task with an entry in `JOB_TYPES`, a page in static/app.js.
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import os
@@ -14,6 +15,7 @@ import threading
 import time
 import webbrowser
 from collections import defaultdict
+from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,7 @@ from ..audit.rules import RULE_CATALOG
 from ..impact import estimate_holding_impact
 from ..ingest.replay import RECORDING_SUFFIXES, iter_recording, open_recording, recording_stem
 from ..knowledge import AIRPORTS
+from ..models import Batch
 from ..risk import assess
 from ..security.playbooks import PLAYBOOKS, playbook_for
 from ..security.threats import coverage_matrix, load_evaluation
@@ -134,22 +137,32 @@ class App:
     # ---- inventory ---------------------------------------------------------------------------
     def _load_inventory_cache(self) -> None:
         try:
-            self._inventory = json.loads(INVENTORY_CACHE.read_text())
+            raw = json.loads(INVENTORY_CACHE.read_text())
         except (OSError, ValueError):
-            self._inventory = {}
+            raw = {}
+        self._inventory = {}
+        for key, val in raw.items():
+            if not isinstance(val, dict):
+                continue
+            if "_offset" in val:
+                self._inventory[val.get("file") or key] = val
+                continue
+            # Legacy key: "name:mtime_ns:size". That pass read the file whole, so its offset is that
+            # size; it kept no aircraft set, so the entry cannot be resumed. A file that never grows
+            # again (every finished capture) stays a cache hit; one that does is re-read once.
+            name, _, rest = key.partition(":")
+            _, _, size = rest.partition(":")
+            if name and size.isdigit():
+                self._inventory[name] = {**val, "_offset": int(size), "_fp": None, "_ac": None}
 
     def recordings(self) -> list[dict[str, Any]]:
         out = []
         changed = False
         files = sorted(RECORDINGS_DIR.glob("*.jsonl")) + sorted(RECORDINGS_DIR.glob("*.jsonl.gz")) + sorted(SAMPLES_DIR.glob("*.jsonl.gz"))
         for f in files:
-            key = f"{f.name}:{f.stat().st_mtime_ns}:{f.stat().st_size}"
-            if key not in self._inventory:
-                out_ = self._summarize(f)
-                self._inventory = {k: v for k, v in self._inventory.items() if not k.startswith(f.name + ":")}
-                self._inventory[key] = out_
-                changed = True
-            d = dict(self._inventory[key])
+            entry, dirty = self._inventory_entry(f)
+            changed = changed or dirty
+            d = {k: v for k, v in entry.items() if not k.startswith("_")}
             d["path"] = str(f)
             d["sample"] = f.parent == SAMPLES_DIR
             out.append(d)
@@ -158,14 +171,49 @@ class App:
             INVENTORY_CACHE.write_text(json.dumps(self._inventory))
         return sorted(out, key=lambda d: d.get("last_ts") or 0, reverse=True)
 
+    def _inventory_entry(self, f: Path) -> tuple[dict[str, Any], bool]:
+        """The summary for one recording, reading only the bytes appended since the last call.
+
+        A capture that is still running grows between requests, so a cache keyed on size or mtime misses
+        every time precisely while it matters: the whole file is re-parsed on every poll, which on a
+        multi-gigabyte capture costs minutes. Each entry instead remembers how far it read and the
+        accumulators a summary cannot be rebuilt from, and the next call resumes from that offset.
+        """
+        size = f.stat().st_size
+        prev = self._inventory.get(f.name)
+        fp = _fingerprint(f, size)
+        if prev is not None and prev.get("_offset") == size:
+            if prev.get("_fp") is None:  # migrated entry: adopt the fingerprint, keep the summary
+                prev["_fp"] = fp
+                return prev, True
+            if prev["_fp"] == fp:
+                return prev, False
+        resume = None
+        if (prev is not None and prev.get("_ac") is not None and 0 < prev.get("_offset", 0) <= size
+                and prev.get("_fp") == _fingerprint(f, prev["_offset"])):
+            resume = prev
+        entry = self._summarize(f, resume)
+        self._inventory[f.name] = entry
+        return entry, True
+
     @staticmethod
-    def _summarize(f: Path) -> dict[str, Any]:
+    def _summarize(f: Path, resume: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Summarise a recording, continuing ``resume`` (an earlier entry for this file) when given."""
         polls = sv = 0
         ac: set[str] = set()
         regions: set[str] = set()
         first = last = None
         prov = "?"
-        for b in iter_recording(f):
+        offset = 0
+        if resume is not None:
+            polls, sv = resume["polls"], resume["state_vectors"]
+            ac, regions = set(resume["_ac"]), set(resume["regions"])
+            first, last, prov, offset = resume["first_ts"], resume["last_ts"], resume["provider"], resume["_offset"]
+        size = f.stat().st_size
+        gz = f.name.endswith(".gz")
+        # Gzip members cannot be resumed from a byte offset, but the bundled samples never grow.
+        batches = ((b, size) for b in iter_recording(f)) if gz else _iter_batches(f, offset)
+        for b, pos in batches:
             polls += 1
             sv += len(b)
             ac.update(x.icao24 for x in b.states)
@@ -173,11 +221,15 @@ class App:
             prov = b.provider
             first = b.ts if first is None else first
             last = b.ts
+            offset = pos
+        if gz:
+            offset = size
         special = any(t in f.name for t in ("_mil_", "_ladd_", "_pia_", "synthetic"))
         return {"file": f.name, "provider": prov, "regions": sorted(regions), "polls": polls, "state_vectors": sv,
                 "aircraft": len(ac), "first_ts": first, "last_ts": last,
-                "span_min": round((last - first) / 60, 1) if first and last else 0, "size_mb": round(f.stat().st_size / 1e6, 1),
-                "special": special}
+                "span_min": round((last - first) / 60, 1) if first and last else 0, "size_mb": round(size / 1e6, 1),
+                "special": special,
+                "_offset": offset, "_fp": _fingerprint(f, offset), "_ac": None if gz else sorted(ac)}
 
     # ---- jobs ------------------------------------------------------------------------------
     def _job_types(self) -> dict[str, Any]:
@@ -447,6 +499,40 @@ class App:
             "security": self.guard.describe(), "tour": tour,
             "audit_chain": {"entries": len(self.audit), "head": self.audit.head},
         }
+
+
+def _fingerprint(f: Path, offset: int) -> str | None:
+    """The 64 bytes ending at ``offset``: evidence the prefix already summarised is still that prefix.
+
+    Appending leaves it untouched, so it holds across a growing capture; rewriting the file moves or
+    changes it, which sends the next call back to a full read.
+    """
+    if offset <= 0:
+        return None
+    try:
+        with open(f, "rb") as fh:
+            fh.seek(max(0, offset - 64))
+            return hashlib.sha256(fh.read(64)).hexdigest()[:16]
+    except OSError:
+        return None
+
+
+def _iter_batches(f: Path, start: int) -> Iterator[tuple[Batch, int]]:
+    """Batches from byte ``start`` on, each with the offset just past the line it came from.
+
+    A capture still being written to can end mid-line, so the last partial record is left unread and the
+    offset stays on a record boundary for the next call to resume from.
+    """
+    with open(f, "rb") as fh:
+        fh.seek(start)
+        pos = start
+        for raw in fh:
+            if not raw.endswith(b"\n"):
+                break
+            pos += len(raw)
+            line = raw.strip()
+            if line:
+                yield Batch.model_validate(json.loads(line)), pos
 
 
 def _ms(v: float | None) -> float | None:
