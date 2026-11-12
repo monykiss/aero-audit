@@ -6,7 +6,7 @@
 # The container binds 0.0.0.0 inside its own network namespace; publish the port on 127.0.0.1 (as
 # above, or via compose.yaml) so only the host can reach it. To expose it on a LAN instead, drop
 # --allow-unauthenticated and set AERO_APP_TOKEN.
-FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/app AERO_HTTP_BACKEND=httpx
